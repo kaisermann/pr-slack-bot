@@ -9,7 +9,6 @@ module.exports = {
   extends: ['airbnb-base', 'prettier', 'plugin:import/recommended'],
   plugins: ['prettier', 'import'],
   env: {
-    browser: true,
     node: true,
     jest: true,
     es6: true,
@@ -18,7 +17,9 @@ module.exports = {
     ecmaVersion: 2018,
   },
   rules: {
+    'no-multi-assign': OFF,
     semi: [ERROR, 'always'],
+    'no-restricted-syntax': OFF,
     'no-extra-semi': ERROR,
     'prefer-template': WARN,
     'no-cond-assign': OFF,
