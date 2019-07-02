@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "author": "Christian Kaisermann <christian@kaisermann.me>",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "forever -o daemon.out -e daemon.err start daemon.js",
+    "restart": "forever stop daemon.js && npm run start",
     "test": "jest --no-cache",
     "test:watch": "jest --no-cache --watchAll",
     "lint": "eslint \"src/**/*.js\"",
@@ -20,9 +21,12 @@
     "prettier": "^1.16.4"
   },
   "dependencies": {
+    "@octokit/rest": "^16.28.2",
     "@slack/client": "^5.0.1",
     "@slack/rtm-api": "^5.0.1",
     "@slack/web-api": "^5.0.1",
-    "dotenv": "^8.0.0"
+    "dotenv": "^8.0.0",
+    "forever": "^1.0.0",
+    "lowdb": "^1.0.0"
   }
 }

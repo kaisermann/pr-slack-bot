@@ -1,40 +1,70 @@
-const { WebClient } = require('@slack/web-api');
-const { RTMClient } = require('@slack/rtm-api');
-
 require('dotenv').config();
 
-const EMOJIS = {
-  approved: 'white_check_mark',
-  commented: 'speech_balloon',
-  merged: 'merged',
-  changes: 'changes',
-};
+const {
+  registerPR,
+  unregisterPR,
+  hasPR,
+  getPRs,
+  updatePR,
+} = require('./db.js');
 
-const token = process.env.SLACK_TOKEN;
+const { onPRMessage } = require('./slack.js');
+const { createPR, checkPR, addReaction } = require('./pr.js');
+const { EMOJIS } = require('./consts.js');
 
-const RTM = new RTMClient(token);
-const WEB = new WebClient(token);
+const check = async meta => {
+  console.log(`Checking ${meta.slug}`);
+  const { merged, quick, reviewed } = await checkPR(meta);
 
-const PR_REGEX = /github\.com\/(?:[\w-]*?\/){2}pull\/(\d+)/i;
+  if (quick) {
+    await addReaction(EMOJIS.quick_read, meta);
+  }
 
-const addEmojiReaction = (emoji, channel, timestamp) => {
-  return WEB.reactions.add({ name: emoji, channel, timestamp });
-};
+  if (reviewed) {
+    await addReaction(EMOJIS.commented, meta);
+  }
 
-RTM.on('message', e => {
-  const { thread_ts, subtype, text, channel, event_ts } = e;
-  if (thread_ts != null || subtype != null) return;
-
-  const match = text.match(PR_REGEX);
-
-  if (match) {
-    addEmojiReaction(EMOJIS.approved, channel, event_ts);
-    addEmojiReaction(EMOJIS.merged, channel, event_ts);
+  if (merged) {
+    console.log(`- Merged`);
+    await addReaction(EMOJIS.merged, meta);
+    unregisterPR(meta);
   } else {
-    addEmojiReaction('thumbsdown', channel, event_ts);
+    updatePR(meta);
+  }
+};
+
+onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
+  try {
+    if (hasPR(slug)) {
+      return console.log(`${slug} is already being watched`);
+    }
+    console.log(`Watching ${slug}`);
+
+    const meta = createPR({
+      slug,
+      user,
+      repo,
+      prID,
+      channel,
+      timestamp,
+    });
+
+    registerPR(meta);
+    check(meta);
+  } catch (error) {
+    console.log(error);
   }
 });
 
-(async () => {
-  await RTM.start();
-})();
+setInterval(
+  (function loop() {
+    const PRs = getPRs();
+    console.clear();
+    console.log(`Watch list size: ${PRs.length}`);
+    for (const meta of PRs) {
+      check(meta);
+    }
+    return loop;
+  })(),
+  65 * 1000,
+);
