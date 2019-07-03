@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "author": "Christian Kaisermann <christian@kaisermann.me>",
   "scripts": {
-    "start": "forever -o daemon.out -e daemon.err start daemon.js",
+    "dev": "cross-env node daemon.js",
+    "start": "cross-env NODE_ENV=production node daemon.js",
+    "start:forever": "cross-env NODE_ENV=production forever -o daemon.out -e daemon.err start daemon.js",
     "restart": "forever stop daemon.js && npm run start",
     "test": "jest --no-cache",
     "test:watch": "jest --no-cache --watchAll",
@@ -11,6 +13,7 @@
     "format": "prettier --loglevel silent --write \"src/**/*.js\" && eslint --fix \"src/**/*.js\""
   },
   "devDependencies": {
+    "cross-env": "^5.2.0",
     "eslint": "^5.13.0",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-config-prettier": "^4.0.0",
