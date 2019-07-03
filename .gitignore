@@ -2,3 +2,4 @@ node_modules
 *.log
 daemon.*
 !daemon.js
+db.json
