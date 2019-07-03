@@ -4,6 +4,8 @@ const { WebClient, retryPolicies } = require('@slack/web-api');
 const TOKEN = process.env.SLACK_TOKEN;
 const RTM = new RTMClient(TOKEN);
 
+const PRIVATE_TEST_CHANNEL = 'GKSCG1GRX';
+
 const PR_REGEX = /github\.com\/([\w-]*)?\/([\w-]*?)\/pull\/(\d+)/i;
 
 exports.WebClient = new WebClient(TOKEN, {
@@ -15,7 +17,14 @@ exports.onPRMessage = async onMessage => {
     try {
       const { thread_ts, subtype, text } = e;
       // we just want channel messages
-      if (thread_ts != null || subtype != null) return;
+      if (
+        thread_ts != null ||
+        subtype != null ||
+        (process.env.NODE_ENV === 'production' &&
+          e.channel === PRIVATE_TEST_CHANNEL)
+      ) {
+        return;
+      }
 
       const match = text.match(PR_REGEX);
 
