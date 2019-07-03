@@ -11,7 +11,7 @@ exports.addReaction = async (name, meta) => {
     return;
   }
 
-  console.log(`Adding reaction: ${name}`);
+  console.log(`-- Adding reaction: ${name}`);
 
   meta.reactions.push(name);
 
@@ -26,7 +26,7 @@ exports.removeReaction = async (name, meta) => {
     return;
   }
 
-  console.log(`Removing reaction: ${name}`);
+  console.log(`-- Removing reaction: ${name}`);
 
   meta.reactions = meta.reactions.filter(r => r !== name);
 
@@ -91,7 +91,6 @@ exports.checkPR = async meta => {
     console.log(`- Has review comments: ${result.reviewed}`);
     console.log(`- Merged: ${result.merged}`);
     console.log(`- Posted ${minutesSinceMessage} minutes ago`);
-    console.log('');
   } catch (error) {
     console.log(error);
   }

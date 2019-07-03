@@ -44,6 +44,8 @@ const check = async meta => {
   } else {
     DB.updatePR(meta);
   }
+
+  console.log('');
 };
 
 onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
