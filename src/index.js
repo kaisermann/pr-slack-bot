@@ -27,6 +27,8 @@ const check = async meta => {
     await removeReaction(EMOJIS.changes, meta);
     if (approved) {
       await addReaction(EMOJIS.approved, meta);
+    } else {
+      await removeReaction(EMOJIS.approved, meta);
     }
   }
 
