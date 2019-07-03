@@ -12,7 +12,6 @@ const check = async meta => {
     quick,
     reviewed,
     changesRequested,
-    approved,
     needsAttention,
     closed,
     unstable,
@@ -26,11 +25,6 @@ const check = async meta => {
     await addReaction(EMOJIS.changes, meta);
   } else {
     await removeReaction(EMOJIS.changes, meta);
-    if (approved) {
-      await addReaction(EMOJIS.approved, meta);
-    } else {
-      await removeReaction(EMOJIS.approved, meta);
-    }
   }
 
   if (quick) {
