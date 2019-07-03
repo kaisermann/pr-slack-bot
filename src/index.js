@@ -28,8 +28,11 @@ const check = async meta => {
 
   if (changesRequested) {
     await addReaction(EMOJIS.changes, meta);
-  } else if (approved) {
-    await addReaction(EMOJIS.approved, meta);
+  } else {
+    await removeReaction(EMOJIS.changes, meta);
+    if (approved) {
+      await addReaction(EMOJIS.approved, meta);
+    }
   }
 
   if (quick) {
@@ -42,7 +45,6 @@ const check = async meta => {
 
   if (merged) {
     await addReaction(EMOJIS.merged, meta);
-    await removeReaction(EMOJIS.changes, meta);
     await removeReaction(EMOJIS.needsAttention, meta);
     unregisterPR(meta);
   } else {
