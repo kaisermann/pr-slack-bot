@@ -15,6 +15,7 @@ const check = async meta => {
     approved,
     needsAttention,
     closed,
+    unstable,
   } = await checkPR(meta);
 
   if (needsAttention) {
@@ -40,7 +41,12 @@ const check = async meta => {
     await addReaction(EMOJIS.commented, meta);
   }
 
+  if (unstable) {
+    await addReaction(EMOJIS.unstable, meta);
+  }
+
   if (merged || closed) {
+    await removeReaction(EMOJIS.unstable, meta);
     await removeReaction(EMOJIS.needsAttention, meta);
     if (merged) {
       await addReaction(EMOJIS.merged, meta);

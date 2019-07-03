@@ -52,16 +52,20 @@ exports.createPR = ({ slug, user, repo, prID, channel, timestamp }) => {
 
 exports.checkPR = async meta => {
   try {
+    const owner = meta.user;
+    const repo = meta.repoName;
+    const pull_number = meta.prID;
+
     const pr = await GithubClient.pulls.get({
-      owner: meta.user,
-      repo: meta.repoName,
-      pull_number: meta.prID,
+      owner,
+      repo,
+      pull_number,
     });
 
     const reviews = await GithubClient.pulls.listReviews({
-      owner: meta.user,
-      repo: meta.repoName,
-      pull_number: meta.prID,
+      owner,
+      repo,
+      pull_number,
     });
 
     const changesRequested = reviews.data.some(
@@ -79,6 +83,7 @@ exports.checkPR = async meta => {
       quick: pr.data.additions <= QUICK_ADDITION_LIMIT,
       reviewed: pr.data.review_comments > 0,
       merged: pr.data.merged,
+      unstable: pr.data.mergeable_state === 'unstable',
       needsAttention: minutesSinceMessage >= MINUTES_TO_NEED_ATTENTION,
       closed: pr.data.state === 'closed',
     };
@@ -88,6 +93,7 @@ exports.checkPR = async meta => {
     console.log(`- Changes Requested: ${result.changesRequested}`);
     console.log(`- Approved: ${result.approved}`);
     console.log(`- Has review comments: ${result.reviewed}`);
+    console.log(`- Unstable: ${result.unstable}`);
     console.log(`- Merged: ${result.merged}`);
     console.log(`- Posted ${minutesSinceMessage} minutes ago`);
 
