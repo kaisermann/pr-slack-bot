@@ -75,15 +75,15 @@ onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
   }
 });
 
-setInterval(
-  (function loop() {
-    const PRs = getPRs();
-    console.clear();
-    console.log(`Watch list size: ${PRs.length}`);
-    for (const meta of PRs) {
-      check(meta);
-    }
-    return loop;
-  })(),
-  65 * 1000,
-);
+function loop() {
+  const PRs = getPRs();
+  console.clear();
+  console.log(`Watch list size: ${PRs.length}`);
+  console.log('--------');
+  for (const meta of PRs) {
+    check(meta);
+  }
+}
+
+loop();
+setInterval(loop, 65 * 1000);

@@ -14,6 +14,7 @@ exports.onPRMessage = async onMessage => {
   RTM.on('message', e => {
     try {
       const { thread_ts, subtype, text } = e;
+      // we just want channel messages
       if (thread_ts != null || subtype != null) return;
 
       const match = text.match(PR_REGEX);
