@@ -6,4 +6,5 @@ exports.EMOJIS = {
   changes: 'changes',
   quick_read: 'zap',
   needsAttention: 'alert',
+  closed: 'closedpr',
 };
