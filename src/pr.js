@@ -38,19 +38,15 @@ exports.removeReaction = async (name, meta) => {
 };
 
 exports.createPR = ({ slug, user, repo, prID, channel, timestamp }) => {
-  try {
-    return {
-      slug,
-      prID,
-      user,
-      repoName: repo,
-      channel,
-      timestamp,
-      reactions: [],
-    };
-  } catch (error) {
-    console.error(error);
-  }
+  return {
+    slug,
+    prID,
+    user,
+    repoName: repo,
+    channel,
+    timestamp,
+    reactions: [],
+  };
 };
 
 exports.checkPR = async meta => {
@@ -82,6 +78,7 @@ exports.checkPR = async meta => {
       reviewed: pr.data.review_comments > 0,
       merged: pr.data.merged,
       needsAttention: minutesSinceMessage >= MINUTES_TO_NEED_ATTENTION,
+      closed: pr.data.state === 'closed',
     };
 
     console.log(`Checking: ${meta.slug}`);

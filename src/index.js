@@ -14,6 +14,7 @@ const check = async meta => {
     changesRequested,
     approved,
     needsAttention,
+    closed,
   } = await checkPR(meta);
 
   if (needsAttention) {
@@ -37,9 +38,13 @@ const check = async meta => {
     await addReaction(EMOJIS.commented, meta);
   }
 
-  if (merged) {
-    await addReaction(EMOJIS.merged, meta);
+  if (merged || closed) {
     await removeReaction(EMOJIS.needsAttention, meta);
+    if (merged) {
+      await addReaction(EMOJIS.merged, meta);
+    } else {
+      await addReaction(EMOJIS.closed, meta);
+    }
     DB.unregisterPR(meta);
   } else {
     DB.updatePR(meta);
