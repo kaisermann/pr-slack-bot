@@ -78,18 +78,20 @@ exports.checkPR = async meta => {
     const minutesSinceMessage =
       Math.abs(new Date(meta.timestamp * 1000) - new Date()) / (1000 * 60);
 
-    console.log(`- Changes Requested: ${changesRequested}`);
-    console.log(`- Approved: ${approved}`);
-    console.log(`- Merged: ${pr.data.merged}`);
-    console.log(`- Posted ${minutesSinceMessage} minutes ago`);
-    console.log('');
-
     result.changesRequested = changesRequested;
     result.approved = approved;
     result.quick = pr.data.additions <= QUICK_ADDITION_LIMIT;
     result.reviewed = pr.data.review_comments > 0;
     result.merged = pr.data.merged;
     result.needsAttention = minutesSinceMessage >= MINUTES_TO_NEED_ATTENTION;
+
+    console.log(`- Quick PR: ${result.quick}`);
+    console.log(`- Changes Requested: ${result.changesRequested}`);
+    console.log(`- Approved: ${result.approved}`);
+    console.log(`- Has review comments: ${result.reviewed}`);
+    console.log(`- Merged: ${result.merged}`);
+    console.log(`- Posted ${minutesSinceMessage} minutes ago`);
+    console.log('');
   } catch (error) {
     console.log(error);
   }
