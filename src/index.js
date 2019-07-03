@@ -9,12 +9,20 @@ const {
 } = require('./db.js');
 
 const { onPRMessage } = require('./slack.js');
-const { createPR, checkPR, addReaction } = require('./pr.js');
+const { createPR, checkPR, addReaction, removeReaction } = require('./pr.js');
 const { EMOJIS } = require('./consts.js');
 
 const check = async meta => {
   console.log(`Checking ${meta.slug}`);
-  const { merged, quick, reviewed } = await checkPR(meta);
+  const { merged, quick, reviewed, changesRequested, approved } = await checkPR(
+    meta,
+  );
+
+  if (changesRequested) {
+    await addReaction(EMOJIS.changes, meta);
+  } else if (approved) {
+    await addReaction(EMOJIS.approved, meta);
+  }
 
   if (quick) {
     await addReaction(EMOJIS.quick_read, meta);
@@ -25,8 +33,8 @@ const check = async meta => {
   }
 
   if (merged) {
-    console.log(`- Merged`);
     await addReaction(EMOJIS.merged, meta);
+    await removeReaction(EMOJIS.changes, meta);
     unregisterPR(meta);
   } else {
     updatePR(meta);

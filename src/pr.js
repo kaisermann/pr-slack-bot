@@ -18,6 +18,21 @@ exports.addReaction = async (name, meta) => {
     channel: meta.channel,
   });
 };
+exports.removeReaction = async (name, meta) => {
+  if (!meta.reactions.includes(name)) {
+    return;
+  }
+
+  console.log(`Removing reaction: ${name}`);
+
+  meta.reactions = meta.reactions.filter(r => r !== name);
+
+  return WebClient.reactions.remove({
+    name,
+    timestamp: meta.timestamp,
+    channel: meta.channel,
+  });
+};
 
 exports.createPR = ({ slug, user, repo, prID, channel, timestamp }) => {
   try {
@@ -45,17 +60,23 @@ exports.checkPR = async meta => {
       pull_number: meta.prID,
     });
 
-    if (pr.data.additions < 80) {
-      result.quick = true;
-    }
+    const reviews = await github.pulls.listReviews({
+      owner: meta.user,
+      repo: meta.repoName,
+      pull_number: meta.prID,
+    });
 
-    if (pr.data.review_comments > 0) {
-      result.reviewed = true;
-    }
+    const changesRequested = reviews.data.some(
+      r => r.state === 'CHANGES_REQUESTED',
+    );
 
-    if (pr.data.merged) {
-      result.merged = true;
-    }
+    const approved = reviews.data.some(r => r.state === 'APPROVED');
+
+    result.changesRequested = changesRequested;
+    result.approved = approved;
+    result.quick = pr.data.additions < 80;
+    result.reviewed = pr.data.review_comments > 0;
+    result.merged = pr.data.merged;
   } catch (error) {
     console.log(error);
   }
