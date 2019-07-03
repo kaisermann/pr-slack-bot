@@ -1,6 +1,6 @@
 exports.EMOJIS = {
   watching: 'robot_face',
-  approved: 'heavy_check_mark',
+  approved: 'top',
   commented: 'speech_balloon',
   merged: 'merged',
   changes: 'changes',
