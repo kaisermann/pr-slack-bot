@@ -5,6 +5,7 @@ const { WebClient } = require('./slack.js');
 
 const MINUTES_TO_NEED_ATTENTION = 60;
 const QUICK_ADDITION_LIMIT = 80;
+const NEEDED_REVIEWS = 2;
 
 exports.addReaction = async (name, meta) => {
   if (meta.reactions.includes(name)) {
@@ -66,7 +67,8 @@ exports.checkPR = async meta => {
     const changesRequested = reviews.data.some(
       r => r.state === 'CHANGES_REQUESTED',
     );
-    const approved = reviews.data.some(r => r.state === 'APPROVED');
+    const approved =
+      reviews.data.filter(r => r.state === 'APPROVED').length >= NEEDED_REVIEWS;
 
     const minutesSinceMessage =
       Math.abs(new Date(meta.timestamp * 1000) - new Date()) / (1000 * 60);
