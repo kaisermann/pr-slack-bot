@@ -57,7 +57,6 @@ exports.checkPR = async meta => {
   const result = {};
 
   try {
-    console.log(`Checking: ${meta.slug}`);
     const pr = await github.pulls.get({
       owner: meta.user,
       repo: meta.repoName,
@@ -85,6 +84,7 @@ exports.checkPR = async meta => {
     result.merged = pr.data.merged;
     result.needsAttention = minutesSinceMessage >= MINUTES_TO_NEED_ATTENTION;
 
+    console.log(`Checking: ${meta.slug}`);
     console.log(`- Quick PR: ${result.quick}`);
     console.log(`- Changes Requested: ${result.changesRequested}`);
     console.log(`- Approved: ${result.approved}`);
