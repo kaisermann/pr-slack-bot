@@ -3,6 +3,9 @@ require('dotenv').config();
 const { github } = require('./github.js');
 const { WebClient } = require('./slack.js');
 
+const MINUTES_TO_NEED_ATTENTION = 60;
+const QUICK_ADDITION_LIMIT = 80;
+
 exports.addReaction = async (name, meta) => {
   if (meta.reactions.includes(name)) {
     return;
@@ -54,6 +57,7 @@ exports.checkPR = async meta => {
   const result = {};
 
   try {
+    console.log(`Checking: ${meta.slug}`);
     const pr = await github.pulls.get({
       owner: meta.user,
       repo: meta.repoName,
@@ -69,14 +73,23 @@ exports.checkPR = async meta => {
     const changesRequested = reviews.data.some(
       r => r.state === 'CHANGES_REQUESTED',
     );
-
     const approved = reviews.data.some(r => r.state === 'APPROVED');
+
+    const minutesSinceMessage =
+      (new Date(meta.timestamp * 1000) - new Date()) / (1000 * 60);
+
+    console.log(`- Changes Requested: ${changesRequested}`);
+    console.log(`- Approved: ${approved}`);
+    console.log(`- Merged: ${pr.data.merged}`);
+    console.log(`- Posted ${minutesSinceMessage} minutes ago`);
+    console.log('');
 
     result.changesRequested = changesRequested;
     result.approved = approved;
-    result.quick = pr.data.additions < 80;
+    result.quick = pr.data.additions <= QUICK_ADDITION_LIMIT;
     result.reviewed = pr.data.review_comments > 0;
     result.merged = pr.data.merged;
+    result.needsAttention = minutesSinceMessage >= MINUTES_TO_NEED_ATTENTION;
   } catch (error) {
     console.log(error);
   }

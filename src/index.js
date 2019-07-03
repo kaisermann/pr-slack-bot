@@ -13,10 +13,18 @@ const { createPR, checkPR, addReaction, removeReaction } = require('./pr.js');
 const { EMOJIS } = require('./consts.js');
 
 const check = async meta => {
-  console.log(`Checking ${meta.slug}`);
-  const { merged, quick, reviewed, changesRequested, approved } = await checkPR(
-    meta,
-  );
+  const {
+    merged,
+    quick,
+    reviewed,
+    changesRequested,
+    approved,
+    needsAttention,
+  } = await checkPR(meta);
+
+  if (needsAttention) {
+    await addReaction(EMOJIS.needsAttention, meta);
+  }
 
   if (changesRequested) {
     await addReaction(EMOJIS.changes, meta);
@@ -35,6 +43,7 @@ const check = async meta => {
   if (merged) {
     await addReaction(EMOJIS.merged, meta);
     await removeReaction(EMOJIS.changes, meta);
+    await removeReaction(EMOJIS.needsAttention, meta);
     unregisterPR(meta);
   } else {
     updatePR(meta);
