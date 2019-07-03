@@ -43,10 +43,11 @@ const check = async meta => {
 
   if (unstable) {
     await addReaction(EMOJIS.unstable, meta);
+  } else {
+    await removeReaction(EMOJIS.unstable, meta);
   }
 
   if (merged || closed) {
-    await removeReaction(EMOJIS.unstable, meta);
     await removeReaction(EMOJIS.needsAttention, meta);
     if (merged) {
       await addReaction(EMOJIS.merged, meta);
