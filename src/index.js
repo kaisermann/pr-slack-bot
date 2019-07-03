@@ -1,12 +1,6 @@
 require('dotenv').config();
 
-const {
-  registerPR,
-  unregisterPR,
-  hasPR,
-  getPRs,
-  updatePR,
-} = require('./db.js');
+const DB = require('./db.js');
 
 const { onPRMessage } = require('./slack.js');
 const { createPR, checkPR, addReaction, removeReaction } = require('./pr.js');
@@ -46,15 +40,15 @@ const check = async meta => {
   if (merged) {
     await addReaction(EMOJIS.merged, meta);
     await removeReaction(EMOJIS.needsAttention, meta);
-    unregisterPR(meta);
+    DB.unregisterPR(meta);
   } else {
-    updatePR(meta);
+    DB.updatePR(meta);
   }
 };
 
 onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
   try {
-    if (hasPR(slug)) {
+    if (DB.hasPR(slug)) {
       return console.log(`${slug} is already being watched`);
     }
     console.log(`Watching ${slug}`);
@@ -68,7 +62,7 @@ onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
       timestamp,
     });
 
-    registerPR(meta);
+    DB.registerPR(meta);
     check(meta);
   } catch (error) {
     console.log(error);
@@ -76,7 +70,7 @@ onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
 });
 
 function loop() {
-  const PRs = getPRs();
+  const PRs = DB.getPRs();
   console.clear();
   console.log(`Watch list size: ${PRs.length}`);
   console.log('--------');
