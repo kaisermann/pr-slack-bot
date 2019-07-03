@@ -76,7 +76,7 @@ exports.checkPR = async meta => {
     const approved = reviews.data.some(r => r.state === 'APPROVED');
 
     const minutesSinceMessage =
-      (new Date(meta.timestamp * 1000) - new Date()) / (1000 * 60);
+      Math.abs(new Date(meta.timestamp * 1000) - new Date()) / (1000 * 60);
 
     console.log(`- Changes Requested: ${changesRequested}`);
     console.log(`- Approved: ${approved}`);
