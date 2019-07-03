@@ -7,4 +7,5 @@ exports.EMOJIS = {
   quick_read: 'zap',
   needsAttention: 'alert',
   closed: 'closedpr',
+  unstable: 'warning',
 };
