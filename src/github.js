@@ -1,5 +1,5 @@
 const Octokit = require('@octokit/rest');
 
-exports.github = Octokit({
+exports.GithubClient = Octokit({
   auth: process.env.GITHUB_TOKEN,
 });

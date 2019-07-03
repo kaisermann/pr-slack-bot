@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { github } = require('./github.js');
+const { GithubClient } = require('./github.js');
 const { WebClient } = require('./slack.js');
 
 const MINUTES_TO_NEED_ATTENTION = 60;
@@ -54,16 +54,14 @@ exports.createPR = ({ slug, user, repo, prID, channel, timestamp }) => {
 };
 
 exports.checkPR = async meta => {
-  const result = {};
-
   try {
-    const pr = await github.pulls.get({
+    const pr = await GithubClient.pulls.get({
       owner: meta.user,
       repo: meta.repoName,
       pull_number: meta.prID,
     });
 
-    const reviews = await github.pulls.listReviews({
+    const reviews = await GithubClient.pulls.listReviews({
       owner: meta.user,
       repo: meta.repoName,
       pull_number: meta.prID,
@@ -77,12 +75,14 @@ exports.checkPR = async meta => {
     const minutesSinceMessage =
       Math.abs(new Date(meta.timestamp * 1000) - new Date()) / (1000 * 60);
 
-    result.changesRequested = changesRequested;
-    result.approved = approved;
-    result.quick = pr.data.additions <= QUICK_ADDITION_LIMIT;
-    result.reviewed = pr.data.review_comments > 0;
-    result.merged = pr.data.merged;
-    result.needsAttention = minutesSinceMessage >= MINUTES_TO_NEED_ATTENTION;
+    const result = {
+      changesRequested,
+      approved,
+      quick: pr.data.additions <= QUICK_ADDITION_LIMIT,
+      reviewed: pr.data.review_comments > 0,
+      merged: pr.data.merged,
+      needsAttention: minutesSinceMessage >= MINUTES_TO_NEED_ATTENTION,
+    };
 
     console.log(`Checking: ${meta.slug}`);
     console.log(`- Quick PR: ${result.quick}`);
@@ -91,9 +91,11 @@ exports.checkPR = async meta => {
     console.log(`- Has review comments: ${result.reviewed}`);
     console.log(`- Merged: ${result.merged}`);
     console.log(`- Posted ${minutesSinceMessage} minutes ago`);
+
+    return result;
   } catch (error) {
     console.log(error);
   }
 
-  return result;
+  return {};
 };
