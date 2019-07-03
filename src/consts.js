@@ -5,4 +5,5 @@ exports.EMOJIS = {
   merged: 'merged',
   changes: 'changes',
   quick_read: 'zap',
+  needsAttention: 'alert',
 };
