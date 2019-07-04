@@ -7,34 +7,42 @@ const QUICK_ADDITION_LIMIT = 80;
 const NEEDED_REVIEWS = 2;
 
 exports.addReaction = async (name, meta) => {
-  if (meta.reactions.includes(name)) {
-    return;
+  try {
+    if (meta.reactions.includes(name)) {
+      return;
+    }
+
+    console.log(`-- Adding reaction: ${name}`);
+
+    meta.reactions.push(name);
+
+    return SlackWebClient.reactions.add({
+      name,
+      timestamp: meta.timestamp,
+      channel: meta.channel,
+    });
+  } catch (e) {
+    console.error(e);
   }
-
-  console.log(`-- Adding reaction: ${name}`);
-
-  meta.reactions.push(name);
-
-  return SlackWebClient.reactions.add({
-    name,
-    timestamp: meta.timestamp,
-    channel: meta.channel,
-  });
 };
 exports.removeReaction = async (name, meta) => {
-  if (!meta.reactions.includes(name)) {
-    return;
+  try {
+    if (!meta.reactions.includes(name)) {
+      return;
+    }
+
+    console.log(`-- Removing reaction: ${name}`);
+
+    meta.reactions = meta.reactions.filter(r => r !== name);
+
+    return SlackWebClient.reactions.remove({
+      name,
+      timestamp: meta.timestamp,
+      channel: meta.channel,
+    });
+  } catch (e) {
+    console.error(e);
   }
-
-  console.log(`-- Removing reaction: ${name}`);
-
-  meta.reactions = meta.reactions.filter(r => r !== name);
-
-  return SlackWebClient.reactions.remove({
-    name,
-    timestamp: meta.timestamp,
-    channel: meta.channel,
-  });
 };
 
 exports.create = ({ slug, user, repo, prID, channel, timestamp }) => {
@@ -131,10 +139,13 @@ exports.needsAttention = (meta, hours) =>
 
 exports.hasInteracted = (meta, id) => !!meta.bot_interactions[id];
 
-exports.sendMessage = (meta, id, text) => {
-  if (!exports.hasInteracted(meta, id)) {
-    console.log(`-- Sending reply: ${text}`);
-    meta.bot_interactions[id] = true;
-    sendMessage(text, meta.channel, meta.timestamp);
+exports.sendMessage = async (meta, id, text) => {
+  if (exports.hasInteracted(meta, id)) {
+    return;
   }
+
+  console.log(`-- Sending reply: ${text}`);
+  meta.bot_interactions[id] = true;
+
+  return sendMessage(text, meta.channel, meta.timestamp);
 };
