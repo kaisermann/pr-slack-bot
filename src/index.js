@@ -100,7 +100,7 @@ async function listAbandonedPRs() {
   if (!prs.length) return;
 
   let message =
-    'Hello :wave: Paulo Ricardo here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
+    'Hello :wave: Paulo Roberto here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
 
   for await (const pr of prs) {
     const messageUrl = await PR.getMessageUrl(pr);
@@ -118,7 +118,7 @@ cron.schedule('* * * * *', checkPRs, {
 });
 
 // listAbandonedPRs();
-cron.schedule('0 15,18 * * 1-5', listAbandonedPRs, {
-  scheduled: true,
-  timezone: 'America/Sao_Paulo',
-});
+// cron.schedule('0 15,18 * * 1-5', listAbandonedPRs, {
+//   scheduled: true,
+//   timezone: 'America/Sao_Paulo',
+// });
