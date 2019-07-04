@@ -133,6 +133,7 @@ exports.hasInteracted = (meta, id) => !!meta.bot_interactions[id];
 
 exports.sendMessage = (meta, id, text) => {
   if (!exports.hasInteracted(meta, id)) {
+    console.log(`-- Sending reply: ${text}`);
     meta.bot_interactions[id] = true;
     sendMessage(text, meta.channel, meta.timestamp);
   }
