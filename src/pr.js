@@ -107,7 +107,7 @@ exports.getMessageUrl = async meta => {
     message_ts: meta.timestamp,
   });
 
-  return response.permalink;
+  return response.permalink.replace(/\?.*$/, '');
 };
 
 // return in minutes
