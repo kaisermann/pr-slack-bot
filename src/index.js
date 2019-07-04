@@ -118,7 +118,7 @@ cron.schedule('* * * * *', checkPRs, {
 });
 
 // listAbandonedPRs();
-// cron.schedule('0 15,18 * * 1-5', listAbandonedPRs, {
-//   scheduled: true,
-//   timezone: 'America/Sao_Paulo',
-// });
+cron.schedule('0 14 * * 1-5', listAbandonedPRs, {
+  scheduled: true,
+  timezone: 'America/Sao_Paulo',
+});
