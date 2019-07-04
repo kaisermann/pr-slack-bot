@@ -84,7 +84,7 @@ exports.checkPR = async meta => {
       reviewed: pr.data.review_comments > 0,
       merged: pr.data.merged,
       unstable: pr.data.mergeable_state === 'unstable',
-      needsAttention: minutesSinceMessage >= MINUTES_TO_NEED_ATTENTION,
+      // needsAttention: minutesSinceMessage >= MINUTES_TO_NEED_ATTENTION,
       closed: pr.data.state === 'closed',
     };
 

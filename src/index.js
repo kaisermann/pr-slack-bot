@@ -12,14 +12,14 @@ const check = async meta => {
     quick,
     reviewed,
     changesRequested,
-    needsAttention,
+    // needsAttention,
     closed,
     unstable,
   } = await checkPR(meta);
 
-  if (needsAttention) {
-    await addReaction(EMOJIS.needsAttention, meta);
-  }
+  // if (needsAttention) {
+  //   await addReaction(EMOJIS.needsAttention, meta);
+  // }
 
   if (changesRequested) {
     await addReaction(EMOJIS.changes, meta);
@@ -42,7 +42,7 @@ const check = async meta => {
   }
 
   if (merged || closed) {
-    await removeReaction(EMOJIS.needsAttention, meta);
+    // await removeReaction(EMOJIS.needsAttention, meta);
     if (merged) {
       await addReaction(EMOJIS.merged, meta);
     } else {
