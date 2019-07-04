@@ -1,9 +1,10 @@
 require('dotenv').config();
 
+const cron = require('node-cron');
 const DB = require('./db.js');
 
 const { onPRMessage } = require('./slack.js');
-const { createPR, checkPR, addReaction, removeReaction } = require('./pr.js');
+const PR = require('./pr.js');
 const { EMOJIS } = require('./consts.js');
 
 const check = async meta => {
@@ -12,41 +13,35 @@ const check = async meta => {
     quick,
     reviewed,
     changesRequested,
-    // needsAttention,
     closed,
     unstable,
-  } = await checkPR(meta);
-
-  // if (needsAttention) {
-  //   await addReaction(EMOJIS.needsAttention, meta);
-  // }
+  } = await PR.check(meta);
 
   if (changesRequested) {
-    await addReaction(EMOJIS.changes, meta);
+    await PR.addReaction(EMOJIS.changes, meta);
   } else {
-    await removeReaction(EMOJIS.changes, meta);
+    await PR.removeReaction(EMOJIS.changes, meta);
   }
 
   if (quick) {
-    await addReaction(EMOJIS.quick_read, meta);
+    await PR.addReaction(EMOJIS.quick_read, meta);
   }
 
   if (reviewed) {
-    await addReaction(EMOJIS.commented, meta);
+    await PR.addReaction(EMOJIS.commented, meta);
   }
 
   if (unstable) {
-    await addReaction(EMOJIS.unstable, meta);
+    await PR.addReaction(EMOJIS.unstable, meta);
   } else {
-    await removeReaction(EMOJIS.unstable, meta);
+    await PR.removeReaction(EMOJIS.unstable, meta);
   }
 
   if (merged || closed) {
-    // await removeReaction(EMOJIS.needsAttention, meta);
     if (merged) {
-      await addReaction(EMOJIS.merged, meta);
+      await PR.addReaction(EMOJIS.merged, meta);
     } else {
-      await addReaction(EMOJIS.closed, meta);
+      await PR.addReaction(EMOJIS.closed, meta);
     }
     DB.unregisterPR(meta);
   } else {
@@ -63,7 +58,7 @@ onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
     }
     console.log(`Watching ${slug}`);
 
-    const meta = createPR({
+    const meta = PR.create({
       slug,
       user,
       repo,
@@ -79,7 +74,7 @@ onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
   }
 });
 
-function loop() {
+function checkPRs() {
   const PRs = DB.getPRs();
   console.clear();
   console.log(`Watch list size: ${PRs.length}`);
@@ -89,5 +84,25 @@ function loop() {
   }
 }
 
-loop();
-setInterval(loop, 65 * 1000);
+async function listAbandonedPRs() {
+  const PRs = DB.getPRs().filter(pr => PR.needsAttention(pr, 12));
+  let message = 'Abandoned PRs:\n';
+
+  for await (const meta of PRs) {
+    const messageUrl = await PR.getMessageUrl(meta);
+    message += `${messageUrl}\n`;
+  }
+
+  console.log(message);
+}
+
+checkPRs();
+cron.schedule('* * * * *', checkPRs, {
+  scheduled: true,
+  timezone: 'America/Sao_Paulo',
+});
+
+cron.schedule('* * * * *' /* '0 15 * * 1-5' */, listAbandonedPRs, {
+  scheduled: true,
+  timezone: 'America/Sao_Paulo',
+});
