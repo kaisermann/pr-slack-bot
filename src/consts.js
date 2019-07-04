@@ -9,3 +9,6 @@ exports.EMOJIS = {
   closed: 'closedpr',
   unstable: 'warning',
 };
+
+
+exports.ATTENTION_HOUR_THRESHOLD = 24;
