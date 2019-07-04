@@ -55,32 +55,41 @@ exports.check = async meta => {
     const repo = meta.repoName;
     const pull_number = meta.prID;
 
-    const pr = await GithubClient.pulls.get({
+    const pr = (await GithubClient.pulls.get({
       owner,
       repo,
       pull_number,
-    });
+    })).data;
 
-    const reviews = await GithubClient.pulls.listReviews({
+    const reviewData = (await GithubClient.pulls.listReviews({
       owner,
       repo,
       pull_number,
-    });
+    })).data;
 
-    const changesRequested = reviews.data.some(
-      r => r.state === 'CHANGES_REQUESTED',
+    // review data mantains both change request and approved
+    // we use the last review of an user as the current review state
+    const reviews = Object.values(
+      reviewData.reduce((acc, { user, state }) => {
+        acc[user.login] = state;
+        return acc;
+      }, {}),
+    );
+
+    const changesRequested = reviews.some(
+      state => state === 'CHANGES_REQUESTED',
     );
     const approved =
-      reviews.data.filter(r => r.state === 'APPROVED').length >= NEEDED_REVIEWS;
+      reviews.filter(r => r.state === 'APPROVED').length >= NEEDED_REVIEWS;
 
     const result = {
       changesRequested,
       approved,
-      quick: pr.data.additions <= QUICK_ADDITION_LIMIT,
-      reviewed: pr.data.review_comments > 0,
-      merged: pr.data.merged,
-      unstable: pr.data.mergeable_state === 'unstable',
-      closed: pr.data.state === 'closed',
+      quick: pr.additions <= QUICK_ADDITION_LIMIT,
+      reviewed: pr.review_comments > 0,
+      merged: pr.merged,
+      unstable: pr.mergeable_state === 'unstable',
+      closed: pr.state === 'closed',
     };
 
     console.log(`Checking: ${meta.slug} | ${meta.channel} | ${meta.timestamp}`);
