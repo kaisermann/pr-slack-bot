@@ -42,7 +42,7 @@ const check = async meta => {
     await PR.sendMessage(
       meta,
       'ready_to_merge',
-      'PR is ready to be merged :merged:!',
+      'PR is ready to be merged :doit:!',
     );
   }
 
@@ -100,7 +100,7 @@ async function listAbandonedPRs() {
   if (!prs.length) return;
 
   let message =
-    'Hello :wave: Paulo Ricardo here! There are some PRs posted more than 24 hours ago needing attention:\n\n';
+    'Hello :wave: Paulo Ricardo here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
 
   for await (const pr of prs) {
     const messageUrl = await PR.getMessageUrl(pr);
