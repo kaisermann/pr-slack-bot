@@ -52,9 +52,9 @@ const check = async meta => {
     } else {
       await PR.addReaction(EMOJIS.closed, meta);
     }
-    DB.unregisterPR(meta);
+    DB.unsetPR(meta);
   } else {
-    DB.updatePR(meta);
+    DB.setPR(meta);
   }
 
   console.log('');
@@ -76,7 +76,7 @@ onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
       timestamp,
     });
 
-    DB.registerPR(meta);
+    DB.setPR(meta);
     check(meta);
   } catch (error) {
     console.log(error);

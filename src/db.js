@@ -6,20 +6,13 @@ const db = low(adapter);
 
 db.defaults({ prs: {} }).write();
 
-exports.registerPR = ({ repo, ...meta }) => {
+exports.setPR = (meta) => {
   db.get('prs')
     .set(meta.slug, meta)
     .write();
 };
 
-exports.updatePR = meta => {
-  db.get('prs')
-    .get(meta.slug)
-    .map(() => meta)
-    .write();
-};
-
-exports.unregisterPR = meta => {
+exports.unsetPR = meta => {
   db.get('prs')
     .unset(meta.slug)
     .write();
