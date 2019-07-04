@@ -38,7 +38,7 @@ exports.removeReaction = async (name, meta) => {
   });
 };
 
-exports.createPR = ({ slug, user, repo, prID, channel, timestamp }) => {
+exports.create = ({ slug, user, repo, prID, channel, timestamp }) => {
   return {
     slug,
     prID,
@@ -50,7 +50,7 @@ exports.createPR = ({ slug, user, repo, prID, channel, timestamp }) => {
   };
 };
 
-exports.checkPR = async meta => {
+exports.check = async meta => {
   try {
     const owner = meta.user;
     const repo = meta.repoName;
@@ -74,9 +74,6 @@ exports.checkPR = async meta => {
     const approved =
       reviews.data.filter(r => r.state === 'APPROVED').length >= NEEDED_REVIEWS;
 
-    const minutesSinceMessage =
-      Math.abs(new Date(meta.timestamp * 1000) - new Date()) / (1000 * 60);
-
     const result = {
       changesRequested,
       approved,
@@ -84,18 +81,17 @@ exports.checkPR = async meta => {
       reviewed: pr.data.review_comments > 0,
       merged: pr.data.merged,
       unstable: pr.data.mergeable_state === 'unstable',
-      // needsAttention: minutesSinceMessage >= MINUTES_TO_NEED_ATTENTION,
       closed: pr.data.state === 'closed',
     };
 
-    console.log(`Checking: ${meta.slug}`);
+    console.log(`Checking: ${meta.slug} | ${meta.channel} | ${meta.timestamp}`);
     console.log(`- Quick PR: ${result.quick}`);
     console.log(`- Changes Requested: ${result.changesRequested}`);
     console.log(`- Approved: ${result.approved}`);
     console.log(`- Has review comments: ${result.reviewed}`);
     console.log(`- Unstable: ${result.unstable}`);
     console.log(`- Merged: ${result.merged}`);
-    console.log(`- Posted ${minutesSinceMessage} minutes ago`);
+    console.log(`- Posted ${exports.timeSincePost(meta)} minutes ago`);
 
     return result;
   } catch (error) {
@@ -104,3 +100,20 @@ exports.checkPR = async meta => {
 
   return {};
 };
+
+exports.getMessageUrl = async meta => {
+  const response = await WebClient.chat.getPermalink({
+    channel: meta.channel,
+    message_ts: meta.timestamp,
+  });
+
+  return response.permalink;
+};
+
+// return in minutes
+exports.timeSincePost = meta =>
+  Math.abs(new Date(meta.timestamp * 1000) - new Date()) / (1000 * 60);
+
+// consider in hours
+exports.needsAttention = (meta, hours) =>
+  exports.timeSincePost(meta) >= 60 * hours;
