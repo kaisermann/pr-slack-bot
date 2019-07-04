@@ -8,9 +8,10 @@ const PRIVATE_TEST_CHANNEL = 'GKSCG1GRX';
 
 const PR_REGEX = /github\.com\/([\w-]*)?\/([\w-]*?)\/pull\/(\d+)/i;
 
-exports.WebClient = new WebClient(TOKEN, {
+const SlackWebClient = new WebClient(TOKEN, {
   retryConfig: retryPolicies.rapidRetryPolicy,
 });
+exports.SlackWebClient = SlackWebClient;
 
 exports.onPRMessage = async onMessage => {
   RTM.on('message', e => {
@@ -46,4 +47,15 @@ exports.onPRMessage = async onMessage => {
   });
 
   await RTM.start();
+};
+
+exports.sendMessage = (text, channel, thread_ts) => {
+  SlackWebClient.chat.postMessage({
+    text,
+    channel,
+    thread_ts,
+    unfurl_links: false,
+    // send as paulo ricardo
+    as_user: true,
+  });
 };
