@@ -90,7 +90,9 @@ exports.check = async meta => {
     console.log(`- Has review comments: ${result.reviewed}`);
     console.log(`- Unstable: ${result.unstable}`);
     console.log(`- Merged: ${result.merged}`);
-    console.log(`- Posted ${exports.timeSincePost(meta)} minutes ago`);
+    console.log(
+      `- Posted ${parseInt(exports.timeSincePost(meta) / 60, 10)} hours ago`,
+    );
 
     return result;
   } catch (error) {

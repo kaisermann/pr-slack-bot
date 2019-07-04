@@ -3,7 +3,7 @@ require('dotenv').config();
 const cron = require('node-cron');
 const DB = require('./db.js');
 
-const { onPRMessage } = require('./slack.js');
+const { onPRMessage, sendMessage } = require('./slack.js');
 const PR = require('./pr.js');
 const { EMOJIS } = require('./consts.js');
 
@@ -85,15 +85,19 @@ function checkPRs() {
 }
 
 async function listAbandonedPRs() {
-  const PRs = DB.getPRs().filter(pr => PR.needsAttention(pr, 12));
-  let message = 'Abandoned PRs:\n';
+  const prs = DB.getPRs().filter(pr => PR.needsAttention(pr, 0));
+  if (!prs.length) return;
 
-  for await (const meta of PRs) {
-    const messageUrl = await PR.getMessageUrl(meta);
-    message += `${messageUrl}\n`;
+  let message =
+    'Hello :wave Paulo Ricardo here! There are some PRs needing attention:\n\n';
+
+  for await (const pr of prs) {
+    const messageUrl = await PR.getMessageUrl(pr);
+    message += `<${messageUrl}|${pr.slug}>\n`;
   }
 
   console.log(message);
+  // sendMessage(message, prs[0].channel);
 }
 
 checkPRs();
@@ -102,7 +106,8 @@ cron.schedule('* * * * *', checkPRs, {
   timezone: 'America/Sao_Paulo',
 });
 
-cron.schedule('* * * * *' /* '0 15 * * 1-5' */, listAbandonedPRs, {
-  scheduled: true,
-  timezone: 'America/Sao_Paulo',
-});
+// listAbandonedPRs();
+// cron.schedule('0 15 * * 1-5', listAbandonedPRs, {
+//   scheduled: true,
+//   timezone: 'America/Sao_Paulo',
+// });
