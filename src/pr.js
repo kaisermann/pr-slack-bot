@@ -7,42 +7,58 @@ const QUICK_ADDITION_LIMIT = 80;
 const NEEDED_REVIEWS = 2;
 
 exports.addReaction = async (name, meta) => {
-  try {
-    if (meta.reactions.includes(name)) {
-      return;
-    }
+  if (meta.reactions.includes(name)) {
+    return;
+  }
 
-    console.log(`-- Adding reaction: ${name}`);
+  console.log(`-- Adding reaction: ${name}`);
 
-    meta.reactions.push(name);
+  meta.reactions.push(name);
 
-    return SlackWebClient.reactions.add({
+  return SlackWebClient.reactions
+    .add({
       name,
       timestamp: meta.timestamp,
       channel: meta.channel,
+    })
+    .then(() => {
+      meta.reactions.push(name);
+    })
+    .catch(e => {
+      if (e.data.error === 'already_reacted') {
+        meta.reactions.push(name);
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(e);
+      }
     });
-  } catch (e) {
-    console.error(e);
-  }
 };
 exports.removeReaction = async (name, meta) => {
-  try {
-    if (!meta.reactions.includes(name)) {
-      return;
-    }
+  if (!meta.reactions.includes(name)) {
+    return;
+  }
 
-    console.log(`-- Removing reaction: ${name}`);
+  console.log(`-- Removing reaction: ${name}`);
 
-    meta.reactions = meta.reactions.filter(r => r !== name);
-
-    return SlackWebClient.reactions.remove({
+  return SlackWebClient.reactions
+    .remove({
       name,
       timestamp: meta.timestamp,
       channel: meta.channel,
+    })
+    .then(() => {
+      meta.reactions = meta.reactions.filter(r => r !== name);
+    })
+    .catch(e => {
+      if (e.data.error === 'no_reaction') {
+        meta.reactions = meta.reactions.filter(r => r !== name);
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(e);
+      }
     });
-  } catch (e) {
-    console.error(e);
-  }
 };
 
 exports.create = ({ slug, user, repo, prID, channel, timestamp }) => {
