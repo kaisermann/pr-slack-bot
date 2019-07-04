@@ -1,9 +1,8 @@
 require('dotenv').config();
 
 const { GithubClient } = require('./github.js');
-const { WebClient } = require('./slack.js');
+const { SlackWebClient } = require('./slack.js');
 
-const MINUTES_TO_NEED_ATTENTION = 60;
 const QUICK_ADDITION_LIMIT = 80;
 const NEEDED_REVIEWS = 2;
 
@@ -16,7 +15,7 @@ exports.addReaction = async (name, meta) => {
 
   meta.reactions.push(name);
 
-  return WebClient.reactions.add({
+  return SlackWebClient.reactions.add({
     name,
     timestamp: meta.timestamp,
     channel: meta.channel,
@@ -31,7 +30,7 @@ exports.removeReaction = async (name, meta) => {
 
   meta.reactions = meta.reactions.filter(r => r !== name);
 
-  return WebClient.reactions.remove({
+  return SlackWebClient.reactions.remove({
     name,
     timestamp: meta.timestamp,
     channel: meta.channel,
@@ -102,7 +101,7 @@ exports.check = async meta => {
 };
 
 exports.getMessageUrl = async meta => {
-  const response = await WebClient.chat.getPermalink({
+  const response = await SlackWebClient.chat.getPermalink({
     channel: meta.channel,
     message_ts: meta.timestamp,
   });
