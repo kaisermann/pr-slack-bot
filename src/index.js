@@ -74,13 +74,13 @@ onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
   }
 });
 
-function checkPRs() {
+async function checkPRs() {
   const PRs = DB.getPRs();
   console.clear();
   console.log(`Watch list size: ${PRs.length}`);
   console.log('--------');
-  for (const meta of PRs) {
-    check(meta);
+  for await (const meta of PRs) {
+    await check(meta);
   }
 }
 
