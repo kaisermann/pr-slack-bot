@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const { GithubClient } = require('./github.js');
-const { SlackWebClient } = require('./slack.js');
+const { SlackWebClient, sendMessage } = require('./slack.js');
 
 const QUICK_ADDITION_LIMIT = 80;
 const NEEDED_REVIEWS = 2;
@@ -46,6 +46,7 @@ exports.create = ({ slug, user, repo, prID, channel, timestamp }) => {
     channel,
     timestamp,
     reactions: [],
+    bot_interactions: {},
   };
 };
 
@@ -80,7 +81,7 @@ exports.check = async meta => {
       state => state === 'CHANGES_REQUESTED',
     );
     const approved =
-      reviews.filter(r => r.state === 'APPROVED').length >= NEEDED_REVIEWS;
+      reviews.filter(state => state === 'APPROVED').length >= NEEDED_REVIEWS;
 
     const result = {
       changesRequested,
@@ -127,3 +128,12 @@ exports.timeSincePost = meta =>
 // consider in hours
 exports.needsAttention = (meta, hours) =>
   exports.timeSincePost(meta) >= 60 * hours;
+
+exports.hasInteracted = (meta, id) => !!meta.bot_interactions[id];
+
+exports.sendMessage = (meta, id, text) => {
+  if (!exports.hasInteracted(meta, id)) {
+    meta.bot_interactions[id] = true;
+    sendMessage(text, meta.channel, meta.timestamp);
+  }
+};

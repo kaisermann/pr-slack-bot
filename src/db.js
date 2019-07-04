@@ -35,4 +35,9 @@ exports.getPRs = () =>
   db
     .get('prs')
     .values()
+    .map(pr => ({
+      bot_interactions: {},
+      reactions: [],
+      ...pr,
+    }))
     .value();

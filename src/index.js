@@ -3,7 +3,7 @@ require('dotenv').config();
 const cron = require('node-cron');
 const DB = require('./db.js');
 
-const { onPRMessage, sendMessage } = require('./slack.js');
+const { onPRMessage } = require('./slack.js');
 const PR = require('./pr.js');
 const { EMOJIS } = require('./consts.js');
 
@@ -12,6 +12,7 @@ const check = async meta => {
     merged,
     quick,
     reviewed,
+    approved,
     changesRequested,
     closed,
     unstable,
@@ -35,6 +36,14 @@ const check = async meta => {
     await PR.addReaction(EMOJIS.unstable, meta);
   } else {
     await PR.removeReaction(EMOJIS.unstable, meta);
+  }
+
+  if (approved && !unstable && !merged && !closed) {
+    await PR.sendMessage(
+      meta,
+      'ready_to_merge',
+      'PR is ready to be merged :merged:!',
+    );
   }
 
   if (merged || closed) {
