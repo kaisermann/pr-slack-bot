@@ -121,9 +121,8 @@ exports.check = async meta => {
     };
 
     console.log(
-      `Checking: ${meta.slug} | ${meta.channel} | ${meta.timestamp} (${parseInt(
-        exports.timeSincePost(meta) / 60,
-        10,
+      `Checking: ${meta.slug} | ${meta.channel} | ${meta.timestamp} (${~~(
+        exports.timeSincePost(meta) / 60
       )} hours ago)`,
     );
 
