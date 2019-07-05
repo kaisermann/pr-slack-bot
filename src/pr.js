@@ -120,15 +120,11 @@ exports.check = async meta => {
       closed: pr.state === 'closed',
     };
 
-    console.log(`Checking: ${meta.slug} | ${meta.channel} | ${meta.timestamp}`);
-    console.log(`- Quick PR: ${result.quick}`);
-    console.log(`- Changes Requested: ${result.changesRequested}`);
-    console.log(`- Approved: ${result.approved}`);
-    console.log(`- Has review comments: ${result.reviewed}`);
-    console.log(`- Unstable: ${result.unstable}`);
-    console.log(`- Merged: ${result.merged}`);
     console.log(
-      `- Posted ${parseInt(exports.timeSincePost(meta) / 60, 10)} hours ago`,
+      `Checking: ${meta.slug} | ${meta.channel} | ${meta.timestamp} (${parseInt(
+        exports.timeSincePost(meta) / 60,
+        10,
+      )} hours ago)`,
     );
 
     return result;
