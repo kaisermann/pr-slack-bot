@@ -5,8 +5,9 @@ exports.addCall = method => {
 };
 
 exports.log = () => {
+  console.log('API call metrics:');
   Object.entries(calls).forEach(([method, count]) => {
-    console.log(`${method}: ${count} times`);
+    console.log(`- ${method}: ${count} times`);
   });
 };
 
