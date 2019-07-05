@@ -1,5 +1,6 @@
 const { RTMClient } = require('@slack/rtm-api');
 const { WebClient, retryPolicies } = require('@slack/web-api');
+const Metrics = require('./metrics.js');
 
 const TOKEN = process.env.SLACK_TOKEN;
 const RTM = new RTMClient(TOKEN);
@@ -56,6 +57,7 @@ exports.onPRMessage = async onMessage => {
 };
 
 exports.sendMessage = (text, channel, thread_ts) => {
+  Metrics.addCall('slack.chat.postMessage');
   SlackWebClient.chat.postMessage({
     text,
     channel,
