@@ -110,7 +110,8 @@ async function listAbandonedPRs() {
 
   for await (const pr of prs) {
     const messageUrl = await PR.getMessageUrl(pr);
-    message += `<${messageUrl}|${pr.slug}>\n`;
+    message += `<${messageUrl}|${pr.slug}>`;
+    message += ` (${~~(PR.timeSincePost(pr) / 60)} hours ago)\n`;
   }
 
   Slack.sendMessage(message, prs[0].channel);
