@@ -12,35 +12,49 @@ const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i;
 const SlackWebClient = new WebClient(TOKEN, {
   retryConfig: retryPolicies.rapidRetryPolicy,
 });
-exports.SlackWebClient = SlackWebClient;
+
+exports.WebClient = SlackWebClient;
 
 exports.onPRMessage = async onMessage => {
   RTM.on('message', e => {
     try {
       const { thread_ts, subtype, text } = e;
-      // we just want channel messages
+
+      // dont listen to messages not posted directly to a channel
+      if (thread_ts != null || subtype != null) {
+        return;
+      }
+
+      // production env should not listen to test channel
       if (
-        thread_ts != null ||
-        subtype != null ||
-        (process.env.NODE_ENV === 'production' &&
-          e.channel === PRIVATE_TEST_CHANNEL) ||
-        (process.env.NODE_ENV === 'development' &&
-          e.channel !== PRIVATE_TEST_CHANNEL)
+        process.env.NODE_ENV === 'production' &&
+        e.channel === PRIVATE_TEST_CHANNEL
+      ) {
+        return;
+      }
+
+      // dev env should listen only to test channel
+      if (
+        process.env.NODE_ENV === 'development' &&
+        e.channel !== PRIVATE_TEST_CHANNEL
       ) {
         return;
       }
 
       let prMessage = text;
       if (text === '' && e.attachments.length) {
-        prMessage = e.attachments[0].title_link;
+        const { title_link, pretext } = e.attachments[0];
+        if (pretext.match(/pull request opened/i)) {
+          prMessage = title_link;
+        }
       }
 
       const match = prMessage.match(PR_REGEX);
       if (match) {
-        const [, user, repo, prID] = match;
-        const slug = `${user}/${repo}/${prID}`;
+        const [, owner, repo, prID] = match;
+        const slug = `${owner}/${repo}/${prID}`;
         onMessage({
-          user,
+          owner,
           repo,
           prID,
           slug,

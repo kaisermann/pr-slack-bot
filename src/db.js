@@ -1,20 +1,27 @@
 const low = require('lowdb');
 const FileSync = require('lowdb/adapters/FileSync');
+const PR = require('./pr.js');
 
 const adapter = new FileSync('db.json');
 const db = low(adapter);
 
 db.defaults({ prs: {} }).write();
 
-exports.setPR = (meta) => {
+let cachedPRs = null;
+
+exports.setPR = pr => {
+  cachedPRs = null;
+
   db.get('prs')
-    .set(meta.slug, meta)
+    .set(pr.slug, pr.toJSON())
     .write();
 };
 
-exports.unsetPR = meta => {
+exports.unsetPR = pr => {
+  cachedPRs = null;
+
   db.get('prs')
-    .unset(meta.slug)
+    .unset(pr.slug)
     .write();
 };
 
@@ -24,13 +31,15 @@ exports.hasPR = slug =>
     .has(slug)
     .value();
 
-exports.getPRs = () =>
-  db
-    .get('prs')
-    .values()
-    .map(pr => ({
-      bot_interactions: {},
-      reactions: [],
-      ...pr,
-    }))
-    .value();
+exports.getPRs = () => {
+  if (cachedPRs == null) {
+    cachedPRs = db
+      .get('prs')
+      .values()
+      .map(PR.create)
+      .value();
+  } else {
+    console.log('Using cache');
+  }
+  return cachedPRs;
+};
