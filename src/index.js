@@ -3,7 +3,8 @@ require('dotenv').config();
 const cron = require('node-cron');
 const DB = require('./db.js');
 
-const { onPRMessage, sendMessage } = require('./slack.js');
+const Slack = require('./slack.js');
+const Metrics = require('./metrics.js');
 const PR = require('./pr.js');
 const { EMOJIS, ATTENTION_HOUR_THRESHOLD } = require('./consts.js');
 
@@ -60,7 +61,7 @@ const check = async meta => {
   console.log('');
 };
 
-onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
+Slack.onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
   try {
     if (DB.hasPR(slug)) {
       return console.log(`${slug} is already being watched`);
@@ -85,12 +86,17 @@ onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
 
 async function checkPRs() {
   const PRs = DB.getPRs();
+
   console.clear();
   console.log(`Watch list size: ${PRs.length}`);
   console.log('--------');
+
   for await (const meta of PRs) {
     await check(meta);
   }
+
+  Metrics.log();
+  Metrics.reset();
 }
 
 async function listAbandonedPRs() {
@@ -107,7 +113,7 @@ async function listAbandonedPRs() {
     message += `<${messageUrl}|${pr.slug}>\n`;
   }
 
-  sendMessage(message, prs[0].channel);
+  Slack.sendMessage(message, prs[0].channel);
 }
 
 checkPRs();

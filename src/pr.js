@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const { GithubClient } = require('./github.js');
 const { SlackWebClient, sendMessage } = require('./slack.js');
+const Metrics = require('./metrics.js');
 
 const QUICK_ADDITION_LIMIT = 80;
 const NEEDED_REVIEWS = 2;
@@ -12,8 +13,7 @@ exports.addReaction = async (name, meta) => {
   }
 
   console.log(`-- Adding reaction: ${name}`);
-
-  meta.reactions.push(name);
+  Metrics.addCall('slack.reactions.add');
 
   return SlackWebClient.reactions
     .add({
@@ -40,6 +40,7 @@ exports.removeReaction = async (name, meta) => {
   }
 
   console.log(`-- Removing reaction: ${name}`);
+  Metrics.addCall('slack.reactions.remove');
 
   return SlackWebClient.reactions
     .remove({
@@ -80,12 +81,14 @@ exports.check = async meta => {
     const repo = meta.repoName;
     const pull_number = meta.prID;
 
+    Metrics.addCall('github.pulls.get');
     const pr = (await GithubClient.pulls.get({
       owner,
       repo,
       pull_number,
     })).data;
 
+    Metrics.addCall('github.pulls.listReviews');
     const reviewData = (await GithubClient.pulls.listReviews({
       owner,
       repo,
@@ -137,6 +140,7 @@ exports.check = async meta => {
 };
 
 exports.getMessageUrl = async meta => {
+  Metrics.addCall('slack.chat.getPermalink');
   const response = await SlackWebClient.chat.getPermalink({
     channel: meta.channel,
     message_ts: meta.timestamp,
