@@ -16,6 +16,7 @@ exports.SlackWebClient = SlackWebClient;
 exports.onPRMessage = async onMessage => {
   RTM.on('message', e => {
     try {
+      console.log(e);
       const { thread_ts, subtype, text } = e;
       // we just want channel messages
       if (
@@ -29,8 +30,12 @@ exports.onPRMessage = async onMessage => {
         return;
       }
 
-      const match = text.match(PR_REGEX);
+      let prMessage = text;
+      if (text === '' && e.attachments.length) {
+        prMessage = e.attachments[0].title_link;
+      }
 
+      const match = prMessage.match(PR_REGEX);
       if (match) {
         const [, user, repo, prID] = match;
         const slug = `${user}/${repo}/${prID}`;
