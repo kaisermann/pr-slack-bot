@@ -6,102 +6,60 @@ const DB = require('./db.js');
 const Slack = require('./slack.js');
 const Metrics = require('./metrics.js');
 const PR = require('./pr.js');
-const { EMOJIS, ATTENTION_HOUR_THRESHOLD } = require('./consts.js');
+const { ATTENTION_HOUR_THRESHOLD } = require('./consts.js');
 
-const check = async meta => {
-  const {
-    merged,
-    quick,
-    reviewed,
-    approved,
-    changesRequested,
-    closed,
-    unstable,
-  } = await PR.check(meta);
+const check = async pr => {
+  const hasChanged = await pr.update();
 
-  if (changesRequested) {
-    await PR.addReaction(EMOJIS.changes, meta);
+  if (!hasChanged) {
+    console.log('- Nothing changed');
+    return;
+  }
+
+  if (pr.state.merged || pr.state.closed) {
+    DB.unsetPR(pr);
   } else {
-    await PR.removeReaction(EMOJIS.changes, meta);
+    DB.setPR(pr);
   }
-
-  if (quick) {
-    await PR.addReaction(EMOJIS.quick_read, meta);
-  }
-
-  if (reviewed) {
-    await PR.addReaction(EMOJIS.commented, meta);
-  }
-
-  if (unstable) {
-    await PR.addReaction(EMOJIS.unstable, meta);
-  } else {
-    await PR.removeReaction(EMOJIS.unstable, meta);
-  }
-
-  if (approved && !unstable && !merged && !closed) {
-    await PR.sendMessage(
-      meta,
-      'ready_to_merge',
-      'PR is ready to be merged :doit:!',
-    );
-  }
-
-  if (merged || closed) {
-    if (merged) {
-      await PR.addReaction(EMOJIS.merged, meta);
-    } else {
-      await PR.addReaction(EMOJIS.closed, meta);
-    }
-    DB.unsetPR(meta);
-  } else {
-    DB.setPR(meta);
-  }
-
-  console.log('');
 };
 
-Slack.onPRMessage(({ user, repo, prID, slug, channel, timestamp }) => {
-  try {
-    if (DB.hasPR(slug)) {
-      return console.log(`${slug} is already being watched`);
-    }
-    console.log(`Watching ${slug}`);
+Slack.onPRMessage(prMeta => {
+  const { slug } = prMeta;
 
-    const meta = PR.create({
-      slug,
-      user,
-      repo,
-      prID,
-      channel,
-      timestamp,
-    });
-
-    DB.setPR(meta);
-    check(meta);
-  } catch (error) {
-    console.log(error);
+  if (DB.hasPR(slug)) {
+    return console.log(`${slug} is already being watched`);
   }
+  console.log(`Watching ${slug}\n`);
+
+  const pr = PR.create(prMeta);
+
+  DB.setPR(pr);
+  check(pr);
 });
 
 async function checkPRs() {
   const PRs = DB.getPRs();
 
-  console.clear();
-  console.log(`Watch list size: ${PRs.length}`);
-  console.log('--------');
-
-  for await (const meta of PRs) {
-    await check(meta);
+  // console.clear();
+  console.log(`PRs being watched (${PRs.length}):`);
+  console.log('');
+  for await (const pr of PRs) {
+    console.log(
+      `${pr.slug} | ${pr.channel} | ${pr.timestamp} (${pr.hoursSincePost} hours ago)`,
+    );
+    await check(pr);
+    console.log('');
   }
+  console.log('--------');
+  console.log('');
 
   Metrics.log();
   Metrics.reset();
 }
 
-async function listAbandonedPRs() {
+async function checkAbandonedPRs() {
   const prs = DB.getPRs().filter(pr =>
-    PR.needsAttention(pr, ATTENTION_HOUR_THRESHOLD),
+    pr.needsAttention(ATTENTION_HOUR_THRESHOLD),
   );
   if (!prs.length) return;
 
@@ -109,9 +67,9 @@ async function listAbandonedPRs() {
     'Hello :wave: Paulo Roberto here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
 
   for await (const pr of prs) {
-    const messageUrl = await PR.getMessageUrl(pr);
+    const messageUrl = await pr.getMessageUrl();
     message += `<${messageUrl}|${pr.slug}>`;
-    message += ` (${~~(PR.timeSincePost(pr) / 60)} hours ago)\n`;
+    message += ` _(${~~(pr.timeSincePost() / 60)} hours ago)_\n`;
   }
 
   Slack.sendMessage(message, prs[0].channel);
@@ -123,8 +81,8 @@ cron.schedule('* * * * *', checkPRs, {
   timezone: 'America/Sao_Paulo',
 });
 
-// listAbandonedPRs();
-cron.schedule('0 14 * * 1-5', listAbandonedPRs, {
+// checkAbandonedPRs();
+cron.schedule('0 14 * * 1-5', checkAbandonedPRs, {
   scheduled: true,
   timezone: 'America/Sao_Paulo',
 });
