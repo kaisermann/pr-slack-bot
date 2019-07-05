@@ -7,7 +7,7 @@ const RTM = new RTMClient(TOKEN);
 
 const PRIVATE_TEST_CHANNEL = 'GKSCG1GRX';
 
-const PR_REGEX = /github\.com\/([\w-]*)?\/([\w-]*?)\/pull\/(\d+)/i;
+const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i;
 
 const SlackWebClient = new WebClient(TOKEN, {
   retryConfig: retryPolicies.rapidRetryPolicy,
