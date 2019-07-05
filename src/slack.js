@@ -16,7 +16,6 @@ exports.SlackWebClient = SlackWebClient;
 exports.onPRMessage = async onMessage => {
   RTM.on('message', e => {
     try {
-      console.log(e);
       const { thread_ts, subtype, text } = e;
       // we just want channel messages
       if (
