@@ -29,7 +29,7 @@ Slack.onPRMessage(prMeta => {
   if (DB.hasPR(slug)) {
     return console.log(`${slug} is already being watched`);
   }
-  console.log(`Watching ${slug}\n`);
+  console.log(`Watching ${slug}`);
 
   const pr = PR.create(prMeta);
 
@@ -40,7 +40,6 @@ Slack.onPRMessage(prMeta => {
 async function checkPRs() {
   const PRs = DB.getPRs();
 
-  // console.clear();
   console.log(`PRs being watched (${PRs.length}):`);
   console.log('');
   for await (const pr of PRs) {

@@ -38,8 +38,7 @@ exports.getPRs = () => {
       .values()
       .map(PR.create)
       .value();
-  } else {
-    console.log('Using cache');
   }
+
   return cachedPRs;
 };
