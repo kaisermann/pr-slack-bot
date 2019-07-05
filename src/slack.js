@@ -22,7 +22,9 @@ exports.onPRMessage = async onMessage => {
         thread_ts != null ||
         subtype != null ||
         (process.env.NODE_ENV === 'production' &&
-          e.channel === PRIVATE_TEST_CHANNEL)
+          e.channel === PRIVATE_TEST_CHANNEL) ||
+        (process.env.NODE_ENV === 'development' &&
+          e.channel !== PRIVATE_TEST_CHANNEL)
       ) {
         return;
       }

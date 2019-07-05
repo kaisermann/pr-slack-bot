@@ -107,7 +107,6 @@ async function listAbandonedPRs() {
     message += `<${messageUrl}|${pr.slug}>\n`;
   }
 
-  console.log(message);
   sendMessage(message, prs[0].channel);
 }
 

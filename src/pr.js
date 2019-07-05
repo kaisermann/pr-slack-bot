@@ -92,7 +92,7 @@ exports.check = async meta => {
       pull_number,
     })).data;
 
-    // review data mantains both change request and approved
+    // review data mantains a list of reviews
     // we use the last review of an user as the current review state
     const reviews = Object.values(
       reviewData.reduce((acc, { user, state }) => {
