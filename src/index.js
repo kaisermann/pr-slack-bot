@@ -12,7 +12,6 @@ const check = async pr => {
   const hasChanged = await pr.update();
 
   if (!hasChanged) {
-    console.log('- Nothing changed');
     return;
   }
 
