@@ -70,7 +70,7 @@ async function checkAbandonedPRs() {
 
   channels.forEach(async ([channel, prs]) => {
     let message =
-      'Hello :wave: Paulo Robertson here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
+      'Hello :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
 
     for await (const pr of prs) {
       const messageUrl = await pr.getMessageUrl();
