@@ -21,7 +21,7 @@ exports.create = ({
 }) => {
   async function getMessageUrl() {
     Metrics.addCall('slack.chat.getPermalink');
-    const response = await Slack.Slack.WebClient.chat.getPermalink({
+    const response = await Slack.WebClient.chat.getPermalink({
       channel,
       message_ts: timestamp,
     });
