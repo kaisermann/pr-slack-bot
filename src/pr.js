@@ -45,9 +45,13 @@ exports.create = ({
     }
 
     console.log(`- Sending reply: ${text}`);
-    bot_interactions[id] = true;
-
-    return Slack.sendMessage(text, channel, timestamp);
+    const response = await Slack.sendMessage(text, channel, timestamp);
+    if (response) {
+      bot_interactions[id] = {
+        ts: response.ts,
+      };
+    }
+    return bot_interactions[id];
   }
 
   async function addReaction(name) {

@@ -72,7 +72,7 @@ exports.onPRMessage = async onMessage => {
 
 exports.sendMessage = (text, channel, thread_ts) => {
   Metrics.addCall('slack.chat.postMessage');
-  SlackWebClient.chat.postMessage({
+  return SlackWebClient.chat.postMessage({
     text,
     channel,
     thread_ts,
