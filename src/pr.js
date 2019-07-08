@@ -127,6 +127,8 @@ exports.create = ({
         quick: pr.additions <= QUICK_ADDITION_LIMIT,
         reviewed: pr.review_comments > 0,
         merged: pr.merged,
+        mergeable: pr.mergeable,
+        dirty: pr.mergeable_state === 'dirty',
         unstable: pr.mergeable_state === 'unstable',
         closed: pr.state === 'closed',
       });
@@ -151,6 +153,15 @@ exports.create = ({
         tasks.push(await addReaction(EMOJIS.unstable));
       } else {
         tasks.push(await removeReaction(EMOJIS.unstable));
+      }
+
+      if (state.dirty) {
+        tasks.push(
+          await reply(
+            'is_dirty',
+            `The branch \`${pr.head.ref}\` is dirty. It may need a rebase with \`${pr.base.ref}\`.`,
+          ),
+        );
       }
 
       if (state.approved && !state.unstable && !state.merged && !state.closed) {
