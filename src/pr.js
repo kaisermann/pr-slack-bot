@@ -105,19 +105,21 @@ exports.create = ({
 
       // review data mantains a list of reviews
       // we use the last review of an user as the current review state
-      const reviews = Object.values(
+      const reviewSets = Object.values(
         reviewData.reduce((acc, { user, state: review_state }) => {
-          acc[user.login] = review_state;
+          if (!acc[user.login]) acc[user.login] = [];
+          acc[user.login].push(review_state);
           return acc;
         }, {}),
       );
 
-      const changesRequested = reviews.some(
-        review_state => review_state === 'CHANGES_REQUESTED',
+      const changesRequested = reviewSets.some(
+        set => set.indexOf('CHANGES_REQUESTED') > set.indexOf('APPROVED'),
       );
       const approved =
-        reviews.filter(review_state => review_state === 'APPROVED').length >=
-        NEEDED_REVIEWS;
+        !changesRequested &&
+        reviewSets.filter(set => set.includes('APPROVED')).length >=
+          NEEDED_REVIEWS;
 
       state = Object.freeze({
         changesRequested,
