@@ -57,21 +57,30 @@ async function checkPRs() {
 }
 
 async function checkAbandonedPRs() {
-  const prs = DB.getPRs().filter(pr =>
-    pr.needsAttention(ATTENTION_HOUR_THRESHOLD),
+  const channels = Object.entries(
+    DB.getPRs()
+      .filter(pr => pr.needsAttention(ATTENTION_HOUR_THRESHOLD))
+      .reduce((acc, pr) => {
+        if (!acc[pr.channel]) acc[pr.channel] = [];
+        acc[pr.channel].push(pr);
+        return acc;
+      }, {}),
   );
-  if (!prs.length) return;
+  if (!channels.length) return;
 
-  let message =
-    'Hello :wave: Paulo Roberto here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
+  channels.forEach(async ([channel, prs]) => {
+    let message =
+      'Hello :wave: Paulo Robertson here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
 
-  for await (const pr of prs) {
-    const messageUrl = await pr.getMessageUrl();
-    message += `<${messageUrl}|${pr.slug}>`;
-    message += ` _(${~~(pr.timeSincePost() / 60)} hours ago)_\n`;
-  }
+    for await (const pr of prs) {
+      const messageUrl = await pr.getMessageUrl();
+      message += `<${messageUrl}|${pr.slug}>`;
+      message += ` _(${pr.hoursSincePost} hours ago)_\n`;
+    }
 
-  Slack.sendMessage(message, prs[0].channel);
+    // console.log(message, channel);
+    Slack.sendMessage(message, channel);
+  });
 }
 
 checkPRs();
