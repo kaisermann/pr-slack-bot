@@ -25,13 +25,23 @@ exports.getMessages = type => {
     .value();
 };
 
+exports.removeMessage = message => {
+  const { type } = message;
+  db.defaultsDeep({
+    messages_sent: { [type]: [] },
+  })
+    .get([`messages_sent`, type])
+    .remove({ ts: message.ts, channel: message.channel })
+    .write();
+};
+
 exports.updateMessage = (message, fn) => {
   const { type } = message;
   db.defaultsDeep({
     messages_sent: { [type]: [] },
   })
     .get([`messages_sent`, type])
-    .find({ ts: message.ts })
+    .find({ ts: message.ts, channel: message.channel })
     .assign(produce(message, fn))
     .write();
 };
