@@ -11,5 +11,8 @@ exports.EMOJIS = {
   shrug: 'shrug',
 };
 
-
 exports.ATTENTION_HOUR_THRESHOLD = 24;
+
+exports.QUICK_ADDITION_LIMIT = 80;
+
+exports.NEEDED_REVIEWS = 2;
