@@ -35,7 +35,7 @@ exports.onPRMessage = async onMessage => {
 
       // dev env should listen only to test channel
       if (
-        process.env.NODE_ENV === 'development' &&
+        process.env.NODE_ENV !== 'production' &&
         e.channel !== PRIVATE_TEST_CHANNEL
       ) {
         return;
@@ -78,6 +78,17 @@ exports.sendMessage = (text, channel, thread_ts) => {
     thread_ts,
     unfurl_links: false,
     // send as paulo ricardo
+    as_user: true,
+  });
+};
+
+exports.updateMessage = ({ channel, ts }, newText) => {
+  Metrics.addCall('slack.chat.update');
+  return SlackWebClient.chat.update({
+    text: newText,
+    channel,
+    ts,
+    unfurl_links: false,
     as_user: true,
   });
 };

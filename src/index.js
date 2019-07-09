@@ -6,9 +6,27 @@ const DB = require('./db.js');
 const Slack = require('./slack.js');
 const Metrics = require('./metrics.js');
 const PR = require('./pr.js');
-const { ATTENTION_HOUR_THRESHOLD } = require('./consts.js');
+const { ATTENTION_HOUR_THRESHOLD, EMOJIS } = require('./consts.js');
 
-const check = async pr => {
+function onPRResolved(pr) {
+  DB.getMessages('ignored_prs')
+    .filter(({ payload }) => payload.indexOf(pr.slug) >= 0)
+    .forEach(async message => {
+      const { text } = message;
+      const prState = pr.state.merged ? EMOJIS.MERGED : EMOJIS.closed;
+      const newText = text.replace(
+        new RegExp(`(<.*${pr.slug}>.*$)`, 'm'),
+        `:${prState}: ~$1~`,
+      );
+      Slack.updateMessage(message, newText);
+      DB.updateMessage(message, draft => {
+        draft.text = newText;
+        draft.payload = draft.payload.filter(slug => slug !== pr.slug);
+      });
+    });
+}
+
+async function check(pr) {
   const hasChanged = await pr.update();
 
   if (!hasChanged) {
@@ -16,11 +34,12 @@ const check = async pr => {
   }
 
   if (pr.state.merged || pr.state.closed) {
+    onPRResolved(pr);
     DB.unsetPR(pr);
   } else {
     DB.setPR(pr);
   }
-};
+}
 
 Slack.onPRMessage(prMeta => {
   const { slug } = prMeta;
@@ -55,7 +74,7 @@ async function checkPRs() {
   Metrics.reset();
 }
 
-async function checkAbandonedPRs() {
+async function checkignoredPRs() {
   const channels = Object.entries(
     DB.getPRs()
       .filter(pr => pr.needsAttention(ATTENTION_HOUR_THRESHOLD))
@@ -77,8 +96,21 @@ async function checkAbandonedPRs() {
       message += ` _(${pr.hoursSincePost} hours ago)_\n`;
     }
 
-    // console.log(message, channel);
-    Slack.sendMessage(message, channel);
+    const response = await Slack.sendMessage(message, channel);
+    if (response) {
+      const {
+        ts,
+        message: { text },
+      } = response;
+      const messageInfo = {
+        ts,
+        channel,
+        text,
+        type: 'ignored_prs',
+        payload: prs.map(pr => pr.slug),
+      };
+      DB.saveMessage(messageInfo, 3);
+    }
   });
 }
 
@@ -88,8 +120,8 @@ cron.schedule('* * * * *', checkPRs, {
   timezone: 'America/Sao_Paulo',
 });
 
-// checkAbandonedPRs();
-cron.schedule('0 14 * * 1-5', checkAbandonedPRs, {
+// checkignoredPRs();
+cron.schedule('0 14 * * 1-5', checkignoredPRs, {
   scheduled: true,
   timezone: 'America/Sao_Paulo',
 });
