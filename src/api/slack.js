@@ -58,7 +58,7 @@ exports.onPRMessage = async onMessage => {
           repo,
           prID,
           slug,
-          timestamp: e.event_ts,
+          ts: e.event_ts,
           channel: e.channel,
         });
       }

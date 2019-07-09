@@ -1,12 +1,9 @@
 require('dotenv').config();
 
-const Github = require('./github.js');
-const Slack = require('./slack.js');
-const Metrics = require('./metrics.js');
-const { EMOJIS } = require('./consts.js');
-
-const QUICK_ADDITION_LIMIT = 80;
-const NEEDED_REVIEWS = 2;
+const Github = require('./api/github.js');
+const Slack = require('./api/slack.js');
+const Metrics = require('./api/metrics.js');
+const { EMOJIS, QUICK_ADDITION_LIMIT, NEEDED_REVIEWS } = require('./consts.js');
 
 exports.create = ({
   slug,
@@ -14,7 +11,7 @@ exports.create = ({
   repo,
   prID,
   channel,
-  timestamp,
+  ts,
   bot_interactions = {},
   reactions = [],
   state = {},
@@ -23,7 +20,7 @@ exports.create = ({
     Metrics.addCall('slack.chat.getPermalink');
     const response = await Slack.WebClient.chat.getPermalink({
       channel,
-      message_ts: timestamp,
+      message_ts: ts,
     });
 
     return response.permalink.replace(/\?.*$/, '');
@@ -31,7 +28,7 @@ exports.create = ({
 
   // return in minutes
   function timeSincePost() {
-    return Math.abs(new Date(timestamp * 1000) - new Date()) / (1000 * 60);
+    return Math.abs(new Date(ts * 1000) - new Date()) / (1000 * 60);
   }
 
   // consider in hours
@@ -45,7 +42,7 @@ exports.create = ({
     }
 
     console.log(`- Sending reply: ${text}`);
-    const response = await Slack.sendMessage(text, channel, timestamp);
+    const response = await Slack.sendMessage(text, channel, ts);
     if (response) {
       bot_interactions[id] = {
         ts: response.ts,
@@ -63,9 +60,10 @@ exports.create = ({
     Metrics.addCall('slack.reactions.add');
 
     return Slack.WebClient.reactions
-      .add({ name, timestamp, channel })
+      .add({ name, timestamp: ts, channel })
       .then(() => {
         reactions.push(name);
+        return true;
       })
       .catch(e => {
         if (e.data.error === 'already_reacted') {
@@ -75,6 +73,7 @@ exports.create = ({
         if (process.env.NODE_ENV !== 'production') {
           console.error(e);
         }
+        return false;
       });
   }
 
@@ -87,9 +86,10 @@ exports.create = ({
     Metrics.addCall('slack.reactions.remove');
 
     return Slack.WebClient.reactions
-      .remove({ name, timestamp, channel })
+      .remove({ name, timestamp: ts, channel })
       .then(() => {
         reactions = reactions.filter(r => r !== name);
+        return true;
       })
       .catch(e => {
         if (e.data.error === 'no_reaction') {
@@ -99,6 +99,7 @@ exports.create = ({
         if (process.env.NODE_ENV !== 'production') {
           console.error(e);
         }
+        return false;
       });
   }
 
@@ -137,53 +138,53 @@ exports.create = ({
         closed: pr.state === 'closed',
       });
 
-      const tasks = [];
+      const changes = {};
 
-      if (state.changesRequested) {
-        tasks.push(await addReaction(EMOJIS.changes));
-      } else {
-        tasks.push(await removeReaction(EMOJIS.changes));
-      }
+      changes.changesRequested = state.changesRequested
+        ? await addReaction(EMOJIS.changes)
+        : await removeReaction(EMOJIS.changes);
 
       if (state.quick) {
-        tasks.push(await addReaction(EMOJIS.quick_read));
+        changes.quick = await addReaction(EMOJIS.quick_read);
       }
 
       if (state.reviewed) {
-        tasks.push(await addReaction(EMOJIS.commented));
+        changes.reviewed = await addReaction(EMOJIS.commented);
       }
 
       if (state.unstable) {
-        tasks.push(await addReaction(EMOJIS.unstable));
+        changes.unstable = await addReaction(EMOJIS.unstable);
       } else {
-        tasks.push(await removeReaction(EMOJIS.unstable));
+        changes.unstable = await removeReaction(EMOJIS.unstable);
       }
 
       if (state.dirty) {
-        tasks.push(
-          await reply(
-            'is_dirty',
-            `The branch \`${pr.head.ref}\` is dirty. It may need a rebase with \`${pr.base.ref}\`.`,
-          ),
+        changes.dirty = await reply(
+          'is_dirty',
+          `The branch \`${pr.head.ref}\` is dirty. It may need a rebase with \`${pr.base.ref}\`.`,
         );
       }
 
       if (state.approved && !state.unstable && !state.merged && !state.closed) {
-        tasks.push(
-          await reply('ready_to_merge', 'PR is ready to be merged :doit:!'),
+        changes.ready_to_merge = await reply(
+          'ready_to_merge',
+          'PR is ready to be merged :doit:!',
         );
       }
 
       if (state.merged || state.closed) {
         if (state.merged) {
-          tasks.push(await addReaction(EMOJIS.merged));
+          changes.merged = await addReaction(EMOJIS.merged);
         } else {
-          tasks.push(await addReaction(EMOJIS.closed));
+          changes.closed = await addReaction(EMOJIS.closed);
         }
       }
 
-      return Promise.all(tasks).then(changedResults => {
-        return changedResults.some(changed => changed !== false);
+      return Promise.all(Object.values(changes)).then(changedResults => {
+        return {
+          hasChanged: changedResults.some(changed => changed !== false),
+          changes,
+        };
       });
     } catch (error) {
       console.log(error);
@@ -200,7 +201,7 @@ exports.create = ({
       repo,
       prID,
       channel,
-      timestamp,
+      ts,
       reactions,
       bot_interactions,
     };
@@ -213,7 +214,7 @@ exports.create = ({
     repo,
     prID,
     channel,
-    timestamp,
+    ts,
     // methods
     get state() {
       return state;

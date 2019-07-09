@@ -1,7 +1,7 @@
 const { produce } = require('immer');
 const low = require('lowdb');
 const FileSync = require('lowdb/adapters/FileSync');
-const PR = require('./pr.js');
+const PR = require('../pr.js');
 
 const adapter = new FileSync('db.json');
 const db = low(adapter);
