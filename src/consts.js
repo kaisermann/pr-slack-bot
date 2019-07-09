@@ -8,6 +8,7 @@ exports.EMOJIS = {
   needsAttention: 'alert',
   closed: 'closedpr',
   unstable: 'warning',
+  shrug: 'shrug',
 };
 
 
