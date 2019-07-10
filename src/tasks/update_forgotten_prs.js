@@ -11,7 +11,7 @@ module.exports = pr => {
     .forEach(async message => {
       const { text } = message;
       const prState = pr.state.merged
-        ? EMOJIS.MERGED
+        ? EMOJIS.merged
         : pr.state.closed
         ? EMOJIS.closed
         : EMOJIS.shrug;
