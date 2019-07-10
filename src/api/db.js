@@ -64,7 +64,7 @@ exports.save_message = (message, limit) => {
     .write();
 };
 
-exports.add_pr = pr => {
+exports.set_pr = pr => {
   cached_prs = null;
 
   db.get('prs')
@@ -72,7 +72,7 @@ exports.add_pr = pr => {
     .write();
 };
 
-exports.remove_pr = pr => {
+exports.unset_pr = pr => {
   cached_prs = null;
 
   db.get('prs')

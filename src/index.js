@@ -32,6 +32,6 @@ Slack.on_pr_message(pr_meta => {
 
   const pr = PR.create(pr_meta);
 
-  DB.add_pr(pr);
+  DB.set_pr(pr);
   update_pr(pr);
 });
