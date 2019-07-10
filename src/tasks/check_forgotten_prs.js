@@ -1,11 +1,11 @@
 const DB = require('../api/db.js');
 const Slack = require('../api/slack.js');
-const { ATTENTION_HOUR_THRESHOLD } = require('../consts.js');
+const { FORGOTTEN_PR_HOUR_THRESHOLD } = require('../consts.js');
 
-module.exports = async function checkignoredPRs() {
+module.exports = () => {
   const channels = Object.entries(
-    DB.getPRs()
-      .filter(pr => pr.needsAttention(ATTENTION_HOUR_THRESHOLD))
+    DB.get_prs()
+      .filter(pr => pr.needs_attention(FORGOTTEN_PR_HOUR_THRESHOLD))
       .reduce((acc, pr) => {
         if (!acc[pr.channel]) acc[pr.channel] = [];
         acc[pr.channel].push(pr);
@@ -20,25 +20,25 @@ module.exports = async function checkignoredPRs() {
       'Hello :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
 
     for await (const pr of prs) {
-      const messageUrl = await pr.getMessageUrl();
-      message += `<${messageUrl}|${pr.slug}>`;
-      message += ` _(${pr.hoursSincePost} hours ago)_\n`;
+      const message_url = await pr.get_message_url();
+      message += `<${message_url}|${pr.slug}>`;
+      message += ` _(${pr.hours_since_post} hours ago)_\n`;
     }
 
-    const response = await Slack.sendMessage(message, channel);
+    const response = await Slack.send_message(message, channel);
     if (response) {
       const {
         ts,
         message: { text },
       } = response;
-      const messageInfo = {
+      const message_info = {
         ts,
         channel,
         text,
-        type: 'ignored_prs',
+        type: 'forgotten_prs',
         payload: prs.map(pr => pr.slug),
       };
-      DB.saveMessage(messageInfo, 3);
+      DB.save_message(message_info, 3);
     }
   });
 };

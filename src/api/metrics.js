@@ -1,6 +1,6 @@
 let calls = {};
 
-exports.addCall = method => {
+exports.add_call = method => {
   calls[method] = (calls[method] || 0) + 1;
 };
 

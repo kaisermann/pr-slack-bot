@@ -1,17 +1,17 @@
 const DB = require('../api/db.js');
 const Metrics = require('../api/metrics.js');
-const update_PR = require('./update_PR.js');
+const update_pr = require('./update_pr_message.js');
 
-module.exports = async function checkPRs() {
-  const PRs = DB.getPRs();
+module.exports = async () => {
+  const PRs = DB.get_prs();
 
   console.log(`PRs being watched (${PRs.length}):`);
   console.log('');
   for await (const pr of PRs) {
     console.log(
-      `${pr.slug} | ${pr.channel} | ${pr.ts} (${pr.hoursSincePost} hours ago)`,
+      `${pr.slug} | ${pr.channel} | ${pr.ts} (${pr.hours_since_post} hours ago)`,
     );
-    await update_PR(pr);
+    await update_pr(pr);
     console.log('');
   }
   console.log('--------');
