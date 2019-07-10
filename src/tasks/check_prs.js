@@ -1,22 +1,26 @@
 const DB = require('../api/db.js');
-const Metrics = require('../api/metrics.js');
+const Logger = require('../api/logger.js');
 const update_pr = require('./update_pr_message.js');
 
 module.exports = async () => {
-  const PRs = DB.get_prs();
+  const channels = DB.get_channel_list();
 
-  console.log(`PRs being watched (${PRs.length}):`);
-  console.log('');
-  for await (const pr of PRs) {
-    console.log(
-      `${pr.slug} | ${pr.channel} | ${pr.ts} (${pr.hours_since_post} hours ago)`,
-    );
-    await update_pr(pr);
-    console.log('');
+  for await (const channel of channels) {
+    const prs = DB.get_channel_prs(channel);
+
+    Logger.log('=======================================');
+    Logger.log(`Channel: ${channel} - ${prs.length} PRs`);
+    Logger.log('');
+    for await (const pr of prs) {
+      Logger.log(
+        `${pr.slug} | ${pr.channel} | ${pr.ts} (${pr.hours_since_post} hours ago)`,
+      );
+      await update_pr(pr);
+    }
+    Logger.log('=======================================');
+    Logger.log('');
   }
-  console.log('--------');
-  console.log('');
 
-  Metrics.log();
-  Metrics.reset();
+  Logger.log_metrics();
+  Logger.reset_metrics();
 };

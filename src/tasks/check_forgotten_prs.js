@@ -2,24 +2,20 @@ const DB = require('../api/db.js');
 const Slack = require('../api/slack.js');
 const { FORGOTTEN_PR_HOUR_THRESHOLD } = require('../consts.js');
 
-module.exports = () => {
-  const channels = Object.entries(
-    DB.get_prs()
-      .filter(pr => pr.needs_attention(FORGOTTEN_PR_HOUR_THRESHOLD))
-      .reduce((acc, pr) => {
-        if (!acc[pr.channel]) acc[pr.channel] = [];
-        acc[pr.channel].push(pr);
-        return acc;
-      }, {}),
-  );
+module.exports = async () => {
+  const channels = DB.get_channel_list();
 
-  if (!channels.length) return;
+  for await (const channel of channels) {
+    const forgotten_prs = DB.get_channel_prs(channel).filter(pr =>
+      pr.needs_attention(FORGOTTEN_PR_HOUR_THRESHOLD),
+    );
 
-  channels.forEach(async ([channel, prs]) => {
+    if (forgotten_prs.length === 0) return;
+
     let message =
       'Hello :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
 
-    for await (const pr of prs) {
+    for await (const pr of forgotten_prs) {
       const message_url = await pr.get_message_url();
       message += `<${message_url}|${pr.slug}>`;
       message += ` _(${pr.hours_since_post} hours ago)_\n`;
@@ -36,9 +32,9 @@ module.exports = () => {
         channel,
         text,
         type: 'forgotten_prs',
-        payload: prs.map(pr => pr.slug),
+        payload: forgotten_prs.map(pr => pr.slug),
       };
       DB.save_message(message_info, 3);
     }
-  });
+  }
 };

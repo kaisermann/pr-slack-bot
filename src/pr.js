@@ -1,8 +1,6 @@
-require('dotenv').config();
-
 const Github = require('./api/github.js');
 const Slack = require('./api/slack.js');
-const Metrics = require('./api/metrics.js');
+const Logger = require('./api/logger.js');
 const { EMOJIS, QUICK_ADDITION_LIMIT, NEEDED_REVIEWS } = require('./consts.js');
 
 exports.create = ({
@@ -17,7 +15,7 @@ exports.create = ({
   state = {},
 }) => {
   async function get_message_url() {
-    Metrics.add_call('slack.chat.getPermalink');
+    Logger.add_call('slack.chat.getPermalink');
     const response = await Slack.web_client.chat.getPermalink({
       channel,
       message_ts: ts,
@@ -41,12 +39,10 @@ exports.create = ({
       return false;
     }
 
-    console.log(`- Sending reply: ${text}`);
+    Logger.log_pr_action(`Sending reply: ${text}`);
     const response = await Slack.send_message(text, channel, ts);
     if (response) {
-      replies[id] = {
-        ts: response.ts,
-      };
+      replies[id] = response.ts;
     }
     return replies[id];
   }
@@ -56,8 +52,8 @@ exports.create = ({
       return false;
     }
 
-    console.log(`- Adding reaction: ${name}`);
-    Metrics.add_call('slack.reactions.add');
+    Logger.log_pr_action(`Adding reaction: ${name}`);
+    Logger.add_call('slack.reactions.add');
 
     return Slack.web_client.reactions
       .add({ name, timestamp: ts, channel })
@@ -71,7 +67,7 @@ exports.create = ({
         }
 
         if (process.env.NODE_ENV !== 'production') {
-          console.error(e);
+          Logger.log_error(e);
         }
         return false;
       });
@@ -82,8 +78,8 @@ exports.create = ({
       return false;
     }
 
-    console.log(`- Removing reaction: ${name}`);
-    Metrics.add_call('slack.reactions.remove');
+    Logger.log_pr_action(`Removing reaction: ${name}`);
+    Logger.add_call('slack.reactions.remove');
 
     return Slack.web_client.reactions
       .remove({ name, timestamp: ts, channel })
@@ -97,7 +93,7 @@ exports.create = ({
         }
 
         if (process.env.NODE_ENV !== 'production') {
-          console.error(e);
+          Logger.log_error(e);
         }
         return false;
       });
@@ -187,7 +183,7 @@ exports.create = ({
         };
       });
     } catch (error) {
-      console.log(error);
+      Logger.log_error(error);
     }
 
     state = Object.freeze({});

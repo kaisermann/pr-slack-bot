@@ -1,9 +1,10 @@
-require('dotenv').config();
+require('dotenv/config');
 
 const cron = require('node-cron');
 const DB = require('./api/db.js');
 
 const Slack = require('./api/slack.js');
+const Logger = require('./api/logger.js');
 const PR = require('./pr.js');
 
 const check_prs = require('./tasks/check_prs.js');
@@ -23,15 +24,15 @@ cron.schedule('0 14 * * 1-5', check_forgotten_prs, {
 });
 
 Slack.on_pr_message(pr_meta => {
-  const { slug } = pr_meta;
+  const { slug, channel } = pr_meta;
 
-  if (DB.has_pr(slug)) {
-    return console.log(`${slug} is already being watched`);
+  if (DB.has_pr(channel, slug)) {
+    return Logger.log(`${slug} is already being watched`);
   }
-  console.log(`Watching ${slug}`);
+  Logger.log(`Watching ${slug}`);
 
   const pr = PR.create(pr_meta);
 
-  DB.set_pr(pr);
+  DB.add_pr(pr);
   update_pr(pr);
 });

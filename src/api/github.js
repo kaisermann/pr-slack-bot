@@ -1,6 +1,6 @@
 const Octokit = require('@octokit/rest');
 
-const Metrics = require('./metrics.js');
+const Logger = require('./logger.js');
 
 const github_client = Octokit({
   auth: process.env.GITHUB_TOKEN,
@@ -9,7 +9,7 @@ const github_client = Octokit({
 exports.github_client = github_client;
 
 exports.get_pr_data = async (owner, repo, pull_number) => {
-  Metrics.add_call('github.pulls.get');
+  Logger.add_call('github.pulls.get');
 
   return (await github_client.pulls.get({
     owner,
@@ -19,7 +19,7 @@ exports.get_pr_data = async (owner, repo, pull_number) => {
 };
 
 exports.get_review_data = async (owner, repo, pull_number) => {
-  Metrics.add_call('github.pulls.listReviews');
+  Logger.add_call('github.pulls.listReviews');
 
   return (await github_client.pulls.listReviews({
     owner,

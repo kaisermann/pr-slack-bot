@@ -1,12 +1,12 @@
 const DB = require('../api/db.js');
 const edit_forgotten_prs = require('./update_forgotten_prs.js');
 
-module.exports = async function update_pr(pr) {
+module.exports = async pr => {
   const { has_changed } = await pr.update_status();
 
   if (pr.state.merged || pr.state.closed) {
-    edit_forgotten_prs(pr);
-    DB.unset_pr(pr);
+    await edit_forgotten_prs(pr);
+    DB.remove_pr(pr);
     return;
   }
 
@@ -14,5 +14,5 @@ module.exports = async function update_pr(pr) {
     return;
   }
 
-  DB.set_pr(pr);
+  DB.update_pr(pr);
 };
