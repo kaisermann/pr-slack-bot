@@ -12,9 +12,7 @@ module.exports = async () => {
     Logger.log(`Channel: ${channel} - ${prs.length} PRs`);
     Logger.log('');
     for await (const pr of prs) {
-      Logger.log(
-        `${pr.slug} | ${pr.channel} | ${pr.ts} (${pr.hours_since_post} hours ago)`,
-      );
+      Logger.log(`${pr.slug} | ${pr.ts} (${pr.hours_since_post} hours ago)`);
       await update_pr(pr);
     }
     Logger.log('=======================================');
