@@ -1,8 +1,8 @@
 const { RTMClient } = require('@slack/rtm-api');
 const { WebClient, retryPolicies } = require('@slack/web-api');
 
-const Metrics = require('./metrics.js');
-const { PRIVATE_TEST_CHANNEL } = require('../consts.js');
+const Logger = require('./logger.js');
+const { PRIVATE_TEST_CHANNELS } = require('../consts.js');
 
 const TOKEN = process.env.SLACK_TOKEN;
 const RTM = new RTMClient(TOKEN);
@@ -28,7 +28,7 @@ exports.on_pr_message = async onMessage => {
       // production env should not listen to test channel
       if (
         process.env.NODE_ENV === 'production' &&
-        e.channel === PRIVATE_TEST_CHANNEL
+        PRIVATE_TEST_CHANNELS.includes(e.channel)
       ) {
         return;
       }
@@ -36,7 +36,7 @@ exports.on_pr_message = async onMessage => {
       // dev env should listen only to test channel
       if (
         process.env.NODE_ENV !== 'production' &&
-        e.channel !== PRIVATE_TEST_CHANNEL
+        !PRIVATE_TEST_CHANNELS.includes(e.channel)
       ) {
         return;
       }
@@ -63,7 +63,7 @@ exports.on_pr_message = async onMessage => {
         });
       }
     } catch (error) {
-      console.log(error);
+      Logger.log_error(error);
     }
   });
 
@@ -71,7 +71,7 @@ exports.on_pr_message = async onMessage => {
 };
 
 exports.send_message = (text, channel, thread_ts) => {
-  Metrics.add_call('slack.chat.postMessage');
+  Logger.add_call('slack.chat.postMessage');
   return slack_web_client.chat.postMessage({
     text,
     channel,
@@ -83,7 +83,7 @@ exports.send_message = (text, channel, thread_ts) => {
 };
 
 exports.update_message = ({ channel, ts }, newText) => {
-  Metrics.add_call('slack.chat.update');
+  Logger.add_call('slack.chat.update');
   return slack_web_client.chat.update({
     text: newText,
     channel,

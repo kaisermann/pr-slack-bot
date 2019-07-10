@@ -6,94 +6,115 @@ const PR = require('../pr.js');
 const db = low(new FileSyncAdapter('db.json'));
 
 db.defaults({
-  messages_sent: {},
-  prs: {},
+  channels: {},
 }).write();
 
-let cached_prs = null;
+const get_sent_messages_path = (channel, type) =>
+  ['channels', channel, 'messages_sent', type].filter(Boolean);
 
-exports.get_messages = type => {
-  if (type == null) {
-    return db.get('messages_sent').value();
-  }
+const get_pr_path = channel => ['channels', channel, 'prs'];
 
+exports.get_channel_list = () =>
+  db
+    .get('channels')
+    .keys()
+    .value();
+
+exports.get_channel_prs = channel => {
   return db
-    .defaultsDeep({ messages_sent: { [type]: [] } })
-    .get('messages_sent')
-    .get(type)
+    .get(get_pr_path(channel))
+    .values()
+    .map(PR.create)
     .value();
 };
 
+exports.has_channel = channel => {
+  return db
+    .get('channels')
+    .has(channel)
+    .value();
+};
+
+exports.create_channel = channel => {
+  return db
+    .get('channels')
+    .set(channel, {
+      id: channel,
+      prs: [],
+      messages_sent: {},
+    })
+    .write();
+};
+
+exports.get_messages = (channel, type) => {
+  return db.get(get_sent_messages_path(channel, type), []).value();
+};
+
 exports.remove_message = message => {
-  const { type } = message;
-  db.defaultsDeep({
-    messages_sent: { [type]: [] },
-  })
-    .get([`messages_sent`, type])
-    .remove({ ts: message.ts, channel: message.channel })
+  const { channel, ts, type } = message;
+  db.get(get_sent_messages_path(channel, type), [])
+    .remove({ ts, channel })
     .write();
 };
 
 exports.update_message = (message, fn) => {
-  const { type } = message;
-  db.defaultsDeep({
-    messages_sent: { [type]: [] },
-  })
-    .get([`messages_sent`, type])
-    .find({ ts: message.ts, channel: message.channel })
+  const { type, channel, ts } = message;
+  db.get(get_sent_messages_path(channel, type))
+    .find({ ts, channel })
     .assign(produce(message, fn))
     .write();
 };
 
 exports.save_message = (message, limit) => {
-  const { type } = message;
+  const { type, channel } = message;
   let messages_of_type = db
-    .defaultsDeep({
-      messages_sent: { [type]: [] },
-    })
-    .get('messages_sent')
-    .get(type)
+    .get(get_sent_messages_path(channel, type), [])
     .push(message);
 
   if (typeof limit === 'number') {
     messages_of_type = messages_of_type.takeRight(limit);
   }
 
-  db.get('messages_sent')
+  return db
+    .get(get_sent_messages_path(channel))
     .set(type, messages_of_type.value())
     .write();
 };
 
-exports.set_pr = pr => {
-  cached_prs = null;
+exports.add_pr = pr => {
+  const { channel } = pr;
 
-  db.get('prs')
-    .set(pr.slug, pr.to_json())
-    .write();
-};
-
-exports.unset_pr = pr => {
-  cached_prs = null;
-
-  db.get('prs')
-    .unset(pr.slug)
-    .write();
-};
-
-exports.has_pr = slug =>
-  db
-    .get('prs')
-    .has(slug)
-    .value();
-
-exports.get_prs = () => {
-  if (cached_prs == null) {
-    cached_prs = db
-      .get('prs')
-      .values()
-      .map(PR.create)
-      .value();
+  if (!exports.has_channel(channel)) {
+    exports.create_channel(channel);
   }
 
-  return cached_prs;
+  return db
+    .get(get_pr_path(channel), [])
+    .push(pr.to_json())
+    .write();
+};
+
+exports.update_pr = pr => {
+  const { channel } = pr;
+
+  return db
+    .get(get_pr_path(channel), [])
+    .find({ slug: pr.slug })
+    .assign(pr.to_json())
+    .write();
+};
+
+exports.remove_pr = pr => {
+  const { channel, slug } = pr;
+  return db
+    .get(get_pr_path(channel), [])
+    .remove({ slug })
+    .write();
+};
+
+exports.has_pr = (channel, slug) => {
+  return db
+    .get(get_pr_path(channel), [])
+    .some({ slug })
+    .value();
 };
