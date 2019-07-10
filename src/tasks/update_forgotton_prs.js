@@ -6,7 +6,7 @@ const Slack = require('../api/slack.js');
 const { EMOJIS } = require('../consts.js');
 
 module.exports = pr => {
-  DB.getMessages('ignored_prs')
+  DB.get_messages('forgotten_prs')
     .filter(({ payload }) => payload.indexOf(pr.slug) >= 0)
     .forEach(async message => {
       const { text } = message;
@@ -22,9 +22,9 @@ module.exports = pr => {
 
       Slack.updateMessage(message, newText);
       if (message.payload.length === 1) {
-        DB.removeMessage(message);
+        DB.remove_message(message);
       } else {
-        DB.updateMessage(message, draft => {
+        DB.update_message(message, draft => {
           draft.text = newText;
           draft.payload = draft.payload.filter(slug => slug !== pr.slug);
         });

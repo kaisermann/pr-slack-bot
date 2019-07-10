@@ -9,16 +9,16 @@ exports.create = ({
   slug,
   owner,
   repo,
-  prID,
+  pr_id,
   channel,
   ts,
-  bot_interactions = {},
+  replies = {},
   reactions = [],
   state = {},
 }) => {
-  async function getMessageUrl() {
-    Metrics.addCall('slack.chat.getPermalink');
-    const response = await Slack.WebClient.chat.getPermalink({
+  async function get_message_url() {
+    Metrics.add_call('slack.chat.getPermalink');
+    const response = await Slack.web_client.chat.getPermalink({
       channel,
       message_ts: ts,
     });
@@ -27,39 +27,39 @@ exports.create = ({
   }
 
   // return in minutes
-  function timeSincePost() {
+  function time_since_post() {
     return Math.abs(new Date(ts * 1000) - new Date()) / (1000 * 60);
   }
 
   // consider in hours
-  function needsAttention(hours) {
-    return timeSincePost() >= 60 * hours;
+  function needs_attention(hours) {
+    return time_since_post() >= 60 * hours;
   }
 
   async function reply(id, text) {
-    if (bot_interactions[id]) {
+    if (replies[id]) {
       return false;
     }
 
     console.log(`- Sending reply: ${text}`);
-    const response = await Slack.sendMessage(text, channel, ts);
+    const response = await Slack.send_message(text, channel, ts);
     if (response) {
-      bot_interactions[id] = {
+      replies[id] = {
         ts: response.ts,
       };
     }
-    return bot_interactions[id];
+    return replies[id];
   }
 
-  async function addReaction(name) {
+  async function add_reaction(name) {
     if (reactions.includes(name)) {
       return false;
     }
 
     console.log(`- Adding reaction: ${name}`);
-    Metrics.addCall('slack.reactions.add');
+    Metrics.add_call('slack.reactions.add');
 
-    return Slack.WebClient.reactions
+    return Slack.web_client.reactions
       .add({ name, timestamp: ts, channel })
       .then(() => {
         reactions.push(name);
@@ -77,15 +77,15 @@ exports.create = ({
       });
   }
 
-  async function removeReaction(name) {
+  async function remove_reaction(name) {
     if (!reactions.includes(name)) {
       return false;
     }
 
     console.log(`- Removing reaction: ${name}`);
-    Metrics.addCall('slack.reactions.remove');
+    Metrics.add_call('slack.reactions.remove');
 
-    return Slack.WebClient.reactions
+    return Slack.web_client.reactions
       .remove({ name, timestamp: ts, channel })
       .then(() => {
         reactions = reactions.filter(r => r !== name);
@@ -103,31 +103,31 @@ exports.create = ({
       });
   }
 
-  async function update() {
+  async function update_status() {
     try {
-      const pr = await Github.getPRData(owner, repo, prID);
-      const reviewData = await Github.getReviewData(owner, repo, prID);
+      const pr = await Github.get_pr_data(owner, repo, pr_id);
+      const review_data = await Github.get_review_data(owner, repo, pr_id);
 
       // review data mantains a list of reviews
       // we use the last review of an user as the current review state
-      const reviewSets = Object.values(
-        reviewData.reduce((acc, { user, state: review_state }) => {
+      const review_sets = Object.values(
+        review_data.reduce((acc, { user, state: review_state }) => {
           if (!acc[user.login]) acc[user.login] = [];
           acc[user.login].push(review_state);
           return acc;
         }, {}),
       );
 
-      const changesRequested = reviewSets.some(
+      const changes_requested = review_sets.some(
         set => set.indexOf('CHANGES_REQUESTED') > set.indexOf('APPROVED'),
       );
       const approved =
-        !changesRequested &&
-        reviewSets.filter(set => set.includes('APPROVED')).length >=
+        !changes_requested &&
+        review_sets.filter(set => set.includes('APPROVED')).length >=
           NEEDED_REVIEWS;
 
       state = Object.freeze({
-        changesRequested,
+        changes_requested,
         approved,
         quick: pr.additions <= QUICK_ADDITION_LIMIT,
         reviewed: pr.review_comments > 0,
@@ -140,22 +140,22 @@ exports.create = ({
 
       const changes = {};
 
-      changes.changesRequested = state.changesRequested
-        ? await addReaction(EMOJIS.changes)
-        : await removeReaction(EMOJIS.changes);
+      changes.changes_requested = state.changes_requested
+        ? await add_reaction(EMOJIS.changes)
+        : await remove_reaction(EMOJIS.changes);
 
       if (state.quick) {
-        changes.quick = await addReaction(EMOJIS.quick_read);
+        changes.quick = await add_reaction(EMOJIS.quick_read);
       }
 
       if (state.reviewed) {
-        changes.reviewed = await addReaction(EMOJIS.commented);
+        changes.reviewed = await add_reaction(EMOJIS.commented);
       }
 
       if (state.unstable) {
-        changes.unstable = await addReaction(EMOJIS.unstable);
+        changes.unstable = await add_reaction(EMOJIS.unstable);
       } else {
-        changes.unstable = await removeReaction(EMOJIS.unstable);
+        changes.unstable = await remove_reaction(EMOJIS.unstable);
       }
 
       if (state.dirty) {
@@ -174,15 +174,15 @@ exports.create = ({
 
       if (state.merged || state.closed) {
         if (state.merged) {
-          changes.merged = await addReaction(EMOJIS.merged);
+          changes.merged = await add_reaction(EMOJIS.merged);
         } else {
-          changes.closed = await addReaction(EMOJIS.closed);
+          changes.closed = await add_reaction(EMOJIS.closed);
         }
       }
 
-      return Promise.all(Object.values(changes)).then(changedResults => {
+      return Promise.all(Object.values(changes)).then(changed_results => {
         return {
-          hasChanged: changedResults.some(changed => changed !== false),
+          has_changed: changed_results.some(changed => changed !== false),
           changes,
         };
       });
@@ -194,16 +194,16 @@ exports.create = ({
     return {};
   }
 
-  function toJSON() {
+  function to_json() {
     return {
       slug,
       owner,
       repo,
-      prID,
+      pr_id,
       channel,
       ts,
       reactions,
-      bot_interactions,
+      replies,
     };
   }
 
@@ -212,23 +212,23 @@ exports.create = ({
     slug,
     owner,
     repo,
-    prID,
+    pr_id,
     channel,
     ts,
-    // methods
     get state() {
       return state;
     },
-    get hoursSincePost() {
-      return ~~(timeSincePost() / 60);
+    get hours_since_post() {
+      return ~~(time_since_post() / 60);
     },
-    toJSON,
-    addReaction,
-    removeReaction,
-    update,
-    getMessageUrl,
-    timeSincePost,
+    // methods
+    to_json,
+    add_reaction,
+    remove_reaction,
+    update_status,
+    get_message_url,
+    time_since_post,
     reply,
-    needsAttention,
+    needs_attention,
   });
 };

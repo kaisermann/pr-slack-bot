@@ -1,21 +1,21 @@
 const { RTMClient } = require('@slack/rtm-api');
 const { WebClient, retryPolicies } = require('@slack/web-api');
+
 const Metrics = require('./metrics.js');
+const { PRIVATE_TEST_CHANNEL } = require('../consts.js');
 
 const TOKEN = process.env.SLACK_TOKEN;
 const RTM = new RTMClient(TOKEN);
 
-const PRIVATE_TEST_CHANNEL = 'GKSCG1GRX';
-
 const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i;
 
-const SlackWebClient = new WebClient(TOKEN, {
+const slack_web_client = new WebClient(TOKEN, {
   retryConfig: retryPolicies.rapidRetryPolicy,
 });
 
-exports.WebClient = SlackWebClient;
+exports.web_client = slack_web_client;
 
-exports.onPRMessage = async onMessage => {
+exports.on_pr_message = async onMessage => {
   RTM.on('message', e => {
     try {
       const { thread_ts, subtype, text } = e;
@@ -41,22 +41,22 @@ exports.onPRMessage = async onMessage => {
         return;
       }
 
-      let prMessage = text;
+      let pr_message = text;
       if (text === '' && e.attachments.length) {
         const { title_link, pretext } = e.attachments[0];
         if (pretext.match(/pull request opened/i)) {
-          prMessage = title_link;
+          pr_message = title_link;
         }
       }
 
-      const match = prMessage.match(PR_REGEX);
+      const match = pr_message.match(PR_REGEX);
       if (match) {
-        const [, owner, repo, prID] = match;
-        const slug = `${owner}/${repo}/${prID}`;
+        const [, owner, repo, pr_id] = match;
+        const slug = `${owner}/${repo}/${pr_id}`;
         onMessage({
           owner,
           repo,
-          prID,
+          pr_id,
           slug,
           ts: e.event_ts,
           channel: e.channel,
@@ -70,9 +70,9 @@ exports.onPRMessage = async onMessage => {
   await RTM.start();
 };
 
-exports.sendMessage = (text, channel, thread_ts) => {
-  Metrics.addCall('slack.chat.postMessage');
-  return SlackWebClient.chat.postMessage({
+exports.send_message = (text, channel, thread_ts) => {
+  Metrics.add_call('slack.chat.postMessage');
+  return slack_web_client.chat.postMessage({
     text,
     channel,
     thread_ts,
@@ -83,8 +83,8 @@ exports.sendMessage = (text, channel, thread_ts) => {
 };
 
 exports.updateMessage = ({ channel, ts }, newText) => {
-  Metrics.addCall('slack.chat.update');
-  return SlackWebClient.chat.update({
+  Metrics.add_call('slack.chat.update');
+  return slack_web_client.chat.update({
     text: newText,
     channel,
     ts,
