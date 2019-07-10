@@ -82,7 +82,7 @@ exports.send_message = (text, channel, thread_ts) => {
   });
 };
 
-exports.updateMessage = ({ channel, ts }, newText) => {
+exports.update_message = ({ channel, ts }, newText) => {
   Metrics.add_call('slack.chat.update');
   return slack_web_client.chat.update({
     text: newText,

@@ -20,7 +20,7 @@ module.exports = pr => {
         `:${prState}: ~$1~`,
       );
 
-      Slack.updateMessage(message, newText);
+      Slack.update_message(message, newText);
       if (message.payload.length === 1) {
         DB.remove_message(message);
       } else {
