@@ -3,3 +3,4 @@ node_modules
 daemon.*
 !daemon.js
 db.json
+.env
