@@ -17,6 +17,7 @@ module.exports = {
     ecmaVersion: 2018,
   },
   rules: {
+    'no-continue': OFF,
     'no-bitwise': OFF,
     'no-multi-assign': OFF,
     semi: [ERROR, 'always'],
