@@ -112,6 +112,13 @@ exports.remove_pr = pr => {
     .write();
 };
 
+exports.remove_pr_by_timestamp = (channel, ts) => {
+  return db
+    .get(get_pr_path(channel), [])
+    .remove({ ts })
+    .write();
+};
+
 exports.has_pr = (channel, slug) => {
   return db
     .get(get_pr_path(channel), [])
