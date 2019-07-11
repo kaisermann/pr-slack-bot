@@ -15,13 +15,16 @@ const slack_web_client = new WebClient(TOKEN, {
 
 exports.web_client = slack_web_client;
 
-exports.on_pr_message = async onMessage => {
+exports.on_pr_message = async (on_new_message, on_message_deleted) => {
   RTM.on('message', e => {
     try {
       const { thread_ts, subtype, text } = e;
 
       // dont listen to messages not posted directly to a channel
-      if (thread_ts != null || subtype != null) {
+      if (
+        thread_ts != null ||
+        (subtype != null && subtype !== 'message_deleted')
+      ) {
         return;
       }
 
@@ -42,7 +45,12 @@ exports.on_pr_message = async onMessage => {
       }
 
       let pr_message = text;
-      if (text === '' && e.attachments.length) {
+
+      if (subtype === 'message_deleted') {
+        pr_message = e.previous_message.text;
+      }
+
+      if (pr_message === '' && e.attachments.length) {
         const { title_link, pretext } = e.attachments[0];
         if (pretext.match(/pull request opened/i)) {
           pr_message = title_link;
@@ -50,18 +58,28 @@ exports.on_pr_message = async onMessage => {
       }
 
       const match = pr_message.match(PR_REGEX);
-      if (match) {
-        const [, owner, repo, pr_id] = match;
-        const slug = `${owner}/${repo}/${pr_id}`;
-        onMessage({
-          owner,
-          repo,
-          pr_id,
-          slug,
-          ts: e.event_ts,
+      if (!match) {
+        return;
+      }
+
+      if (subtype === 'message_deleted') {
+        return on_message_deleted({
           channel: e.channel,
+          deleted_ts: e.deleted_ts,
         });
       }
+
+      const [, owner, repo, pr_id] = match;
+      const slug = `${owner}/${repo}/${pr_id}`;
+
+      on_new_message({
+        owner,
+        repo,
+        pr_id,
+        slug,
+        ts: e.event_ts,
+        channel: e.channel,
+      });
     } catch (error) {
       Logger.log_error(error);
     }

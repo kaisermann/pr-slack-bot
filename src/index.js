@@ -23,16 +23,21 @@ cron.schedule('0 14 * * 1-5', check_forgotten_prs, {
   timezone: 'America/Sao_Paulo',
 });
 
-Slack.on_pr_message(pr_meta => {
-  const { slug, channel } = pr_meta;
+Slack.on_pr_message(
+  pr_meta => {
+    const { slug, channel } = pr_meta;
 
-  if (DB.has_pr(channel, slug)) {
-    return Logger.log(`${slug} is already being watched`);
-  }
-  Logger.log(`Watching ${slug}`);
+    if (DB.has_pr(channel, slug)) {
+      return Logger.log(`${slug} is already being watched`);
+    }
+    Logger.log(`Watching ${slug}`);
 
-  const pr = PR.create(pr_meta);
+    const pr = PR.create(pr_meta);
 
-  DB.add_pr(pr);
-  update_pr(pr);
-});
+    DB.add_pr(pr);
+    update_pr(pr);
+  },
+  ({ channel, deleted_ts }) => {
+    DB.remove_pr_by_timestamp(channel, deleted_ts);
+  },
+);
