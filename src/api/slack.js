@@ -1,6 +1,7 @@
 const { RTMClient } = require('@slack/rtm-api');
 const { WebClient, retryPolicies } = require('@slack/web-api');
 
+const Balancer = require('./balancer.js');
 const Logger = require('./logger.js');
 const { PRIVATE_TEST_CHANNELS } = require('../consts.js');
 
@@ -9,11 +10,27 @@ const RTM = new RTMClient(TOKEN);
 
 const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i;
 
-const slack_web_client = new WebClient(TOKEN, {
+const web_client = new WebClient(TOKEN, {
   retryConfig: retryPolicies.rapidRetryPolicy,
 });
 
-exports.web_client = slack_web_client;
+exports.web_client = web_client;
+
+exports.get_user_info = id => {
+  return Balancer.request(
+    () => {
+      Logger.add_call('slack.users.info');
+      return web_client.users
+        .info({ user: id })
+        .then(response => response.ok && response.user)
+        .catch(error => {
+          console.log(error);
+        });
+    },
+    id,
+    'get_user_info',
+  );
+};
 
 exports.on_pr_message = async (on_new_message, on_message_deleted) => {
   RTM.on('message', e => {
@@ -89,24 +106,38 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
 };
 
 exports.send_message = (text, channel, thread_ts) => {
-  Logger.add_call('slack.chat.postMessage');
-  return slack_web_client.chat.postMessage({
-    text,
-    channel,
-    thread_ts,
-    unfurl_links: false,
-    // send as paulo ricardo
-    as_user: true,
-  });
+  return Balancer.request(
+    () => {
+      Logger.add_call('slack.chat.postMessage');
+      return web_client.chat.postMessage({
+        text,
+        channel,
+        thread_ts,
+        unfurl_links: false,
+        // send as paulo ricardo
+        as_user: true,
+        link_names: true,
+      });
+    },
+    channel + thread_ts,
+    'send_message',
+  );
 };
 
 exports.update_message = ({ channel, ts }, newText) => {
-  Logger.add_call('slack.chat.update');
-  return slack_web_client.chat.update({
-    text: newText,
-    channel,
-    ts,
-    unfurl_links: false,
-    as_user: true,
-  });
+  return Balancer.request(
+    () => {
+      Logger.add_call('slack.chat.update');
+      return web_client.chat.update({
+        text: newText,
+        channel,
+        ts,
+        unfurl_links: false,
+        as_user: true,
+        link_names: true,
+      });
+    },
+    channel + ts,
+    'update_message',
+  );
 };
