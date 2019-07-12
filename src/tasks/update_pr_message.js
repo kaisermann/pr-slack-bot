@@ -6,13 +6,13 @@ module.exports = async pr => {
 
   if (pr.state.merged || pr.state.closed) {
     await edit_forgotten_prs(pr);
-    DB.remove_pr(pr);
-    return;
+    // DB.remove_pr(pr);
+    // return;
   }
 
-  if (!has_changed) {
-    return;
-  }
+  // if (!has_changed) {
+  //   return;
+  // }
 
   DB.update_pr(pr);
 };

@@ -6,6 +6,7 @@ const PR = require('../pr.js');
 const db = low(new FileSyncAdapter('db.json'));
 
 db.defaults({
+  users: [],
   channels: {},
 }).write();
 
@@ -13,6 +14,8 @@ const get_sent_messages_path = (channel, type) =>
   ['channels', channel, 'messages_sent', type].filter(Boolean);
 
 const get_pr_path = channel => ['channels', channel, 'prs'];
+
+exports.client = db;
 
 exports.get_channel_list = () =>
   db
@@ -123,5 +126,12 @@ exports.has_pr = (channel, slug) => {
   return db
     .get(get_pr_path(channel), [])
     .some({ slug })
+    .value();
+};
+
+exports.get_user_by_github_username = github_username => {
+  return db
+    .get('users')
+    .find({ github_username })
     .value();
 };
