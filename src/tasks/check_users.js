@@ -1,0 +1,51 @@
+require('dotenv/config');
+
+const DB = require('../api/db.js');
+
+const Slack = require('../api/slack.js');
+const Logger = require('../api/logger.js');
+
+const GITHUB_FIELD_ID = 'XfCCUXUDPH';
+
+module.exports = async () => {
+  Logger.add_call('slack.users.list');
+  const list_response = await Slack.web_client.users.list();
+  if (!list_response.ok) return;
+
+  const users = list_response.members;
+  let db_user_transaction = DB.client.get('users');
+
+  Logger.log(`Updating users`);
+  await users.reduce(async (acc, { id, profile: { display_name } }) => {
+    try {
+      const user_info = await Slack.get_user_info(id);
+
+      if (
+        !user_info ||
+        !user_info.profile ||
+        !user_info.profile.fields ||
+        !user_info.profile.fields[GITHUB_FIELD_ID]
+      )
+        return;
+
+      const github_username = user_info.profile.fields[
+        GITHUB_FIELD_ID
+      ].value.replace(/(?:https:\/\/github.com\/|^@)([\w-.]*)?/, '$1');
+
+      db_user_transaction = db_user_transaction.push({
+        id,
+        display_name,
+        github_username,
+      });
+
+      // Logger.log(
+      //   `New user [${i}]: ${id}, ${display_name}, ${github_username}`,
+      // );
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
+  Logger.log(`Users updated`);
+  db_user_transaction.write();
+};
