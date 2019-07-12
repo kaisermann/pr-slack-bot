@@ -10,7 +10,7 @@ module.exports = async () => {
       pr.needs_attention(FORGOTTEN_PR_HOUR_THRESHOLD),
     );
 
-    if (forgotten_prs.length === 0) return;
+    if (forgotten_prs.length === 0) continue;
 
     let message =
       'Hello :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
