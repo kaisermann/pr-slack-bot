@@ -146,32 +146,32 @@ exports.create = ({
       const changes = {};
 
       changes.changes_requested = state.changes_requested
-        ? await add_reaction(EMOJIS.changes)
-        : await remove_reaction(EMOJIS.changes);
+        ? add_reaction(EMOJIS.changes)
+        : remove_reaction(EMOJIS.changes);
 
       if (state.quick) {
-        changes.quick = await add_reaction(EMOJIS.quick_read);
+        changes.quick = add_reaction(EMOJIS.quick_read);
       }
 
       if (state.reviewed) {
-        changes.reviewed = await add_reaction(EMOJIS.commented);
+        changes.reviewed = add_reaction(EMOJIS.commented);
       }
 
       if (state.unstable) {
-        changes.unstable = await add_reaction(EMOJIS.unstable);
+        changes.unstable = add_reaction(EMOJIS.unstable);
       } else {
-        changes.unstable = await remove_reaction(EMOJIS.unstable);
+        changes.unstable = remove_reaction(EMOJIS.unstable);
       }
 
       if (state.dirty) {
-        changes.dirty = await reply(
+        changes.dirty = reply(
           'is_dirty',
           `The branch \`${pr_data.head.ref}\` is dirty. It may need a rebase with \`${pr_data.base.ref}\`.`,
         );
       }
 
       if (state.approved && !state.unstable && !state.merged && !state.closed) {
-        changes.ready_to_merge = await reply(
+        changes.ready_to_merge = reply(
           'ready_to_merge',
           'PR is ready to be merged :doit:!',
         );
@@ -179,9 +179,9 @@ exports.create = ({
 
       if (state.merged || state.closed) {
         if (state.merged) {
-          changes.merged = await add_reaction(EMOJIS.merged);
+          changes.merged = add_reaction(EMOJIS.merged);
         } else {
-          changes.closed = await add_reaction(EMOJIS.closed);
+          changes.closed = add_reaction(EMOJIS.closed);
         }
       }
 
@@ -191,7 +191,7 @@ exports.create = ({
           .filter(Boolean);
 
         if (slack_user_ids.length > 0) {
-          changes.reviewers = await reply(
+          changes.reviewers = reply(
             'reviewers',
             `Assigned reviewers: ${slack_user_ids
               .map(id => `<@${id}>`)
