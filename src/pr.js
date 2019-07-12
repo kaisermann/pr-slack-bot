@@ -15,16 +15,13 @@ exports.create = ({
   reactions = [],
   state = {},
 }) => {
+  let _cached_url;
+
   async function get_message_url() {
-    if (get_message_url._cached_url == null) {
-      Logger.add_call('slack.chat.getPermalink');
-      const response = await Slack.web_client.chat.getPermalink({
-        channel,
-        message_ts: ts,
-      });
-      get_message_url._cached_url = response.permalink.replace(/\?.*$/, '');
+    if (_cached_url == null) {
+      _cached_url = await Slack.get_message_url(channel, ts);
     }
-    return get_message_url._cached_url;
+    return _cached_url;
   }
 
   // return in minutes

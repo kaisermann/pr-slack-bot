@@ -141,3 +141,13 @@ exports.update_message = ({ channel, ts }, newText) => {
     'update_message',
   );
 };
+
+exports.get_message_url = async (channel, ts) => {
+  Logger.add_call('slack.chat.getPermalink');
+  const response = await web_client.chat.getPermalink({
+    channel,
+    message_ts: ts,
+  });
+
+  return response.permalink.replace(/\?.*$/, '');
+};
