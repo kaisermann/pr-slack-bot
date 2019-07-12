@@ -9,25 +9,27 @@ const PR = require('./pr.js');
 
 const check_prs = require('./tasks/check_prs.js');
 const check_forgotten_prs = require('./tasks/check_forgotten_prs.js');
-const check_users = require('./tasks/check_users.js');
+const update_users = require('./tasks/update_users.js');
 const update_pr = require('./tasks/update_pr_message.js');
 
+const cron_options = {
+  scheduled: true,
+  timezone: 'America/Sao_Paulo',
+};
+
 check_prs();
-cron.schedule('* * * * *', check_prs, {
-  scheduled: true,
-  timezone: 'America/Sao_Paulo',
-});
+cron.schedule('* * * * *', check_prs, cron_options);
 
+// send forgotten prs message every work day at 14:00
 // check_forgotten_prs();
-cron.schedule('0 14 * * 1-5', check_forgotten_prs, {
-  scheduled: true,
-  timezone: 'America/Sao_Paulo',
-});
+cron.schedule('0 14 * * 1-5', check_forgotten_prs, cron_options);
 
-
-// check_users();
+// update user list every midnight
+// update_users();
+cron.schedule('0 0 * * 1-5', update_users, cron_options);
 
 Slack.on_pr_message(
+  // on new pr message
   pr_meta => {
     const { slug, channel } = pr_meta;
 
@@ -41,6 +43,7 @@ Slack.on_pr_message(
     DB.add_pr(pr);
     update_pr(pr);
   },
+  // on pr message deleted
   ({ channel, deleted_ts }) => {
     DB.remove_pr_by_timestamp(channel, deleted_ts);
   },
