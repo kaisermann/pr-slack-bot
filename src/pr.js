@@ -123,9 +123,12 @@ exports.create = ({
         review_sets.filter(([, set]) => set.includes('APPROVED')).length >=
           NEEDED_REVIEWS;
 
-      const requested_reviewers = pr_data.requested_reviewers
-        .map(user => user.login)
-        .map(DB.get_user_by_github_username);
+      const requested_reviewers = pr_data.requested_reviewers.map(
+        ({ login }) => {
+          const user = DB.get_user_by_github_username(login);
+          return user || { github_username: login };
+        },
+      );
 
       state = Object.freeze({
         requested_reviewers,
@@ -183,12 +186,18 @@ exports.create = ({
       }
 
       if (state.requested_reviewers.length > 0) {
-        changes.reviewers = await reply(
-          'reviewers',
-          `Assigned reviewers: ${state.requested_reviewers
-            .map(u => `<${u.id}>`)
-            .join(', ')}`,
-        );
+        const slack_user_ids = state.requested_reviewers
+          .map(u => u && u.id)
+          .filter(Boolean);
+
+        if (slack_user_ids.length > 0) {
+          changes.reviewers = await reply(
+            'reviewers',
+            `Assigned reviewers: ${slack_user_ids
+              .map(id => `<@${id}>`)
+              .join(', ')}`,
+          );
+        }
       }
 
       return Promise.all(Object.values(changes)).then(changed_results => {
