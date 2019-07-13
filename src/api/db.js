@@ -11,7 +11,7 @@ db.defaults({
 }).write();
 
 const get_sent_messages_path = (channel, type) =>
-  ['channels', channel, 'messages_sent', type].filter(Boolean);
+  ['channels', channel, 'messages', type].filter(Boolean);
 
 const get_pr_path = channel => ['channels', channel, 'prs'];
 
@@ -44,7 +44,7 @@ exports.create_channel = channel => {
     .set(channel, {
       id: channel,
       prs: [],
-      messages_sent: {},
+      messages: {},
     })
     .write();
 };

@@ -1,6 +1,7 @@
 const DB = require('../api/db.js');
-const Slack = require('../api/slack.js');
+const Logger = require('../api/logger.js');
 const { FORGOTTEN_PR_HOUR_THRESHOLD } = require('../consts.js');
+const Message = require('../message.js');
 
 module.exports = async () => {
   const channels = DB.get_channel_list();
@@ -12,29 +13,22 @@ module.exports = async () => {
 
     if (forgotten_prs.length === 0) continue;
 
-    let message =
+    let text =
       'Hello :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
 
     for await (const pr of forgotten_prs) {
       const message_url = await pr.get_message_url();
-      message += `<${message_url}|${pr.slug}>`;
-      message += ` _(${pr.hours_since_post} hours ago)_\n`;
+      text += `<${message_url}|${pr.slug}>`;
+      text += ` _(${pr.hours_since_post} hours ago)_\n`;
     }
 
-    const response = await Slack.send_message(message, channel);
-    if (response) {
-      const {
-        ts,
-        message: { text },
-      } = response;
-      const message_info = {
-        ts,
-        channel,
-        text,
-        type: 'forgotten_prs',
-        payload: forgotten_prs.map(pr => pr.slug),
-      };
-      DB.save_message(message_info, 3);
-    }
+    Message.send({
+      type: 'forgotten_prs',
+      channel,
+      text,
+      payload: forgotten_prs.map(pr => pr.slug),
+    })
+      .then(message => DB.save_message(message, 3))
+      .catch(e => Logger.log_error(e));
   }
 };
