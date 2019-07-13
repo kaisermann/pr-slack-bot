@@ -3,6 +3,7 @@ const Slack = require('./api/slack.js');
 const Logger = require('./api/logger.js');
 const { EMOJIS, QUICK_ADDITION_LIMIT, NEEDED_REVIEWS } = require('./consts.js');
 const DB = require('./api/db.js');
+const Message = require('./message.js');
 
 exports.create = ({
   slug,
@@ -40,11 +41,17 @@ exports.create = ({
     }
 
     Logger.log_pr_action(`Sending reply: ${text}`);
-    const response = await Slack.send_message(text, channel, ts);
-    if (response.ok) {
-      replies[id] = { ts: response.ts, payload };
-    }
-    return replies[id];
+    return Message.send({
+      text,
+      channel,
+      thread_ts: ts,
+      payload,
+    })
+      .then(message => {
+        replies[id] = message;
+        return replies[id];
+      })
+      .catch(e => Logger.log_error(e));
   }
 
   async function add_reaction(name) {
@@ -196,6 +203,7 @@ exports.create = ({
             `Assigned reviewers: ${slack_user_ids
               .map(id => `<@${id}>`)
               .join(', ')}`,
+            slack_user_ids,
           );
         }
       }
