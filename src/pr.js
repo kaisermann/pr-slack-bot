@@ -1,3 +1,4 @@
+const is_equal = require('fast-deep-equal');
 const Github = require('./api/github.js');
 const Slack = require('./api/slack.js');
 const Logger = require('./api/logger.js');
@@ -35,11 +36,42 @@ exports.create = ({
     return time_since_post() >= 60 * hours;
   }
 
+  async function delete_reply(id) {
+    await Message.delete(replies[id]);
+    delete replies[id];
+  }
+
   async function reply(id, text, payload) {
     if (id in replies) {
-      if (replies[id] === text) return false;
-      replies[id] = await Message.update(replies[id], { text, payload });
-      return replies[id];
+      const saved_reply = replies[id];
+
+      if (is_equal(saved_reply.payload, payload)) {
+        return false;
+      }
+
+      if (typeof text === 'function') {
+        text = text().trim();
+      }
+
+      if (saved_reply.text === text) {
+        return false;
+      }
+
+      if (text === '') {
+        await delete_reply(id);
+        return true;
+      }
+
+      replies[id] = await Message.update(saved_reply, { text, payload });
+      return true;
+    }
+
+    if (typeof text === 'function') {
+      text = text().trim();
+    }
+
+    if (text === '') {
+      return false;
     }
 
     Logger.log_pr_action(`Sending reply: ${text}`);
@@ -51,9 +83,12 @@ exports.create = ({
     })
       .then(message => {
         replies[id] = message;
-        return replies[id];
+        return true;
       })
-      .catch(e => Logger.log_error(e));
+      .catch(e => {
+        Logger.log_error(e);
+        return false;
+      });
   }
 
   async function add_reaction(name) {
@@ -108,106 +143,130 @@ exports.create = ({
       });
   }
 
+  async function update_state() {
+    const pr_data = await Github.get_pr_data(owner, repo, pr_id);
+    const review_data = await Github.get_review_data(owner, repo, pr_id);
+
+    // review data mantains a list of reviews
+    // we use the last review of an user as the current review state
+    const review_sets = Object.entries(
+      review_data.reduce((acc, { user, state: review_state }) => {
+        if (!acc[user.login]) acc[user.login] = [];
+        acc[user.login].push(review_state);
+        return acc;
+      }, {}),
+    );
+
+    const changes_requested = review_sets.some(
+      ([, set]) => set.indexOf('CHANGES_REQUESTED') > set.indexOf('APPROVED'),
+    );
+
+    const approved =
+      !changes_requested &&
+      review_sets.filter(([, set]) => set.includes('APPROVED')).length >=
+        NEEDED_REVIEWS;
+
+    const requested_reviewers = pr_data.requested_reviewers.map(({ login }) => {
+      const user = DB.get_user_by_github_username(login);
+      return user || { github_username: login };
+    });
+
+    state = Object.freeze({
+      requested_reviewers,
+      changes_requested,
+      approved,
+      quick: pr_data.additions <= QUICK_ADDITION_LIMIT,
+      reviewed: pr_data.review_comments > 0,
+      merged: pr_data.merged,
+      mergeable: pr_data.mergeable,
+      dirty: pr_data.mergeable_state === 'dirty',
+      unstable: pr_data.mergeable_state === 'unstable',
+      closed: pr_data.state === 'closed',
+      pr_branch: pr_data.head.ref,
+      base_branch: pr_data.base.ref,
+    });
+
+    return state;
+  }
+
   async function update_status() {
     try {
-      const pr_data = await Github.get_pr_data(owner, repo, pr_id);
-      const review_data = await Github.get_review_data(owner, repo, pr_id);
+      await update_state();
 
-      // review data mantains a list of reviews
-      // we use the last review of an user as the current review state
-      const review_sets = Object.entries(
-        review_data.reduce((acc, { user, state: review_state }) => {
-          if (!acc[user.login]) acc[user.login] = [];
-          acc[user.login].push(review_state);
-          return acc;
-        }, {}),
-      );
-
-      const changes_requested = review_sets.some(
-        ([, set]) => set.indexOf('CHANGES_REQUESTED') > set.indexOf('APPROVED'),
-      );
-
-      const approved =
-        !changes_requested &&
-        review_sets.filter(([, set]) => set.includes('APPROVED')).length >=
-          NEEDED_REVIEWS;
-
-      const requested_reviewers = pr_data.requested_reviewers.map(
-        ({ login }) => {
-          const user = DB.get_user_by_github_username(login);
-          return user || { github_username: login };
-        },
-      );
-
-      state = Object.freeze({
-        requested_reviewers,
+      const {
         changes_requested,
+        quick,
+        reviewed,
+        unstable,
+        dirty,
+        pr_branch,
+        base_branch,
         approved,
-        quick: pr_data.additions <= QUICK_ADDITION_LIMIT,
-        reviewed: pr_data.review_comments > 0,
-        merged: pr_data.merged,
-        mergeable: pr_data.mergeable,
-        dirty: pr_data.mergeable_state === 'dirty',
-        unstable: pr_data.mergeable_state === 'unstable',
-        closed: pr_data.state === 'closed',
-      });
+        merged,
+        closed,
+        requested_reviewers,
+      } = state;
 
       const changes = {};
 
-      changes.changes_requested = state.changes_requested
+      changes.changes_requested = changes_requested
         ? add_reaction(EMOJIS.changes)
         : remove_reaction(EMOJIS.changes);
 
-      if (state.quick) {
+      if (quick) {
         changes.quick = add_reaction(EMOJIS.quick_read);
       }
 
-      if (state.reviewed) {
+      if (reviewed) {
         changes.reviewed = add_reaction(EMOJIS.commented);
       }
 
-      if (state.unstable) {
+      if (unstable) {
         changes.unstable = add_reaction(EMOJIS.unstable);
       } else {
         changes.unstable = remove_reaction(EMOJIS.unstable);
       }
 
-      if (state.dirty) {
+      if (dirty) {
         changes.dirty = reply(
           'is_dirty',
-          `The branch \`${pr_data.head.ref}\` is dirty. It may need a rebase with \`${pr_data.base.ref}\`.`,
+          `The branch \`${pr_branch}\` is dirty. It may need a rebase with \`${base_branch}\`.`,
         );
       }
 
-      if (state.approved && !state.unstable && !state.merged && !state.closed) {
+      if (approved && !unstable && !merged && !closed) {
         changes.ready_to_merge = reply(
           'ready_to_merge',
           'PR is ready to be merged :doit:!',
         );
       }
 
-      if (state.merged || state.closed) {
-        if (state.merged) {
+      if (merged || closed) {
+        if (merged) {
           changes.merged = add_reaction(EMOJIS.merged);
         } else {
           changes.closed = add_reaction(EMOJIS.closed);
         }
       }
 
-      if (state.requested_reviewers.length > 0) {
-        const slack_user_ids = state.requested_reviewers
+      if (requested_reviewers.length > 0) {
+        const slack_user_ids = requested_reviewers
           .map(u => u && u.id)
           .filter(Boolean);
 
         if (slack_user_ids.length > 0) {
           changes.reviewers = reply(
             'reviewers',
-            `Assigned reviewers: ${slack_user_ids
-              .map(id => `<@${id}>`)
-              .join(', ')}`,
+            () =>
+              `Assigned reviewers: ${slack_user_ids
+                .map(id => `<@${id}>`)
+                .join(', ')}`,
             slack_user_ids,
           );
         }
+      } else if ('reviewers' in replies) {
+        delete_reply('reviewers');
+        changes.reviewers = true;
       }
 
       return Promise.all(Object.values(changes)).then(changed_results => {

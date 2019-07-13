@@ -142,6 +142,20 @@ exports.update_message = ({ channel, ts }, newText) => {
   );
 };
 
+exports.delete_message = ({ channel, ts }) => {
+  return Balancer.request(
+    () => {
+      Logger.add_call('slack.chat.delete');
+      return web_client.chat.delete({
+        channel,
+        ts,
+      });
+    },
+    channel + ts,
+    'delete_message',
+  );
+};
+
 exports.get_message_url = async (channel, ts) => {
   Logger.add_call('slack.chat.getPermalink');
   const response = await web_client.chat.getPermalink({

@@ -29,6 +29,7 @@
     "@slack/rtm-api": "^5.0.1",
     "@slack/web-api": "^5.0.1",
     "dotenv": "^8.0.0",
+    "fast-deep-equal": "^2.0.1",
     "forever": "^1.0.0",
     "lowdb": "^1.0.0",
     "node-cron": "^2.0.3",
