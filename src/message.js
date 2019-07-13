@@ -27,3 +27,11 @@ exports.update = async (message, { text, ...rest }) => {
     text,
   };
 };
+
+exports.delete = async message => {
+  const response = await Slack.delete_message(message);
+
+  if (!response.ok) throw new Error(response);
+
+  return true;
+};
