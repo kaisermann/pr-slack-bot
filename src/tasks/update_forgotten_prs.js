@@ -3,6 +3,7 @@ const DB = require('../api/db.js');
 const Slack = require('../api/slack.js');
 const Logger = require('../api/logger.js');
 const { EMOJIS } = require('../consts.js');
+const Message = require('../message.js');
 
 module.exports = async pr => {
   const messages = DB.get_messages(pr.channel, 'forgotten_prs').filter(
@@ -21,16 +22,16 @@ module.exports = async pr => {
       `:${state_emoji}: ~$1~`,
     );
 
-    Slack.update_message(message, new_text);
     Logger.log_pr_action(`Updating forgotten PR message: ${pr.slug}`);
-
-    if (message.payload.length === 1) {
-      DB.remove_message(message);
-    } else {
-      DB.update_message(message, draft => {
-        draft.text = new_text;
-        draft.payload = draft.payload.filter(slug => slug !== pr.slug);
-      });
-    }
+    Message.update(message, new_text).then(() => {
+      if (message.payload.length === 1) {
+        DB.remove_message(message);
+      } else {
+        DB.update_message(message, draft => {
+          draft.text = new_text;
+          draft.payload = draft.payload.filter(slug => slug !== pr.slug);
+        });
+      }
+    });
   }
 };
