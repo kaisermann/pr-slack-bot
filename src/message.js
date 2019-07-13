@@ -9,6 +9,7 @@ exports.send = async ({ text, channel, thread_ts, ...rest }) => {
 
   return {
     ...rest,
+    thread_ts,
     ts,
     channel,
     text,
