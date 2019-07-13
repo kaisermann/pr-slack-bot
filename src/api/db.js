@@ -1,4 +1,3 @@
-const { produce } = require('immer');
 const low = require('lowdb');
 const FileSyncAdapter = require('lowdb/adapters/FileSync');
 const PR = require('../pr.js');
@@ -60,11 +59,11 @@ exports.remove_channel_message = message => {
     .write();
 };
 
-exports.update_channel_message = (message, fn) => {
-  const { type, channel, ts } = message;
+exports.update_channel_message = updated_message => {
+  const { type, channel, ts } = updated_message;
   db.get(channel_message_path(channel, type))
     .find({ ts, channel })
-    .assign(produce(message, fn))
+    .assign(updated_message)
     .write();
 };
 

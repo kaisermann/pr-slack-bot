@@ -36,8 +36,10 @@ exports.create = ({
   }
 
   async function reply(id, text, payload) {
-    if (replies[id]) {
-      return false;
+    if (id in replies) {
+      if (replies[id] === text) return false;
+      replies[id] = await Message.update(replies[id], { text, payload });
+      return replies[id];
     }
 
     Logger.log_pr_action(`Sending reply: ${text}`);
