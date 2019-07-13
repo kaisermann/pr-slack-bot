@@ -28,7 +28,7 @@ module.exports = async () => {
       text,
       payload: forgotten_prs.map(pr => pr.slug),
     })
-      .then(message => DB.save_message(message, 3))
+      .then(message => DB.save_channel_message(message, 3))
       .catch(e => Logger.log_error(e));
   }
 };
