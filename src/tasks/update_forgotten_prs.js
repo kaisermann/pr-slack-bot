@@ -22,15 +22,15 @@ module.exports = async pr => {
     );
 
     Logger.log_pr_action(`Updating forgotten PR message: ${pr.slug}`);
-    Message.update(message, new_text).then(() => {
-      if (message.payload.length === 1) {
-        DB.remove_channel_message(message);
-      } else {
-        DB.update_channel_message(message, draft => {
-          draft.text = new_text;
-          draft.payload = draft.payload.filter(slug => slug !== pr.slug);
-        });
-      }
+    const updated_message = await Message.update(message, {
+      text: new_text,
+      payload: message.payload.filter(slug => slug !== pr.slug),
     });
+
+    if (updated_message.payload.length === 0) {
+      DB.remove_channel_message(updated_message);
+    } else {
+      DB.update_channel_message(updated_message);
+    }
   }
 };

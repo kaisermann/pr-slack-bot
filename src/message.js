@@ -16,6 +16,14 @@ exports.send = async ({ text, channel, thread_ts, ...rest }) => {
   };
 };
 
-exports.update = (message, new_text) => {
-  return Slack.update_message(message, new_text);
+exports.update = async (message, { text, ...rest }) => {
+  const response = await Slack.update_message(message, text);
+
+  if (!response.ok) throw new Error(response);
+
+  return {
+    ...message,
+    ...rest,
+    text,
+  };
 };
