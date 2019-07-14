@@ -1,11 +1,10 @@
 require('dotenv/config');
 
 const DB = require('../api/db.js');
-
 const Slack = require('../api/slack.js');
 const Logger = require('../api/logger.js');
 
-const GITHUB_FIELD_ID = 'XfCCUXUDPH';
+const { GITHUB_FIELD_ID } = require('../consts.js');
 
 module.exports = async () => {
   Logger.add_call('slack.users.list');
@@ -28,14 +27,14 @@ module.exports = async () => {
       )
         return;
 
-      const github_username = user_info.profile.fields[
+      const github_user = user_info.profile.fields[
         GITHUB_FIELD_ID
       ].value.replace(/(?:https:\/\/github.com\/|^@)([\w-.]*)?/, '$1');
 
       db_user_transaction = db_user_transaction.push({
         id,
-        display_name,
-        github_username,
+        slack_user: display_name,
+        github_user,
       });
 
       // Logger.log(
