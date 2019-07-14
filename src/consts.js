@@ -3,13 +3,13 @@ exports.EMOJIS = {
   approved: 'white_check_mark',
   commented: 'speech_balloon',
   merged: 'merged',
-  changes: 'changes',
+  changes_requested: 'changes',
   quick_read: 'zap',
   needs_attention: 'alert',
   closed: 'closedpr',
   unstable: 'warning',
-  shrug: 'shrug',
-  waiting_review: 'clock3',
+  unknown: 'shrug',
+  review_requested: 'clock3',
 };
 
 exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
