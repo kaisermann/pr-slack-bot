@@ -1,6 +1,6 @@
 exports.EMOJIS = {
   watching: 'robot_face',
-  approved: 'top',
+  approved: 'white_check_mark',
   commented: 'speech_balloon',
   merged: 'merged',
   changes: 'changes',
@@ -9,8 +9,10 @@ exports.EMOJIS = {
   closed: 'closedpr',
   unstable: 'warning',
   shrug: 'shrug',
+  waiting_review: 'clock3',
 };
 
+exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
 exports.FORGOTTEN_PR_HOUR_THRESHOLD = 24;
 exports.QUICK_ADDITION_LIMIT = 80;
 exports.NEEDED_REVIEWS = 2;
