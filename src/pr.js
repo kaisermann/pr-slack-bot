@@ -6,6 +6,47 @@ const { EMOJIS, QUICK_ADDITION_LIMIT, NEEDED_REVIEWS } = require('./consts.js');
 const DB = require('./api/db.js');
 const Message = require('./message.js');
 
+const ACTIONS = Object.freeze({
+  changes_requested: 'CHANGES_REQUESTED',
+  approved: 'APPROVED',
+  review_requested: 'REVIEW_REQUESTED',
+  commented: 'COMMENTED',
+  merged: 'MERGED',
+  unknown: 'UNKNOWN',
+});
+
+function get_action_label(pr_action) {
+  if (pr_action === ACTIONS.approved) return 'Approved';
+  if (pr_action === ACTIONS.changes_requested) return 'Changes Requested';
+  if (pr_action === ACTIONS.review_requested) return 'Waiting Review';
+  if (pr_action === ACTIONS.commented) return 'Commented';
+  if (pr_action === ACTIONS.merged) return 'Merged';
+  return 'Unknown action';
+}
+
+function has_changes_requested(review_set) {
+  return (
+    review_set.indexOf(ACTIONS.changes_requested) >
+    review_set.indexOf(ACTIONS.approved)
+  );
+}
+
+function get_pr_action(review_set) {
+  if (has_changes_requested(review_set)) return ACTIONS.changes_requested;
+  if (review_set.includes(ACTIONS.approved)) return ACTIONS.approved;
+  if (review_set.includes(ACTIONS.commented)) return ACTIONS.commented;
+  return ACTIONS.unknown;
+}
+
+function get_action_emoji(pr_action) {
+  if (pr_action === ACTIONS.approved) return EMOJIS.approved;
+  if (pr_action === ACTIONS.changes_requested) return EMOJIS.changes;
+  if (pr_action === ACTIONS.review_requested) return EMOJIS.waiting_review;
+  if (pr_action === ACTIONS.commented) return EMOJIS.commented;
+  if (pr_action === ACTIONS.merged) return EMOJIS.merged;
+  return EMOJIS.shrug;
+}
+
 exports.create = ({
   slug,
   owner,
@@ -148,31 +189,56 @@ exports.create = ({
     const review_data = await Github.get_review_data(owner, repo, pr_id);
 
     // review data mantains a list of reviews
-    // we use the last review of an user as the current review state
-    const review_sets = Object.entries(
-      review_data.reduce((acc, { user, state: review_state }) => {
+    const action_sets = Object.entries(
+      review_data.reduce((acc, { user, state: pr_action }) => {
         if (!acc[user.login]) acc[user.login] = [];
-        acc[user.login].push(review_state);
+        acc[user.login].push(pr_action);
         return acc;
       }, {}),
-    );
+    )
+      // don't want status update by the assignee of the pr
+      .filter(
+        ([login]) =>
+          pr_data.assignee == null || login !== pr_data.assignee.login,
+      );
 
-    const changes_requested = review_sets.some(
-      ([, set]) => set.indexOf('CHANGES_REQUESTED') > set.indexOf('APPROVED'),
+    const changes_requested = action_sets.some(([, set]) =>
+      has_changes_requested(set),
     );
-
-    const approved =
-      !changes_requested &&
-      review_sets.filter(([, set]) => set.includes('APPROVED')).length >=
-        NEEDED_REVIEWS;
+    const approvals = action_sets.filter(([, set]) =>
+      set.includes(ACTIONS.approved),
+    );
+    const approved = !changes_requested && approvals.length >= NEEDED_REVIEWS;
 
     const requested_reviewers = pr_data.requested_reviewers.map(({ login }) => {
-      const user = DB.get_user_by_github_username(login);
-      return user || { github_username: login };
+      return {
+        github_user: login,
+        pr_action: ACTIONS.review_requested,
+      };
     });
+    const merged_by =
+      pr_data.merged_by != null
+        ? [{ github_user: pr_data.merged_by.login, pr_action: ACTIONS.merged }]
+        : [];
+    const actual_reviewers = action_sets.map(([github_user, set]) => {
+      return {
+        github_user,
+        pr_action: get_pr_action(set),
+      };
+    });
+    const pr_actions = requested_reviewers
+      .concat(actual_reviewers)
+      .concat(merged_by)
+      .map(({ github_user, pr_action }) => {
+        const user = DB.get_user_by_github_user(github_user);
+        if (user) {
+          return { ...user, pr_action };
+        }
+        return { github_user, pr_action };
+      });
 
     state = Object.freeze({
-      requested_reviewers,
+      pr_actions,
       changes_requested,
       approved,
       quick: pr_data.additions <= QUICK_ADDITION_LIMIT,
@@ -189,7 +255,36 @@ exports.create = ({
     return state;
   }
 
-  async function update_status() {
+  async function update_header_message() {
+    const { pr_actions } = state;
+
+    if (!pr_actions.length) return false;
+
+    const text = () => {
+      const header_text = Object.entries(
+        pr_actions.reduce((acc, { id, github_user, pr_action }) => {
+          if (!(pr_action in acc)) acc[pr_action] = [];
+
+          const mention = id ? `<@${id}>` : github_user;
+          acc[pr_action].push(mention);
+          return acc;
+        }, {}),
+      )
+        .map(([pr_action, mentions]) => {
+          let group_text = `:${get_action_emoji(pr_action)}: - `;
+          group_text += `*${get_action_label(pr_action)}*:\n`;
+          group_text += mentions.join(', ');
+          return group_text;
+        })
+        .join('\n\n');
+
+      return header_text;
+    };
+
+    return reply('header_message', text, pr_actions);
+  }
+
+  async function update() {
     try {
       await update_state();
 
@@ -204,7 +299,6 @@ exports.create = ({
         approved,
         merged,
         closed,
-        requested_reviewers,
       } = state;
 
       const changes = {};
@@ -213,18 +307,16 @@ exports.create = ({
         ? add_reaction(EMOJIS.changes)
         : remove_reaction(EMOJIS.changes);
 
+      changes.unstable = unstable
+        ? add_reaction(EMOJIS.unstable)
+        : remove_reaction(EMOJIS.unstable);
+
       if (quick) {
         changes.quick = add_reaction(EMOJIS.quick_read);
       }
 
       if (reviewed) {
         changes.reviewed = add_reaction(EMOJIS.commented);
-      }
-
-      if (unstable) {
-        changes.unstable = add_reaction(EMOJIS.unstable);
-      } else {
-        changes.unstable = remove_reaction(EMOJIS.unstable);
       }
 
       if (dirty) {
@@ -241,40 +333,19 @@ exports.create = ({
         );
       }
 
-      if (merged || closed) {
-        if (merged) {
-          changes.merged = add_reaction(EMOJIS.merged);
-        } else {
-          changes.closed = add_reaction(EMOJIS.closed);
-        }
+      changes.header_message = await update_header_message();
+
+      if (merged) {
+        changes.merged = add_reaction(EMOJIS.merged);
+      } else if (closed) {
+        changes.closed = add_reaction(EMOJIS.closed);
       }
 
-      if (requested_reviewers.length > 0) {
-        const slack_user_ids = requested_reviewers
-          .map(u => u && u.id)
-          .filter(Boolean);
-
-        if (slack_user_ids.length > 0) {
-          changes.reviewers = reply(
-            'reviewers',
-            () =>
-              `Assigned reviewers: ${slack_user_ids
-                .map(id => `<@${id}>`)
-                .join(', ')}`,
-            slack_user_ids,
-          );
-        }
-      } else if ('reviewers' in replies) {
-        delete_reply('reviewers');
-        changes.reviewers = true;
-      }
-
-      return Promise.all(Object.values(changes)).then(changed_results => {
-        return {
-          has_changed: changed_results.some(changed => changed !== false),
-          changes,
-        };
-      });
+      const changed_results = await Promise.all(Object.values(changes));
+      return {
+        has_changed: changed_results.some(changed => changed !== false),
+        changes,
+      };
     } catch (error) {
       Logger.log_error(error);
     }
@@ -314,7 +385,7 @@ exports.create = ({
     to_json,
     add_reaction,
     remove_reaction,
-    update_status,
+    update,
     get_message_url,
     time_since_post,
     reply,

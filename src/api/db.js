@@ -128,9 +128,9 @@ exports.has_pr = (channel, slug) => {
     .value();
 };
 
-exports.get_user_by_github_username = github_username => {
+exports.get_user_by_github_user = github_user => {
   return db
     .get('users')
-    .find({ github_username })
+    .find({ github_user })
     .value();
 };
