@@ -45,6 +45,7 @@ function get_action_label(pr_action) {
   return { label: 'Unknown action', emoji: EMOJIS.unknown };
 }
 
+// todo: prevent always creating new PR obj on memory for every db.get
 exports.create = ({
   slug,
   owner,

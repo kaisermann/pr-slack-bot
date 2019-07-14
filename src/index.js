@@ -1,11 +1,11 @@
 require('dotenv/config');
-
 const cron = require('node-cron');
-const DB = require('./api/db.js');
 
+const DB = require('./api/db.js');
 const Slack = require('./api/slack.js');
 const Logger = require('./api/logger.js');
 const PR = require('./pr.js');
+const { PR_CHECK_INTERVAL_SECONDS } = require('./consts.js');
 
 const check_prs = require('./tasks/check_prs.js');
 const check_forgotten_prs = require('./tasks/check_forgotten_prs.js');
@@ -18,7 +18,7 @@ const cron_options = {
 };
 
 check_prs();
-cron.schedule('* * * * *', check_prs, cron_options);
+setInterval(check_prs, PR_CHECK_INTERVAL_SECONDS * 1000);
 
 // send forgotten prs message every work day at 14:00
 // check_forgotten_prs();
