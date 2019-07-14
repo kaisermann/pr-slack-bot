@@ -1,10 +1,12 @@
 const is_equal = require('fast-deep-equal');
+
 const Github = require('./api/github.js');
 const Slack = require('./api/slack.js');
 const Logger = require('./api/logger.js');
-const { EMOJIS, QUICK_ADDITION_LIMIT, NEEDED_REVIEWS } = require('./consts.js');
 const DB = require('./api/db.js');
 const Message = require('./message.js');
+
+const { EMOJIS, QUICK_ADDITION_LIMIT, NEEDED_REVIEWS } = require('./consts.js');
 
 const ACTIONS = Object.freeze({
   changes_requested: 'CHANGES_REQUESTED',
@@ -15,36 +17,32 @@ const ACTIONS = Object.freeze({
   unknown: 'UNKNOWN',
 });
 
-function get_action_label(pr_action) {
-  if (pr_action === ACTIONS.approved) return 'Approved';
-  if (pr_action === ACTIONS.changes_requested) return 'Changes Requested';
-  if (pr_action === ACTIONS.review_requested) return 'Waiting Review';
-  if (pr_action === ACTIONS.commented) return 'Commented';
-  if (pr_action === ACTIONS.merged) return 'Merged';
-  return 'Unknown action';
-}
-
-function has_changes_requested(review_set) {
+function has_changes_requested(action_list) {
   return (
-    review_set.indexOf(ACTIONS.changes_requested) >
-    review_set.indexOf(ACTIONS.approved)
+    action_list.indexOf(ACTIONS.changes_requested) >
+    action_list.indexOf(ACTIONS.approved)
   );
 }
 
-function get_pr_action(review_set) {
-  if (has_changes_requested(review_set)) return ACTIONS.changes_requested;
-  if (review_set.includes(ACTIONS.approved)) return ACTIONS.approved;
-  if (review_set.includes(ACTIONS.commented)) return ACTIONS.commented;
+function get_pr_action(action_list) {
+  if (has_changes_requested(action_list)) return ACTIONS.changes_requested;
+  if (action_list.includes(ACTIONS.approved)) return ACTIONS.approved;
+  if (action_list.includes(ACTIONS.commented)) return ACTIONS.commented;
   return ACTIONS.unknown;
 }
 
-function get_action_emoji(pr_action) {
-  if (pr_action === ACTIONS.approved) return EMOJIS.approved;
-  if (pr_action === ACTIONS.changes_requested) return EMOJIS.changes;
-  if (pr_action === ACTIONS.review_requested) return EMOJIS.waiting_review;
-  if (pr_action === ACTIONS.commented) return EMOJIS.commented;
-  if (pr_action === ACTIONS.merged) return EMOJIS.merged;
-  return EMOJIS.shrug;
+function get_action_label(pr_action) {
+  if (pr_action === ACTIONS.approved)
+    return { label: 'Approved', emoji: EMOJIS.approved };
+  if (pr_action === ACTIONS.changes_requested)
+    return { label: 'Changes requested', emoji: EMOJIS.changes_requested };
+  if (pr_action === ACTIONS.review_requested)
+    return { label: 'Waiting review', emoji: EMOJIS.review_requested };
+  if (pr_action === ACTIONS.commented)
+    return { label: 'Commented', emoji: EMOJIS.commented };
+  if (pr_action === ACTIONS.merged)
+    return { label: 'Merged by', emoji: EMOJIS.merged };
+  return { label: 'Unknown action', emoji: EMOJIS.unknown };
 }
 
 exports.create = ({
@@ -67,16 +65,6 @@ exports.create = ({
     return _cached_url;
   }
 
-  // return in minutes
-  function time_since_post() {
-    return Math.abs(new Date(ts * 1000) - new Date()) / (1000 * 60);
-  }
-
-  // consider in hours
-  function needs_attention(hours) {
-    return time_since_post() >= 60 * hours;
-  }
-
   async function delete_reply(id) {
     await Message.delete(replies[id]);
     delete replies[id];
@@ -86,17 +74,13 @@ exports.create = ({
     if (id in replies) {
       const saved_reply = replies[id];
 
-      if (is_equal(saved_reply.payload, payload)) {
-        return false;
-      }
+      if (is_equal(saved_reply.payload, payload)) return false;
 
       if (typeof text === 'function') {
         text = text().trim();
       }
 
-      if (saved_reply.text === text) {
-        return false;
-      }
+      if (saved_reply.text === text) return false;
 
       if (text === '') {
         await delete_reply(id);
@@ -111,9 +95,7 @@ exports.create = ({
       text = text().trim();
     }
 
-    if (text === '') {
-      return false;
-    }
+    if (text === '') return false;
 
     Logger.log_pr_action(`Sending reply: ${text}`);
     return Message.send({
@@ -189,7 +171,7 @@ exports.create = ({
     const review_data = await Github.get_review_data(owner, repo, pr_id);
 
     // review data mantains a list of reviews
-    const action_sets = Object.entries(
+    const action_lists = Object.entries(
       review_data.reduce((acc, { user, state: pr_action }) => {
         if (!acc[user.login]) acc[user.login] = [];
         acc[user.login].push(pr_action);
@@ -202,11 +184,11 @@ exports.create = ({
           pr_data.assignee == null || login !== pr_data.assignee.login,
       );
 
-    const changes_requested = action_sets.some(([, set]) =>
-      has_changes_requested(set),
+    const changes_requested = action_lists.some(([, list]) =>
+      has_changes_requested(list),
     );
-    const approvals = action_sets.filter(([, set]) =>
-      set.includes(ACTIONS.approved),
+    const approvals = action_lists.filter(([, list]) =>
+      list.includes(ACTIONS.approved),
     );
     const approved = !changes_requested && approvals.length >= NEEDED_REVIEWS;
 
@@ -220,10 +202,10 @@ exports.create = ({
       pr_data.merged_by != null
         ? [{ github_user: pr_data.merged_by.login, pr_action: ACTIONS.merged }]
         : [];
-    const actual_reviewers = action_sets.map(([github_user, set]) => {
+    const actual_reviewers = action_lists.map(([github_user, action_list]) => {
       return {
         github_user,
-        pr_action: get_pr_action(set),
+        pr_action: get_pr_action(action_list),
       };
     });
     const pr_actions = requested_reviewers
@@ -271,10 +253,8 @@ exports.create = ({
         }, {}),
       )
         .map(([pr_action, mentions]) => {
-          let group_text = `:${get_action_emoji(pr_action)}: - `;
-          group_text += `*${get_action_label(pr_action)}*:\n`;
-          group_text += mentions.join(', ');
-          return group_text;
+          const { label, emoji } = get_action_label(pr_action);
+          return `:${emoji}: *${label}*: ${mentions.join(', ')}`;
         })
         .join('\n\n');
 
@@ -284,67 +264,92 @@ exports.create = ({
     return reply('header_message', text, pr_actions);
   }
 
+  async function update_reactions() {
+    const {
+      changes_requested,
+      quick,
+      reviewed,
+      unstable,
+      merged,
+      closed,
+    } = state;
+
+    const changes = {};
+
+    if (quick) {
+      changes.quick = await add_reaction(EMOJIS.quick_read);
+    }
+
+    changes.changes_requested = changes_requested
+      ? await add_reaction(EMOJIS.changes_requested)
+      : await remove_reaction(EMOJIS.changes_requested);
+
+    changes.unstable = unstable
+      ? await add_reaction(EMOJIS.unstable)
+      : await remove_reaction(EMOJIS.unstable);
+
+    if (reviewed) {
+      changes.reviewed = await add_reaction(EMOJIS.commented);
+    }
+
+    if (merged) {
+      changes.merged = await add_reaction(EMOJIS.merged);
+    } else if (closed) {
+      changes.closed = await add_reaction(EMOJIS.closed);
+    }
+
+    return changes;
+  }
+
+  async function update_replies() {
+    const {
+      unstable,
+      dirty,
+      pr_branch,
+      base_branch,
+      approved,
+      merged,
+      closed,
+    } = state;
+
+    const changes = {
+      header_message: await update_header_message(),
+    };
+
+    // no need to await those replies
+    if (dirty) {
+      changes.dirty = reply(
+        'is_dirty',
+        `The branch \`${pr_branch}\` is dirty. It may need a rebase with \`${base_branch}\`.`,
+      );
+    }
+
+    if (approved && !unstable && !merged && !closed) {
+      changes.ready_to_merge = reply(
+        'ready_to_merge',
+        'PR is ready to be merged :doit:!',
+      );
+    }
+
+    return changes;
+  }
+
   async function update() {
     try {
       await update_state();
 
-      const {
-        changes_requested,
-        quick,
-        reviewed,
-        unstable,
-        dirty,
-        pr_branch,
-        base_branch,
-        approved,
-        merged,
-        closed,
-      } = state;
+      const reaction_changes = await update_reactions();
+      const message_changes = await update_replies();
 
-      const changes = {};
-
-      changes.changes_requested = changes_requested
-        ? add_reaction(EMOJIS.changes)
-        : remove_reaction(EMOJIS.changes);
-
-      changes.unstable = unstable
-        ? add_reaction(EMOJIS.unstable)
-        : remove_reaction(EMOJIS.unstable);
-
-      if (quick) {
-        changes.quick = add_reaction(EMOJIS.quick_read);
-      }
-
-      if (reviewed) {
-        changes.reviewed = add_reaction(EMOJIS.commented);
-      }
-
-      if (dirty) {
-        changes.dirty = reply(
-          'is_dirty',
-          `The branch \`${pr_branch}\` is dirty. It may need a rebase with \`${base_branch}\`.`,
-        );
-      }
-
-      if (approved && !unstable && !merged && !closed) {
-        changes.ready_to_merge = reply(
-          'ready_to_merge',
-          'PR is ready to be merged :doit:!',
-        );
-      }
-
-      changes.header_message = await update_header_message();
-
-      if (merged) {
-        changes.merged = add_reaction(EMOJIS.merged);
-      } else if (closed) {
-        changes.closed = add_reaction(EMOJIS.closed);
-      }
-
-      const changed_results = await Promise.all(Object.values(changes));
+      const changed_results = await Promise.all(
+        Object.values(message_changes).concat(Object.values(reaction_changes)),
+      );
       return {
         has_changed: changed_results.some(changed => changed !== false),
-        changes,
+        changes: {
+          replies: message_changes,
+          reactions: reaction_changes,
+        },
       };
     } catch (error) {
       Logger.log_error(error);
@@ -378,17 +383,19 @@ exports.create = ({
     get state() {
       return state;
     },
+    get minutes_since_post() {
+      return Math.abs(new Date(ts * 1000) - new Date()) / (1000 * 60);
+    },
     get hours_since_post() {
-      return ~~(time_since_post() / 60);
+      return ~~(this.minutes_since_post / 60);
     },
     // methods
     to_json,
-    add_reaction,
-    remove_reaction,
     update,
     get_message_url,
-    time_since_post,
     reply,
-    needs_attention,
+    needs_attention(hours) {
+      return this.minutes_since_post >= 60 * hours;
+    },
   });
 };
