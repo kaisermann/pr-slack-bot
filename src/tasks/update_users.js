@@ -15,8 +15,8 @@ module.exports = async () => {
   let db_user_transaction = DB.client.get('users');
 
   Logger.log(`Updating users`);
-  await users.reduce(async (acc, { id, profile: { display_name } }) => {
-    try {
+  const users_promise = users.map(
+    async ({ id, profile: { display_name } }) => {
       const user_info = await Slack.get_user_info(id);
 
       if (
@@ -37,13 +37,11 @@ module.exports = async () => {
         github_user,
       });
 
-      // Logger.log(
-      //   `New user [${i}]: ${id}, ${display_name}, ${github_username}`,
-      // );
-    } catch (e) {
-      console.error(e);
-    }
-  });
+      // Logger.log(`Getting user [${i}]: ${id}, ${display_name}, ${github_user}`);
+    },
+  );
+
+  await Promise.all(users_promise);
 
   Logger.log(`Users updated`);
   db_user_transaction.write();
