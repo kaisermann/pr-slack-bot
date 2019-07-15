@@ -18,7 +18,7 @@ const cron_options = {
 };
 
 check_prs();
-setInterval(check_prs, PR_CHECK_INTERVAL_SECONDS * 1000);
+setInterval(check_prs, 60 * 1000);
 
 // send forgotten prs message every work day at 14:00
 // check_forgotten_prs();
