@@ -21,7 +21,7 @@ module.exports = async () => {
     Logger.log('=======================================');
     Logger.log('');
 
-    return channel_acc.then(Promise.all(pr_promises));
+    return channel_acc.then(() => Promise.all(pr_promises));
   }, Promise.resolve());
 
   Logger.log(`PR count: ${pr_count}/${MAX_PRS}\n`);
