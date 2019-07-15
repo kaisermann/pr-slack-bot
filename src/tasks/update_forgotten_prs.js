@@ -15,7 +15,7 @@ module.exports = async pr => {
       ? EMOJIS.merged
       : pr.state.closed
       ? EMOJIS.closed
-      : EMOJIS.shrug;
+      : EMOJIS.unknown;
     const new_text = text.replace(
       new RegExp(`(<.*${pr.slug}>.*$)`, 'm'),
       `:${state_emoji}: ~$1~`,
