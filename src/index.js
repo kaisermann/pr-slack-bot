@@ -5,7 +5,7 @@ const DB = require('./api/db.js');
 const Slack = require('./api/slack.js');
 const Logger = require('./api/logger.js');
 const PR = require('./pr.js');
-const { PR_CHECKS_PER_MINUTE } = require('./consts.js');
+const { PR_CHECK_LOOP_INTERVAL } = require('./consts.js');
 
 const check_prs = require('./tasks/check_prs.js');
 const check_forgotten_prs = require('./tasks/check_forgotten_prs.js');
@@ -17,8 +17,11 @@ const cron_options = {
   timezone: 'America/Sao_Paulo',
 };
 
-check_prs();
-setInterval(check_prs, (60 / PR_CHECKS_PER_MINUTE) * 1000);
+async function check_loop() {
+  await check_prs();
+  setTimeout(check_loop, PR_CHECK_LOOP_INTERVAL);
+}
+check_loop();
 
 // send forgotten prs message every work day at 14:00
 // check_forgotten_prs();
