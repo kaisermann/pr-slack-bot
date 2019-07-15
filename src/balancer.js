@@ -1,6 +1,6 @@
 const Queue = require('smart-request-balancer');
 
-module.exports = new Queue({
+exports.Slack = new Queue({
   rules: {
     common: {
       rate: 50,
@@ -14,5 +14,15 @@ module.exports = new Queue({
     },
   },
   retryTime: 300,
-  ignoreOverallOverheat: true,
+});
+
+exports.Github = new Queue({
+  rules: {
+    common: {
+      rate: 5000,
+      limit: 60 * 60,
+      priority: 5,
+    },
+  },
+  retryTime: 300,
 });

@@ -19,6 +19,6 @@ exports.NEEDED_REVIEWS = 2;
 
 exports.PRIVATE_TEST_CHANNELS = ['GKSCG1GRX', 'GLAM8UANR'];
 
-exports.PR_CHECK_INTERVAL_SECONDS = 30;
-// github api 5000 calls/min limit * 2 calls (pull+reviews) / how many checks per minute
-exports.MAX_PRS = ~~(5000 / (2 * (60 / exports.PR_CHECK_INTERVAL_SECONDS)));
+exports.PR_CHECKS_PER_MINUTE = 1;
+// github api 5000 calls/hour / 2 calls per pr / checks per minute
+exports.MAX_PRS = ~~(5000 / 60 / 2 / exports.PR_CHECKS_PER_MINUTE);

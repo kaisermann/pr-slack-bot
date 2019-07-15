@@ -1,7 +1,7 @@
 const { RTMClient } = require('@slack/rtm-api');
 const { WebClient, retryPolicies } = require('@slack/web-api');
 
-const Balancer = require('./balancer.js');
+const Balancer = require('../balancer.js');
 const Logger = require('./logger.js');
 const { PRIVATE_TEST_CHANNELS } = require('../consts.js');
 
@@ -17,7 +17,7 @@ const web_client = new WebClient(TOKEN, {
 exports.web_client = web_client;
 
 exports.get_user_info = id => {
-  return Balancer.request(
+  return Balancer.Slack.request(
     () => {
       Logger.add_call('slack.users.info');
       return web_client.users
@@ -106,7 +106,7 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
 };
 
 exports.send_message = (text, channel, thread_ts) => {
-  return Balancer.request(
+  return Balancer.Slack.request(
     () => {
       Logger.add_call('slack.chat.postMessage');
       return web_client.chat.postMessage({
@@ -125,7 +125,7 @@ exports.send_message = (text, channel, thread_ts) => {
 };
 
 exports.update_message = ({ channel, ts }, newText) => {
-  return Balancer.request(
+  return Balancer.Slack.request(
     () => {
       Logger.add_call('slack.chat.update');
       return web_client.chat.update({
@@ -143,7 +143,7 @@ exports.update_message = ({ channel, ts }, newText) => {
 };
 
 exports.delete_message = ({ channel, ts }) => {
-  return Balancer.request(
+  return Balancer.Slack.request(
     () => {
       Logger.add_call('slack.chat.delete');
       return web_client.chat.delete({
