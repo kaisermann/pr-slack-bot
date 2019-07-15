@@ -241,26 +241,27 @@ exports.create = ({
   async function update_header_message() {
     const { pr_actions } = state;
 
-    if (!pr_actions.length) return false;
+    const text =
+      pr_actions.length === 0
+        ? `Waiting for reviewers :${EMOJIS.waiting}:`
+        : () => {
+            const header_text = Object.entries(
+              pr_actions.reduce((acc, { id, github_user, pr_action }) => {
+                if (!(pr_action in acc)) acc[pr_action] = [];
 
-    const text = () => {
-      const header_text = Object.entries(
-        pr_actions.reduce((acc, { id, github_user, pr_action }) => {
-          if (!(pr_action in acc)) acc[pr_action] = [];
+                const mention = id ? `<@${id}>` : github_user;
+                acc[pr_action].push(mention);
+                return acc;
+              }, {}),
+            )
+              .map(([pr_action, mentions]) => {
+                const { label, emoji } = get_action_label(pr_action);
+                return `:${emoji}: *${label}*: ${mentions.join(', ')}`;
+              })
+              .join('\n\n');
 
-          const mention = id ? `<@${id}>` : github_user;
-          acc[pr_action].push(mention);
-          return acc;
-        }, {}),
-      )
-        .map(([pr_action, mentions]) => {
-          const { label, emoji } = get_action_label(pr_action);
-          return `:${emoji}: *${label}*: ${mentions.join(', ')}`;
-        })
-        .join('\n\n');
-
-      return header_text;
-    };
+            return header_text;
+          };
 
     return reply('header_message', text, pr_actions);
   }

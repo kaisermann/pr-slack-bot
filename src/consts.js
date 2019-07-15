@@ -10,6 +10,7 @@ exports.EMOJIS = {
   unstable: 'warning',
   unknown: 'shrug',
   review_requested: 'clock3',
+  waiting: 'sonic_waiting',
 };
 
 exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
