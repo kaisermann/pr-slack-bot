@@ -88,7 +88,16 @@ exports.create = ({
         return true;
       }
 
-      replies[id] = await Message.update(saved_reply, { text, payload });
+      try {
+        replies[id] = await Message.update(saved_reply, { text, payload });
+      } catch (e) {
+        Logger.log_error(
+          saved_reply.channel,
+          saved_reply.ts,
+          saved_reply.text,
+          e,
+        );
+      }
       return true;
     }
 
@@ -110,7 +119,7 @@ exports.create = ({
         return true;
       })
       .catch(e => {
-        Logger.log_error(e);
+        Logger.log_error(text, channel, ts, e);
         return false;
       });
   }
@@ -337,10 +346,9 @@ exports.create = ({
   }
 
   async function update() {
-    Logger.log(`PR: ${slug}`);
     try {
       await update_state();
-
+      Logger.log(`PR: ${slug}`);
       const reaction_changes = await update_reactions();
       const message_changes = await update_replies();
 
