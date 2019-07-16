@@ -337,6 +337,7 @@ exports.create = ({
   }
 
   async function update() {
+    Logger.log(`PR: ${slug}`);
     try {
       await update_state();
 
