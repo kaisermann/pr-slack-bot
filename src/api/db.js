@@ -5,7 +5,7 @@ const PR = require('../pr.js');
 const db = low(new FileSyncAdapter('db.json'));
 
 db.defaults({
-  users: [],
+  users: {},
   channels: {},
 }).write();
 
@@ -131,6 +131,7 @@ exports.has_pr = (channel, slug) => {
 exports.get_user_by_github_user = github_user => {
   return db
     .get('users')
+    .values()
     .find({ github_user })
     .value();
 };

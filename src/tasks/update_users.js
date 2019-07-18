@@ -11,11 +11,13 @@ module.exports = async () => {
   const list_response = await Slack.web_client.users.list();
   if (!list_response.ok) return;
 
-  const users = list_response.members;
+  const active_users = list_response.members.filter(
+    user => user.deleted !== true,
+  );
   let db_user_transaction = DB.client.get('users');
 
   Logger.log(`Updating users`);
-  const users_promise = users.map(
+  const users_promise = active_users.map(
     async ({ id, profile: { display_name } }) => {
       const user_info = await Slack.get_user_info(id);
 
@@ -31,7 +33,7 @@ module.exports = async () => {
         GITHUB_FIELD_ID
       ].value.replace(/(?:https:\/\/github.com\/|^@)([\w-.]*)?/, '$1');
 
-      db_user_transaction = db_user_transaction.push({
+      db_user_transaction = db_user_transaction.set(id, {
         id,
         slack_user: display_name,
         github_user,
