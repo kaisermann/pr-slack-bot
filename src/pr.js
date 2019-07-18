@@ -229,6 +229,10 @@ exports.create = ({
         return { github_user, pr_action };
       });
 
+    const on_hold = pr_data.labels.some(({ name }) =>
+      name.match(/(on )?hold/),
+    );
+
     state = Object.freeze({
       pr_actions,
       changes_requested,
@@ -242,6 +246,7 @@ exports.create = ({
       closed: pr_data.state === 'closed',
       pr_branch: pr_data.head.ref,
       base_branch: pr_data.base.ref,
+      on_hold,
     });
 
     return state;
