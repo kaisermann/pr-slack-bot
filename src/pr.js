@@ -140,32 +140,6 @@ exports.create = ({
       });
   }
 
-  async function add_reaction(type, name) {
-    if (type in reactions && reactions[type] === name) {
-      return false;
-    }
-
-    Logger.log_pr_action(`Adding reaction of type: ${type} (${name})`);
-    Logger.add_call('slack.reactions.add');
-
-    return Slack.web_client.reactions
-      .add({ name, timestamp: ts, channel })
-      .then(() => {
-        reactions[type] = name;
-        return true;
-      })
-      .catch(e => {
-        if (e.data.error === 'already_reacted') {
-          reactions[type] = name;
-        }
-
-        if (process.env.NODE_ENV !== 'production') {
-          Logger.log_error(e);
-        }
-        return false;
-      });
-  }
-
   async function remove_reaction(type) {
     if (!(type in reactions)) {
       return false;
@@ -187,6 +161,33 @@ exports.create = ({
       .catch(e => {
         if (e.data.error === 'no_reaction') {
           delete reactions[type];
+        }
+
+        if (process.env.NODE_ENV !== 'production') {
+          Logger.log_error(e);
+        }
+        return false;
+      });
+  }
+
+  async function add_reaction(type, name) {
+    if (type in reactions) {
+      if (reactions[type] === name) return false;
+      await remove_reaction(type);
+    }
+
+    Logger.log_pr_action(`Adding reaction of type: ${type} (${name})`);
+    Logger.add_call('slack.reactions.add');
+
+    return Slack.web_client.reactions
+      .add({ name, timestamp: ts, channel })
+      .then(() => {
+        reactions[type] = name;
+        return true;
+      })
+      .catch(e => {
+        if (e.data.error === 'already_reacted') {
+          reactions[type] = name;
         }
 
         if (process.env.NODE_ENV !== 'production') {
@@ -279,7 +280,7 @@ exports.create = ({
       () => {
         return `:${EMOJIS[`size_${size.label}`]}: *PR size*: ${size.label} (_${
           size.n_changes
-        } changes_)\n\n\n`;
+        } changes_)\n\n`;
       },
       pr_actions.length === 0
         ? `Waiting for reviewers :${EMOJIS.waiting}:`

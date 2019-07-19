@@ -20,7 +20,12 @@ exports.EMOJIS = {
 exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
 exports.FORGOTTEN_PR_HOUR_THRESHOLD = 24;
 exports.NEEDED_REVIEWS = 2;
-exports.PR_SIZES = [['small', 80], ['medium', 250], ['big', 800], ['gigantic']];
+exports.PR_SIZES = [
+  ['small', 80],
+  ['medium', 250],
+  ['big', 800],
+  ['gigantic', Infinity],
+];
 
 exports.PRIVATE_TEST_CHANNELS = ['GKSCG1GRX', 'GLAM8UANR'];
 
