@@ -6,7 +6,7 @@ const Logger = require('./api/logger.js');
 const DB = require('./api/db.js');
 const Message = require('./message.js');
 
-const { EMOJIS, QUICK_ADDITION_LIMIT, NEEDED_REVIEWS } = require('./consts.js');
+const { EMOJIS, PR_SIZES, NEEDED_REVIEWS } = require('./consts.js');
 
 const ACTIONS = Object.freeze({
   changes_requested: 'CHANGES_REQUESTED',
@@ -45,6 +45,19 @@ function get_action_label(pr_action) {
   return { label: 'Unknown action', emoji: EMOJIS.unknown };
 }
 
+function get_pr_size(additions, deletions) {
+  const n_changes = additions + deletions;
+  let i;
+  for (i = 0; i < PR_SIZES.length && n_changes > PR_SIZES[i][1]; i++);
+  return {
+    label: PR_SIZES[i][0],
+    limit: PR_SIZES[i][1],
+    n_changes,
+    additions,
+    deletions,
+  };
+}
+
 // todo: prevent always creating new PR obj on memory for every db.get
 exports.create = ({
   slug,
@@ -54,7 +67,7 @@ exports.create = ({
   channel,
   ts,
   replies = {},
-  reactions = [],
+  reactions = {},
   state = {},
 }) => {
   let _cached_url;
@@ -71,15 +84,20 @@ exports.create = ({
     delete replies[id];
   }
 
-  async function reply(id, text, payload) {
+  function build_message_text(parts) {
+    parts = Array.isArray(parts) ? parts : [parts];
+    return parts
+      .map(part => (typeof part === 'function' ? part() : part))
+      .join('');
+  }
+
+  async function reply(id, text_parts, payload) {
     if (id in replies) {
       const saved_reply = replies[id];
 
       if (is_equal(saved_reply.payload, payload)) return false;
 
-      if (typeof text === 'function') {
-        text = text().trim();
-      }
+      const text = build_message_text(text_parts);
 
       if (saved_reply.text === text) return false;
 
@@ -101,9 +119,7 @@ exports.create = ({
       return true;
     }
 
-    if (typeof text === 'function') {
-      text = text().trim();
-    }
+    const text = build_message_text(text_parts);
 
     if (text === '') return false;
 
@@ -124,23 +140,23 @@ exports.create = ({
       });
   }
 
-  async function add_reaction(name) {
-    if (reactions.includes(name)) {
+  async function add_reaction(type, name) {
+    if (type in reactions && reactions[type] === name) {
       return false;
     }
 
-    Logger.log_pr_action(`Adding reaction: ${name}`);
+    Logger.log_pr_action(`Adding reaction of type: ${type} (${name})`);
     Logger.add_call('slack.reactions.add');
 
     return Slack.web_client.reactions
       .add({ name, timestamp: ts, channel })
       .then(() => {
-        reactions.push(name);
+        reactions[type] = name;
         return true;
       })
       .catch(e => {
         if (e.data.error === 'already_reacted') {
-          reactions.push(name);
+          reactions[type] = name;
         }
 
         if (process.env.NODE_ENV !== 'production') {
@@ -150,23 +166,27 @@ exports.create = ({
       });
   }
 
-  async function remove_reaction(name) {
-    if (!reactions.includes(name)) {
+  async function remove_reaction(type) {
+    if (!(type in reactions)) {
       return false;
     }
 
-    Logger.log_pr_action(`Removing reaction: ${name}`);
+    const name = reactions[type];
+
+    Logger.log_pr_action(
+      `Removing reaction of type: ${type} (${reactions[type]})`,
+    );
     Logger.add_call('slack.reactions.remove');
 
     return Slack.web_client.reactions
       .remove({ name, timestamp: ts, channel })
       .then(() => {
-        reactions = reactions.filter(r => r !== name);
+        delete reactions[type];
         return true;
       })
       .catch(e => {
         if (e.data.error === 'no_reaction') {
-          reactions = reactions.filter(r => r !== name);
+          delete reactions[type];
         }
 
         if (process.env.NODE_ENV !== 'production') {
@@ -229,15 +249,15 @@ exports.create = ({
         return { github_user, pr_action };
       });
 
-    const on_hold = pr_data.labels.some(({ name }) =>
-      name.match(/(on )?hold/),
-    );
+    const on_hold = pr_data.labels.some(({ name }) => name.match(/(on )?hold/));
+
+    const pr_size = get_pr_size(pr_data.additions, pr_data.deletions);
 
     state = Object.freeze({
       pr_actions,
       changes_requested,
       approved,
-      quick: pr_data.additions <= QUICK_ADDITION_LIMIT,
+      size: pr_size,
       reviewed: pr_data.review_comments > 0,
       merged: pr_data.merged,
       mergeable: pr_data.mergeable,
@@ -253,9 +273,14 @@ exports.create = ({
   }
 
   async function update_header_message() {
-    const { pr_actions } = state;
+    const { pr_actions, size } = state;
 
-    const text =
+    const text_parts = [
+      () => {
+        return `:${EMOJIS[`size_${size.label}`]}: *PR size*: ${size.label} (_${
+          size.n_changes
+        } changes_)\n\n\n`;
+      },
       pr_actions.length === 0
         ? `Waiting for reviewers :${EMOJIS.waiting}:`
         : () => {
@@ -275,15 +300,16 @@ exports.create = ({
               .join('\n\n');
 
             return header_text;
-          };
+          },
+    ];
 
-    return reply('header_message', text, pr_actions);
+    return reply('header_message', text_parts, { size, pr_actions });
   }
 
   async function update_reactions() {
     const {
       changes_requested,
-      quick,
+      size,
       reviewed,
       unstable,
       merged,
@@ -292,26 +318,26 @@ exports.create = ({
 
     const changes = {};
 
-    if (quick) {
-      changes.quick = await add_reaction(EMOJIS.quick_read);
+    if (size.label !== 'small') {
+      changes.size = await add_reaction('size', EMOJIS[`size_${size.label}`]);
     }
 
     changes.changes_requested = changes_requested
-      ? await add_reaction(EMOJIS.changes_requested)
-      : await remove_reaction(EMOJIS.changes_requested);
+      ? await add_reaction('changes_requested', EMOJIS.changes_requested)
+      : await remove_reaction('changes_requested');
 
     changes.unstable = unstable
-      ? await add_reaction(EMOJIS.unstable)
-      : await remove_reaction(EMOJIS.unstable);
+      ? await add_reaction('unstable', EMOJIS.unstable)
+      : await remove_reaction('unstable');
 
     if (reviewed) {
-      changes.reviewed = await add_reaction(EMOJIS.commented);
+      changes.reviewed = await add_reaction('reviewed', EMOJIS.commented);
     }
 
     if (merged) {
-      changes.merged = await add_reaction(EMOJIS.merged);
+      changes.merged = await add_reaction('merged', EMOJIS.merged);
     } else if (closed) {
-      changes.closed = await add_reaction(EMOJIS.closed);
+      changes.closed = await add_reaction('closed', EMOJIS.closed);
     }
 
     return changes;
