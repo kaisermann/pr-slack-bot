@@ -4,19 +4,23 @@ exports.EMOJIS = {
   commented: 'speech_balloon',
   merged: 'merged',
   changes_requested: 'changes',
-  quick_read: 'zap',
   needs_attention: 'alert',
   closed: 'closedpr',
   unstable: 'warning',
   unknown: 'shrug',
   review_requested: 'clock3',
   waiting: 'sonic_waiting',
+  quick_read: 'zap',
+  size_small: 'zap',
+  size_medium: 'surprised-pikachu',
+  size_big: 'donotwant',
+  size_gigantic: 'developers',
 };
 
 exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
 exports.FORGOTTEN_PR_HOUR_THRESHOLD = 24;
-exports.QUICK_ADDITION_LIMIT = 80;
 exports.NEEDED_REVIEWS = 2;
+exports.PR_SIZES = [['small', 80], ['medium', 250], ['big', 800], ['gigantic']];
 
 exports.PRIVATE_TEST_CHANNELS = ['GKSCG1GRX', 'GLAM8UANR'];
 
