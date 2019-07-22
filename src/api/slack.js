@@ -90,6 +90,7 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       const slug = `${owner}/${repo}/${pr_id}`;
 
       on_new_message({
+        user_id: e.user,
         owner,
         repo,
         pr_id,

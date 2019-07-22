@@ -60,6 +60,7 @@ function get_pr_size(additions, deletions) {
 
 // todo: prevent always creating new PR obj on memory for every db.get
 exports.create = ({
+  user_id,
   slug,
   owner,
   repo,
@@ -404,6 +405,7 @@ exports.create = ({
 
   function to_json() {
     return {
+      user_id,
       slug,
       owner,
       repo,
