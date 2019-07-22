@@ -25,7 +25,7 @@ check_loop();
 
 // send forgotten prs message every work day at 14:00
 // check_forgotten_prs();
-cron.schedule('0 14 * * 1-5', check_forgotten_prs, cron_options);
+cron.schedule('0 15 * * 1-5', check_forgotten_prs, cron_options);
 cron.schedule('0 10 * * 1-5', check_forgotten_prs, cron_options);
 
 // update user list every midnight
