@@ -224,9 +224,15 @@ exports.create = ({
     const changes_requested = action_lists.some(([, list]) =>
       has_changes_requested(list),
     );
+
+    const has_pending_review = action_lists.some(([, list]) =>
+      list.includes(ACTIONS.pending_review),
+    );
+
     const approvals = action_lists.filter(([, list]) =>
       list.includes(ACTIONS.approved),
     );
+
     const approved = !changes_requested && approvals.length >= NEEDED_REVIEWS;
 
     const requested_reviewers = pr_data.requested_reviewers.map(({ login }) => {
@@ -235,16 +241,19 @@ exports.create = ({
         pr_action: ACTIONS.review_requested,
       };
     });
+
     const merged_by =
       pr_data.merged_by != null
         ? [{ github_user: pr_data.merged_by.login, pr_action: ACTIONS.merged }]
         : [];
+
     const actual_reviewers = action_lists.map(([github_user, action_list]) => {
       return {
         github_user,
         pr_action: get_pr_action(action_list),
       };
     });
+
     const pr_actions = requested_reviewers
       .concat(actual_reviewers)
       .concat(merged_by)
@@ -264,6 +273,7 @@ exports.create = ({
       pr_actions,
       changes_requested,
       approved,
+      has_pending_review,
       size: pr_size,
       reviewed: pr_data.review_comments > 0,
       merged: pr_data.merged,
@@ -316,6 +326,7 @@ exports.create = ({
   async function update_reactions() {
     const {
       changes_requested,
+      has_pending_review,
       size,
       reviewed,
       unstable,
@@ -332,6 +343,10 @@ exports.create = ({
     changes.changes_requested = changes_requested
       ? await add_reaction('changes_requested', EMOJIS.changes_requested)
       : await remove_reaction('changes_requested');
+
+    changes.has_pending_review = has_pending_review
+      ? await add_reaction('pending_review', EMOJIS.pending_review)
+      : await remove_reaction('pending_review');
 
     changes.unstable = unstable
       ? await add_reaction('unstable', EMOJIS.unstable)
