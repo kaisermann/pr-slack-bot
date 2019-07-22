@@ -26,6 +26,7 @@ check_loop();
 // send forgotten prs message every work day at 14:00
 // check_forgotten_prs();
 cron.schedule('0 14 * * 1-5', check_forgotten_prs, cron_options);
+cron.schedule('0 10 * * 1-5', check_forgotten_prs, cron_options);
 
 // update user list every midnight
 // update_users();
@@ -37,9 +38,10 @@ Slack.on_pr_message(
     const { slug, channel } = pr_meta;
 
     if (DB.has_pr(channel, slug)) {
-      return Logger.log(`${slug} is already being watched`);
+      Logger.log(`Overwriting PR message: ${slug}`);
+    } else {
+      Logger.log(`Watching ${slug}`);
     }
-    Logger.log(`Watching ${slug}`);
 
     const pr = PR.create(pr_meta);
 

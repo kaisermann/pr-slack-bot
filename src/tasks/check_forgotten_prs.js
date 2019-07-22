@@ -13,8 +13,10 @@ module.exports = async () => {
 
     if (forgotten_prs.length === 0) continue;
 
-    let text =
-      'Hello :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago needing attention:\n\n';
+    const now_date = new Date(Date.now());
+    const time_of_day = now_date.getHours() < 12 ? 'morning' : 'afternoon';
+
+    let text = `Good ${time_of_day}! :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago in need of some love and attention:\n\n`;
 
     for await (const pr of forgotten_prs) {
       const message_url = await pr.get_message_url();
