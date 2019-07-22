@@ -11,6 +11,7 @@ exports.EMOJIS = {
   review_requested: 'clock3',
   waiting: 'sonic_waiting',
   quick_read: 'zap',
+  pending_review: 'eyes',
   size_small: 'zap',
   size_medium: 'surprised-pikachu',
   size_big: 'donotwant',

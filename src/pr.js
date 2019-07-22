@@ -9,8 +9,9 @@ const Message = require('./message.js');
 const { EMOJIS, PR_SIZES, NEEDED_REVIEWS } = require('./consts.js');
 
 const ACTIONS = Object.freeze({
-  changes_requested: 'CHANGES_REQUESTED',
   approved: 'APPROVED',
+  changes_requested: 'CHANGES_REQUESTED',
+  pending_review: 'PENDING',
   review_requested: 'REVIEW_REQUESTED',
   commented: 'COMMENTED',
   merged: 'MERGED',
@@ -27,6 +28,8 @@ function has_changes_requested(action_list) {
 function get_pr_action(action_list) {
   if (has_changes_requested(action_list)) return ACTIONS.changes_requested;
   if (action_list.includes(ACTIONS.approved)) return ACTIONS.approved;
+  if (action_list.includes(ACTIONS.pending_review))
+    return ACTIONS.pending_review;
   if (action_list.includes(ACTIONS.commented)) return ACTIONS.commented;
   return ACTIONS.unknown;
 }
@@ -36,6 +39,8 @@ function get_action_label(pr_action) {
     return { label: 'Approved', emoji: EMOJIS.approved };
   if (pr_action === ACTIONS.changes_requested)
     return { label: 'Changes requested', emoji: EMOJIS.changes_requested };
+  if (pr_action === ACTIONS.pending_review)
+    return { label: 'Is reviewing', emoji: EMOJIS.pending_review };
   if (pr_action === ACTIONS.review_requested)
     return { label: 'Waiting review', emoji: EMOJIS.review_requested };
   if (pr_action === ACTIONS.commented)
