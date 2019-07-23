@@ -407,7 +407,7 @@ exports.create = ({
         Object.values(message_changes).concat(Object.values(reaction_changes)),
       );
       return {
-        has_changed: changed_results.some(changed => changed !== false),
+        has_changed: true, // changed_results.some(changed => changed !== false),
         changes: {
           replies: message_changes,
           reactions: reaction_changes,

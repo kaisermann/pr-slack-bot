@@ -16,6 +16,10 @@ const pr_path = channel => ['channels', channel, 'prs'];
 
 exports.client = db;
 
+exports.transaction = (...parts) => {
+  return parts.reduce((acc, part) => part(acc)).write();
+};
+
 exports.get_channel_list = () =>
   db
     .get('channels')
@@ -41,7 +45,7 @@ exports.create_channel = channel => {
   return db
     .get('channels')
     .set(channel, {
-      id: channel,
+      channel_id: channel,
       prs: [],
       messages: {},
     })
@@ -135,3 +139,6 @@ exports.get_user_by_github_user = github_user => {
     .find({ github_user })
     .value();
 };
+
+exports.get_channels = () => db.get('channels').value();
+exports.get_users = () => db.get('users').value();
