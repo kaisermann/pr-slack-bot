@@ -12,10 +12,10 @@ exports.EMOJIS = {
   waiting: 'sonic_waiting',
   quick_read: 'zap',
   pending_review: 'eyes',
-  size_small: 'zap',
-  size_medium: 'surprised-pikachu',
-  size_big: 'donotwant',
-  size_gigantic: 'developers',
+  size_small: 'ant',
+  size_medium: 'dog2',
+  size_big: 'elephant',
+  size_gigantic: 'sauropod',
 };
 
 exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
