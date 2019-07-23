@@ -23,7 +23,7 @@ exports.EMOJIS = {
 };
 
 exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
-exports.FORGOTTEN_PR_HOUR_THRESHOLD = 24;
+exports.FORGOTTEN_PR_HOUR_THRESHOLD = 0;
 exports.NEEDED_REVIEWS = 2;
 exports.PR_SIZES = [
   ['small', 80],
@@ -32,9 +32,11 @@ exports.PR_SIZES = [
   ['gigantic', Infinity],
 ];
 
-exports.PRIVATE_TEST_CHANNELS = ['GKSCG1GRX', 'GLAM8UANR'];
-
 exports.PR_CHECK_PER_MINUTE = 1;
 exports.PR_CHECK_LOOP_INTERVAL = (60 / exports.PR_CHECK_PER_MINUTE) * 1000;
 // github api 5000 calls/hour / 2 calls per pr / checks per minute
 exports.MAX_PRS = ~~(5000 / 60 / 2 / exports.PR_CHECK_PER_MINUTE);
+
+// dev
+exports.PRIVATE_TEST_CHANNELS = ['GKSCG1GRX', 'GLAM8UANR'];
+exports.SLACK_NO_ACTIONS = true;
