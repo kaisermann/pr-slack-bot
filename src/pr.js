@@ -20,8 +20,8 @@ const ACTIONS = Object.freeze({
 
 function has_changes_requested(action_list) {
   return (
-    action_list.indexOf(ACTIONS.changes_requested) >
-    action_list.indexOf(ACTIONS.approved)
+    action_list.lastIndexOf(ACTIONS.changes_requested) >
+    action_list.lastIndexOf(ACTIONS.approved)
   );
 }
 
