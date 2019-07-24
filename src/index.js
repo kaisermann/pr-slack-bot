@@ -11,7 +11,6 @@ const PR = require('./pr.js');
 const check_prs = require('./tasks/check_prs.js');
 const check_forgotten_prs = require('./tasks/check_forgotten_prs.js');
 const update_users = require('./tasks/update_users.js');
-const update_pr = require('./tasks/update_pr_message.js');
 
 const runtime = require('./runtime.js');
 
@@ -33,7 +32,7 @@ check_prs();
 // check_loop();
 
 // // send forgotten prs message every work day at 14:00
-check_forgotten_prs();
+// check_forgotten_prs();
 // cron.schedule('0 15 * * 1-5', check_forgotten_prs, cron_options);
 // cron.schedule('0 10 * * 1-5', check_forgotten_prs, cron_options);
 
@@ -55,6 +54,7 @@ Slack.on_pr_message(
     const pr = PR.create(pr_meta);
 
     DB.add_pr(pr);
+
     // update_pr(pr);
   },
   // on pr message deleted

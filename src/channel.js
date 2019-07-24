@@ -18,9 +18,6 @@ const filter_object = (o, fn) => {
 exports.create = ({ channel_id, prs, messages }) => {
   prs = prs.map(PR.create);
 
-  const channel_message_path = (channel, type) =>
-    ['channels', channel, 'messages', type].filter(Boolean);
-
   const DB_PR_PATH = ['channels', channel_id, 'prs'];
 
   function get_messages(type) {
@@ -28,13 +25,14 @@ exports.create = ({ channel_id, prs, messages }) => {
   }
 
   async function on_prs_resolved(resolved_prs) {
-    const forgotten_list_messages = get_messages('forgotten_prs').filter(
-      ({ payload }) => resolved_prs.some(pr => payload.indexOf(pr.slug) >= 0),
+    const prs = Object.values(resolved_prs);
+    const forgotten_messages = get_messages('forgotten_prs').filter(
+      ({ payload }) => payload.some(slug => slug in resolved_prs),
     );
 
-    for await (const message of forgotten_list_messages) {
+    for await (const message of forgotten_messages) {
       const { text } = message;
-      const new_text = resolved_prs.reduce((acc, pr) => {
+      const new_text = prs.reduce((acc, pr) => {
         const state_emoji = pr.state.merged
           ? EMOJIS.merged
           : pr.state.closed
@@ -50,11 +48,11 @@ exports.create = ({ channel_id, prs, messages }) => {
       if (text === new_text) return;
 
       Logger.log_pr_action(
-        `Updating forgotten PR message: ${resolved_prs.map(pr => pr.slug)}`,
+        `Updating forgotten PR message: ${prs.map(pr => pr.slug)}`,
       );
       const updated_message = await Message.update(message, {
         text: new_text,
-        payload: message.payload.filter(slug => slug !== pr.slug),
+        payload: message.payload.filter(slug => !(slug in resolved_prs)),
       });
 
       if (updated_message.payload.length === 0) {
@@ -67,41 +65,39 @@ exports.create = ({ channel_id, prs, messages }) => {
 
   async function update_prs() {
     console.log(`# ${channel_id} - Updating PRs`);
-    // { slug: [pr, update_result] }
-    const results = await Promise.all(
-      prs.map(pr => pr.update().then(result => [pr, result])),
-    ).then(updates =>
-      updates.reduce((acc, [pr, result]) => {
-        acc[pr.slug] = [pr, result];
-        return acc;
-      }, {}),
+
+    const updates_result = await Promise.all(prs.map(pr => pr.update()));
+
+    const prs_map = updates_result.reduce((acc, pr) => {
+      acc[pr.slug] = pr;
+      return acc;
+    }, {});
+    const updated_prs_map = filter_object(
+      prs_map,
+      pr => pr.last_update.has_changed,
     );
-    // { slug: [pr, update_result] }
-    const updated_prs = filter_object(
-      results,
-      ([, result]) => result.has_changed,
-    );
-    // { slug: [pr, update_result] }
-    const resolved_prs = filter_object(
-      updated_prs,
-      ([pr]) => pr.state.merged || pr.state.closed,
+    const resolved_prs_map = filter_object(
+      updated_prs_map,
+      pr => pr.state.merged || pr.state.closed,
     );
 
-    if (Object.keys(resolved_prs).length) {
-      on_prs_resolved(Object.values(resolved_prs).map(([pr]) => pr));
+    if (Object.keys(resolved_prs_map).length) {
+      on_prs_resolved(resolved_prs_map);
     }
 
     DB.client
       .get(DB_PR_PATH)
+      // update prs
       .each(pr => {
-        if (pr.slug in updated_prs) {
-          const updated_pr = updated_prs[pr.slug][0];
+        if (pr.slug in updated_prs_map) {
+          const updated_pr = updated_prs_map[pr.slug];
           Object.assign(pr, updated_pr.to_json());
         }
       })
-      .remove(pr => pr.slug in resolved_prs)
+      // remove resolved prs
+      .remove(pr => pr.slug in resolved_prs_map)
       .write();
-    return results;
+    return updates_result;
   }
 
   return Object.freeze({

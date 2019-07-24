@@ -23,7 +23,7 @@ exports.EMOJIS = {
 };
 
 exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
-exports.FORGOTTEN_PR_HOUR_THRESHOLD = 0;
+exports.FORGOTTEN_PR_HOUR_THRESHOLD = 24;
 exports.NEEDED_REVIEWS = 2;
 exports.PR_SIZES = [
   ['small', 80],

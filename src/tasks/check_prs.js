@@ -1,6 +1,5 @@
 const DB = require('../api/db.js');
 const Logger = require('../api/logger.js');
-const update_pr = require('./update_pr_message.js');
 const { MAX_PRS } = require('../consts');
 
 const runtime = require('../runtime.js');
