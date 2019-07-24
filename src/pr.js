@@ -76,6 +76,8 @@ exports.create = ({
   reactions = {},
   state = {},
 }) => {
+  let self;
+  let last_update = null;
   let _cached_url;
 
   async function get_message_url() {
@@ -402,17 +404,18 @@ exports.create = ({
       Logger.log(`PR: ${slug}`);
       const reaction_changes = await update_reactions();
       const message_changes = await update_replies();
-
       const changed_results = await Promise.all(
         Object.values(message_changes).concat(Object.values(reaction_changes)),
       );
-      return {
-        has_changed: true, // changed_results.some(changed => changed !== false),
+
+      last_update = {
+        has_changed: changed_results.some(changed => changed !== false),
         changes: {
           replies: message_changes,
           reactions: reaction_changes,
         },
       };
+      return self;
     } catch (error) {
       Logger.log_error(error);
     }
@@ -435,7 +438,7 @@ exports.create = ({
     };
   }
 
-  return Object.freeze({
+  self = Object.freeze({
     // props
     slug,
     owner,
@@ -443,6 +446,9 @@ exports.create = ({
     pr_id,
     channel,
     ts,
+    get last_update() {
+      return last_update;
+    },
     get state() {
       return state;
     },
@@ -461,4 +467,6 @@ exports.create = ({
       return this.minutes_since_post >= 60 * hours;
     },
   });
+
+  return self;
 };
