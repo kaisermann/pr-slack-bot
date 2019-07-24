@@ -336,9 +336,7 @@ exports.create = ({
 
     const changes = {};
 
-    if (size.label !== 'small') {
-      changes.size = await add_reaction('size', EMOJIS[`size_${size.label}`]);
-    }
+    changes.size = await add_reaction('size', EMOJIS[`size_${size.label}`]);
 
     changes.changes_requested = changes_requested
       ? await add_reaction('changes_requested', EMOJIS.changes_requested)
