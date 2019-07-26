@@ -65,7 +65,7 @@ function get_pr_size(additions, deletions) {
 
 // todo: prevent always creating new PR obj on memory for every db.get
 exports.create = ({
-  user_id,
+  poster_id,
   slug,
   owner,
   repo,
@@ -426,7 +426,7 @@ exports.create = ({
 
   function to_json() {
     return {
-      user_id,
+      poster_id,
       slug,
       owner,
       repo,
@@ -435,11 +435,13 @@ exports.create = ({
       ts,
       reactions,
       replies,
+      pr_actions: state.pr_actions,
     };
   }
 
   self = Object.freeze({
     // props
+    poster_id,
     slug,
     owner,
     repo,

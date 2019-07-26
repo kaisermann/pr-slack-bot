@@ -16,6 +16,22 @@ const web_client = new WebClient(TOKEN, {
 
 exports.web_client = web_client;
 
+exports.get_channel_info = channel_id => {
+  return Balancer.Slack.request(
+    () => {
+      Logger.add_call('slack.conversations.info');
+      return web_client.conversations
+        .info({ channel: channel_id })
+        .then(response => response.ok && response.channel)
+        .catch(error => {
+          console.log(error);
+        });
+    },
+    channel_id,
+    'get_channel_info',
+  );
+};
+
 exports.get_user_info = id => {
   return Balancer.Slack.request(
     () => {
@@ -40,7 +56,9 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       // dont listen to messages not posted directly to a channel
       if (
         thread_ts != null ||
-        (subtype != null && subtype !== 'message_deleted')
+        (subtype != null &&
+          subtype !== 'message_deleted' &&
+          subtype !== 'message_changed')
       ) {
         return;
       }
@@ -63,7 +81,11 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
 
       let pr_message = text;
 
-      if (subtype === 'message_deleted') {
+      const is_deleted_message =
+        subtype === 'message_deleted' ||
+        (subtype === 'message_changed' && e.message.subtype === 'tombstone');
+
+      if (is_deleted_message) {
         pr_message = e.previous_message.text;
       }
 
@@ -79,10 +101,10 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
         return;
       }
 
-      if (subtype === 'message_deleted') {
+      if (is_deleted_message) {
         return on_message_deleted({
           channel: e.channel,
-          deleted_ts: e.deleted_ts,
+          deleted_ts: e.deleted_ts || e.previous_message.ts,
         });
       }
 
@@ -90,7 +112,7 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       const slug = `${owner}/${repo}/${pr_id}`;
 
       on_new_message({
-        user_id: e.user,
+        poster_id: e.user,
         owner,
         repo,
         pr_id,

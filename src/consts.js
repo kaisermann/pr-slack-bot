@@ -39,4 +39,3 @@ exports.MAX_PRS = ~~(5000 / 60 / 2 / exports.PR_CHECK_PER_MINUTE);
 
 // dev
 exports.PRIVATE_TEST_CHANNELS = ['GKSCG1GRX', 'GLAM8UANR'];
-exports.SLACK_NO_ACTIONS = true;
