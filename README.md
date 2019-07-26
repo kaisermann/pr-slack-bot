@@ -12,6 +12,7 @@
 - [ ] ao deletar mensagem do pr, deletar os replies do bot
 - [ ] verificar changelog
 - [ ] marcar todo mundo que mandou os prs na thread de prs esquecidos
+- [ ] marcar na thread quem tiver marcado como reviewer em pr listado ou marcar o dono do post se tiver com 2 approvals
 - [x] mensagem big pr https://vtex.slack.com/archives/C98FX9724/p1563367246172000
 - [x] editar mensagens de pr esquecidos
 - [x] editar mensagem pr
