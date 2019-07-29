@@ -90,9 +90,9 @@ exports.create = ({ channel_id, prs, messages }) => {
   async function update_prs() {
     console.log(`# ${channel_id} - Updating PRs`);
 
-    const updates_result = await Promise.all(prs.map(pr => pr.update()));
+    const updated_prs = await Promise.all(prs.map(pr => pr.update()));
 
-    const prs_map = updates_result.reduce((acc, pr) => {
+    const prs_map = updated_prs.reduce((acc, pr) => {
       acc[pr.slug] = pr;
       return acc;
     }, {});
@@ -105,12 +105,11 @@ exports.create = ({ channel_id, prs, messages }) => {
       pr => pr.state.merged || pr.state.closed,
     );
     const to_update_prs_map = filter_object(
-      resolved_prs_map,
+      changed_prs_map,
       pr => !pr.state.merged && !pr.state.closed,
     );
 
     const resolved_prs = Object.values(resolved_prs_map);
-
     if (resolved_prs.length) {
       await on_prs_resolved(resolved_prs_map);
     }
@@ -126,7 +125,7 @@ exports.create = ({ channel_id, prs, messages }) => {
       })
       .remove(pr => pr.slug in resolved_prs_map)
       .write();
-    return updates_result;
+    return updated_prs;
   }
 
   function has_pr(slug) {
