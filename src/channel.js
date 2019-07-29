@@ -65,8 +65,8 @@ exports.create = ({ channel_id, prs, messages }) => {
   // TODO
   // async function send_message(type, message) {}
 
-  async function update_pr(pr_data) {
-    const pr = prs.find(pr => pr.slug === pr_data.slug);
+  async function update_pr(slug) {
+    const pr = prs.find(pr => pr.slug === slug);
     const update_result = await pr.update();
 
     const has_changed = pr.last_update.has_changed;
@@ -145,13 +145,17 @@ exports.create = ({ channel_id, prs, messages }) => {
     return pr;
   }
 
-  function set_pr(pr_data) {
-    const saved_pr_index = prs.findIndex(({ slug }) => slug === pr_data.slug);
+  function replace_pr(slug, pr_data) {
+    const saved_pr_index = prs.findIndex(pr => pr.slug === slug);
 
     if (saved_pr_index < 0) return null;
 
     prs[saved_pr_index] = PR.create(
-      Object.assign({}, prs[saved_pr_index].to_json(), pr_data),
+      Object.assign(prs[saved_pr_index].to_json(), pr_data, {
+        reactions: {},
+        replies: {},
+        pr_actions: [],
+      }),
     );
 
     save_pr(prs[saved_pr_index]);
@@ -161,8 +165,13 @@ exports.create = ({ channel_id, prs, messages }) => {
 
   function save_pr(pr) {
     const index = prs.findIndex(({ slug }) => slug === pr.slug);
-    if (index < 0) return null;
-    DB.client.find({ slug: pr.slug }).assign(pr.to_json());
+    if (index < 0) return;
+
+    DB.client
+      .get(DB_PR_PATH, [])
+      .find({ slug: pr.slug })
+      .assign(pr.to_json())
+      .write();
   }
 
   function remove_pr_by_timestamp(deleted_ts) {
@@ -200,6 +209,6 @@ exports.create = ({ channel_id, prs, messages }) => {
     add_pr,
     remove_pr,
     remove_pr_by_timestamp,
-    set_pr,
+    replace_pr,
   });
 };
