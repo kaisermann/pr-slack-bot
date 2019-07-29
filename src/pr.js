@@ -417,6 +417,11 @@ exports.create = ({
       };
       return self;
     } catch (error) {
+      last_update = {
+        error,
+        has_changed: false,
+        changes: {},
+      };
       Logger.log_error(error);
     }
 

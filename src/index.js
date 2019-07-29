@@ -43,12 +43,13 @@ Slack.on_pr_message(
 
     if (channel.has_pr(slug)) {
       Logger.log(`Overwriting PR message: ${slug}`);
-      channel.set_pr(pr_data);
+      channel.replace_pr(pr_data.slug, pr_data);
     } else {
       Logger.log(`Watching ${slug}`);
       channel.add_pr(pr_data);
     }
-    channel.update_pr(pr_data);
+
+    channel.update_pr(pr_data.slug);
   },
   // on pr message deleted
   ({ channel: channel_id, deleted_ts }) => {
