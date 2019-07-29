@@ -51,7 +51,7 @@ exports.get_user_info = id => {
 exports.on_pr_message = async (on_new_message, on_message_deleted) => {
   RTM.on('message', e => {
     try {
-      const { thread_ts, subtype } = e;
+      const { thread_ts, channel, subtype } = e;
 
       // dont listen to messages not posted directly to a channel
       if (
@@ -66,7 +66,7 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       // production env should not listen to test channel
       if (
         process.env.NODE_ENV === 'production' &&
-        PRIVATE_TEST_CHANNELS.includes(e.channel)
+        PRIVATE_TEST_CHANNELS.includes(channel)
       ) {
         return;
       }
@@ -74,13 +74,13 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       // dev env should listen only to test channel
       if (
         process.env.NODE_ENV !== 'production' &&
-        !PRIVATE_TEST_CHANNELS.includes(e.channel)
+        !PRIVATE_TEST_CHANNELS.includes(channel)
       ) {
         return;
       }
 
-      console.log(e.text, e.message);
-      let pr_message = e.text || (e.message ? e.message.text : null);
+      let pr_message = e.text;
+      let ts = e.event_ts;
 
       const is_deleted_message =
         subtype === 'message_deleted' ||
@@ -88,16 +88,26 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       const is_edited_message =
         subtype === 'message_changed' && !is_deleted_message;
 
-      if (
-        is_deleted_message ||
-        (is_edited_message &&
-          e.message.text.match(PR_REGEX) == null &&
-          e.previous_message.text.match(PR_REGEX) != null)
-      ) {
+      if (is_deleted_message) {
         return on_message_deleted({
-          channel: e.channel,
+          channel,
           deleted_ts: e.deleted_ts || e.previous_message.ts,
         });
+      }
+
+      if (is_edited_message) {
+        const previous_match = e.previous_message.text.match(PR_REGEX);
+        const current_match = e.message.text.match(PR_REGEX);
+
+        if (previous_match != null && current_match == null) {
+          return on_message_deleted({
+            channel,
+            deleted_ts: e.previous_message.ts,
+          });
+        }
+
+        pr_message = e.message ? e.message.text : null;
+        ts = e.message.ts;
       }
 
       if (!pr_message && e.attachments.length) {
@@ -113,16 +123,15 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       if (!match) return;
 
       const [, owner, repo, pr_id] = match;
-      const slug = `${owner}/${repo}/${pr_id}`;
 
       on_new_message({
-        poster_id: e.user,
+        poster_id: e.user || (e.message ? e.message.user : null),
+        slug: `${owner}/${repo}/${pr_id}`,
         owner,
         repo,
         pr_id,
-        slug,
-        ts: e.event_ts,
-        channel: e.channel,
+        ts,
+        channel,
       });
     } catch (error) {
       Logger.log_error(error);
@@ -182,6 +191,13 @@ exports.delete_message = ({ channel, ts }) => {
     'delete_message',
   );
 };
+
+// exports.delete_message_by_url = url => {
+//   exports.delete_message({
+//     channel: 'C98FX9724',
+//     ts: '1564414678.384500',
+//   });
+// };
 
 exports.get_message_url = async (channel, ts) => {
   Logger.add_call('slack.chat.getPermalink');

@@ -148,7 +148,10 @@ exports.create = ({ channel_id, prs, messages }) => {
     const saved_pr_index = prs.findIndex(({ slug }) => slug === pr_data.slug);
 
     if (saved_pr_index < 0) return null;
-    prs[saved_pr_index] = PR.create(pr_data);
+
+    prs[saved_pr_index] = PR.create(
+      Object.assign({}, prs[saved_pr_index].to_json(), pr_data),
+    );
 
     save_pr(prs[saved_pr_index]);
 
