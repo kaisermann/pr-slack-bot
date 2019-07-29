@@ -96,6 +96,8 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       }
 
       if (is_edited_message) {
+        if (e.previous_message.text === e.message.text) return;
+
         const previous_match = e.previous_message.text.match(PR_REGEX);
         const current_match = e.message.text.match(PR_REGEX);
 
