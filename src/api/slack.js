@@ -79,7 +79,8 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
         return;
       }
 
-      let pr_message = e.text || e.message ? e.message.text : null;
+      console.log(e.text, e.message);
+      let pr_message = e.text || (e.message ? e.message.text : null);
 
       const is_deleted_message =
         subtype === 'message_deleted' ||
