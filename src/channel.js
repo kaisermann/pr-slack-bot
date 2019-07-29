@@ -112,6 +112,7 @@ exports.create = ({ channel_id, prs, messages }) => {
     const resolved_prs = Object.values(resolved_prs_map);
     if (resolved_prs.length) {
       await on_prs_resolved(resolved_prs_map);
+      prs = prs.filter(({ slug }) => !(slug in resolved_prs_map));
     }
 
     DB.client

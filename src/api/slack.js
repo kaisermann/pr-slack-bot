@@ -192,12 +192,19 @@ exports.delete_message = ({ channel, ts }) => {
   );
 };
 
-// exports.delete_message_by_url = url => {
-//   exports.delete_message({
-//     channel: 'C98FX9724',
-//     ts: '1564414678.384500',
-//   });
-// };
+exports.delete_message_by_url = url => {
+  const match = url.match(
+    /archives\/(.*?)\/p(.*?)(?:\/|#|$|\?.*?thread_ts=(.*?)(?:&|$)|\?)/i,
+  );
+
+  if (!match) return;
+
+  let [, channel, ts] = match;
+
+  ts = (+ts / 1000000).toFixed(6);
+
+  exports.delete_message({ channel, ts });
+};
 
 exports.get_message_url = async (channel, ts) => {
   Logger.add_call('slack.chat.getPermalink');
