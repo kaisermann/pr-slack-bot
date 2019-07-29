@@ -51,7 +51,7 @@ exports.get_user_info = id => {
 exports.on_pr_message = async (on_new_message, on_message_deleted) => {
   RTM.on('message', e => {
     try {
-      const { thread_ts, subtype, text } = e;
+      const { thread_ts, subtype } = e;
 
       // dont listen to messages not posted directly to a channel
       if (
@@ -79,34 +79,37 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
         return;
       }
 
-      let pr_message = text;
+      let pr_message = e.text || e.message ? e.message.text : null;
 
       const is_deleted_message =
         subtype === 'message_deleted' ||
         (subtype === 'message_changed' && e.message.subtype === 'tombstone');
+      const is_edited_message =
+        subtype === 'message_changed' && !is_deleted_message;
 
-      if (is_deleted_message) {
-        pr_message = e.previous_message.text;
+      if (
+        is_deleted_message ||
+        (is_edited_message &&
+          e.message.text.match(PR_REGEX) == null &&
+          e.previous_message.text.match(PR_REGEX) != null)
+      ) {
+        return on_message_deleted({
+          channel: e.channel,
+          deleted_ts: e.deleted_ts || e.previous_message.ts,
+        });
       }
 
-      if (pr_message === '' && e.attachments.length) {
+      if (!pr_message && e.attachments.length) {
         const { title_link, pretext } = e.attachments[0];
         if (pretext.match(/pull request opened/i)) {
           pr_message = title_link;
         }
       }
 
-      const match = pr_message.match(PR_REGEX);
-      if (!match) {
-        return;
-      }
+      if (!pr_message) return;
 
-      if (is_deleted_message) {
-        return on_message_deleted({
-          channel: e.channel,
-          deleted_ts: e.deleted_ts || e.previous_message.ts,
-        });
-      }
+      const match = pr_message.match(PR_REGEX);
+      if (!match) return;
 
       const [, owner, repo, pr_id] = match;
       const slug = `${owner}/${repo}/${pr_id}`;
