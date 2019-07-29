@@ -101,7 +101,7 @@ exports.create = ({ channel_id, prs, messages }) => {
       pr => pr.last_update.has_changed,
     );
     const resolved_prs_map = filter_object(
-      changed_prs_map,
+      prs_map,
       pr => pr.state.merged || pr.state.closed,
     );
     const to_update_prs_map = filter_object(
