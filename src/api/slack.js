@@ -108,6 +108,14 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
           });
         }
 
+        if (
+          previous_match &&
+          current_match &&
+          previous_match[0] === current_match[0]
+        ) {
+          return;
+        }
+
         pr_message = e.message ? e.message.text : null;
         ts = e.message.ts;
       }
