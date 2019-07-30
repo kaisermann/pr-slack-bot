@@ -229,10 +229,9 @@ exports.create = ({ channel_id, prs, messages }) => {
     message.replies.mentions = await Message.send({
       channel: channel_id,
       thread_ts: message.ts,
-      text: `:surprisedpikachu: Original posters: ${forgotten_prs
-        .map(pr => pr.poster_id && `<@${pr.poster_id}>`)
-        .filter(Boolean)
-        .join(', ')}`,
+      text: `:surprisedpikachu: Original posters: ${[
+        ...new Set(forgotten_prs.map(pr => pr.poster_id).filter(Boolean)),
+      ].join(', ')}`,
     });
 
     DB.save_channel_message(message, 3);
