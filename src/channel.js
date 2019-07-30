@@ -226,12 +226,16 @@ exports.create = ({ channel_id, prs, messages }) => {
       replies: {},
     });
 
+    const post_owners = [
+      ...new Set(forgotten_prs.map(pr => pr.poster_id).filter(Boolean)),
+    ];
+
     message.replies.mentions = await Message.send({
       channel: channel_id,
       thread_ts: message.ts,
-      text: `:surprisedpikachu: Original posters: ${[
-        ...new Set(forgotten_prs.map(pr => pr.poster_id).filter(Boolean)),
-      ].join(', ')}`,
+      text: `:surprisedpikachu: Original posters: ${post_owners
+        .map(id => `<@${id}>`)
+        .join(', ')}`,
     });
 
     DB.save_channel_message(message, 3);
