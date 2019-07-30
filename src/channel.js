@@ -248,7 +248,9 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     // props
     channel_id,
     messages,
-    prs,
+    get prs() {
+      return prs;
+    },
     // methods
     update_pr,
     update_prs,
