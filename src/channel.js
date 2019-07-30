@@ -233,7 +233,7 @@ exports.create = ({ channel_id, prs, messages }) => {
     message.replies.mentions = await Message.send({
       channel: channel_id,
       thread_ts: message.ts,
-      text: `:surprisedpikachu: Original posters: ${post_owners
+      text: `Can you guys help :awthanks:? ${post_owners
         .map(id => `<@${id}>`)
         .join(', ')}`,
     });
