@@ -247,7 +247,9 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   return Object.freeze({
     // props
     channel_id,
-    messages,
+    get messages() {
+      return messages;
+    },
     get prs() {
       return prs;
     },

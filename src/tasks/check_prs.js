@@ -10,6 +10,9 @@ module.exports = async () => {
   );
 
   console.log('');
+  console.log('--------------');
+  console.log(prs.map(pr => pr.slug));
+  console.log('--------------');
   console.log(`Total PRs: ${prs.length}/${MAX_PRS}`);
 
   Logger.log_metrics();
