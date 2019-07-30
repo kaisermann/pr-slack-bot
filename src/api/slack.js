@@ -9,6 +9,7 @@ const TOKEN = process.env.SLACK_TOKEN;
 const RTM = new RTMClient(TOKEN);
 
 const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i;
+const PR_REGEX_GLOBAL = new RegExp(PR_REGEX.source, `${PR_REGEX.flags}g`);
 
 const web_client = new WebClient(TOKEN, {
   retryConfig: retryPolicies.rapidRetryPolicy,
@@ -129,9 +130,10 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
 
       if (!pr_message) return;
 
-      const match = pr_message.match(PR_REGEX);
-      if (!match) return;
+      const matches = pr_message.match(PR_REGEX_GLOBAL);
+      if (!matches || matches.length > 1) return;
 
+      const match = pr_message.match(PR_REGEX);
       const [, owner, repo, pr_id] = match;
 
       on_new_message({
