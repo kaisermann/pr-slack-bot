@@ -402,6 +402,7 @@ exports.create = ({
     try {
       await update_state();
       Logger.log(`PR: ${slug}`);
+
       const reaction_changes = await update_reactions();
       const message_changes = await update_replies();
       const changed_results = await Promise.all(
@@ -415,18 +416,17 @@ exports.create = ({
           reactions: reaction_changes,
         },
       };
-      return self;
     } catch (error) {
+      state = Object.freeze({});
       last_update = {
         error,
         has_changed: false,
-        changes: {},
+        changes: { replies: {}, reactions: {} },
       };
       Logger.log_error(error);
     }
 
-    state = Object.freeze({});
-    return {};
+    return self;
   }
 
   function to_json() {
