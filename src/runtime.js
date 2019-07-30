@@ -40,4 +40,7 @@ module.exports = {
   get users() {
     return users;
   },
+  get prs() {
+    return channels.flatMap(channel => channel.prs);
+  },
 };
