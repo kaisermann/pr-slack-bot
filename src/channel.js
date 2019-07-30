@@ -14,7 +14,7 @@ const filter_object = (o, fn) => {
   }, {});
 };
 
-exports.create = ({ channel_id, prs, messages }) => {
+exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   prs = prs.map(PR.create);
 
   const DB_PR_PATH = ['channels', channel_id, 'prs'];
@@ -88,7 +88,9 @@ exports.create = ({ channel_id, prs, messages }) => {
   }
 
   async function update_prs() {
-    console.log(`# ${channel_id} - Updating PRs`);
+    console.log(
+      `# ${channel_name} ${channel_id}- Updating PRs (${prs.length} prs)`,
+    );
 
     const updated_prs = await Promise.all(prs.map(pr => pr.update()));
 
@@ -230,13 +232,15 @@ exports.create = ({ channel_id, prs, messages }) => {
       ...new Set(forgotten_prs.map(pr => pr.poster_id).filter(Boolean)),
     ];
 
-    message.replies.mentions = await Message.send({
-      channel: channel_id,
-      thread_ts: message.ts,
-      text: `Can you guys help :awthanks:? ${post_owners
-        .map(id => `<@${id}>`)
-        .join(', ')}`,
-    });
+    if (post_owners.length) {
+      message.replies.mentions = await Message.send({
+        channel: channel_id,
+        thread_ts: message.ts,
+        text: `Can you guys help :awthanks:? ${post_owners
+          .map(id => `<@${id}>`)
+          .join(', ')}`,
+      });
+    }
 
     DB.save_channel_message(message, 3);
   }
