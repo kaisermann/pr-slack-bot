@@ -128,7 +128,6 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       })
       .remove(pr => pr.slug in resolved_prs_map)
       .write();
-    return updated_prs;
   }
 
   function has_pr(slug) {
