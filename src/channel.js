@@ -1,7 +1,7 @@
 const DB = require('./api/db.js');
 
 const Logger = require('./api/logger.js');
-const { EMOJIS } = require('./consts.js');
+const { EMOJIS, FORGOTTEN_PR_HOUR_THRESHOLD } = require('./consts.js');
 const Message = require('./message.js');
 const PR = require('./pr.js');
 
@@ -176,7 +176,7 @@ exports.create = ({ channel_id, prs, messages }) => {
 
   function remove_pr_by_timestamp(deleted_ts) {
     const index = prs.findIndex(({ ts }) => ts === deleted_ts);
-    if (index < 0) return null;
+    if (index < 0) return;
 
     prs.splice(index, 1);
 
@@ -185,9 +185,10 @@ exports.create = ({ channel_id, prs, messages }) => {
       .remove({ ts: deleted_ts })
       .write();
   }
+
   function remove_pr({ slug }) {
-    const index = prs.findIndex(({ slug }) => slug === slug);
-    if (index < 0) return null;
+    const index = prs.findIndex(pr => pr.slug === slug);
+    if (index < 0) return;
 
     prs.splice(index, 1);
 
@@ -195,6 +196,46 @@ exports.create = ({ channel_id, prs, messages }) => {
       .get(DB_PR_PATH)
       .remove({ slug: slug })
       .write();
+  }
+
+  async function check_forgotten_prs() {
+    const forgotten_prs = prs.filter(pr =>
+      pr.needs_attention(FORGOTTEN_PR_HOUR_THRESHOLD),
+    );
+
+    if (forgotten_prs.length === 0) return;
+
+    const now_date = new Date(Date.now());
+    const time_of_day = now_date.getHours() < 12 ? 'morning' : 'afternoon';
+    const ops = [];
+
+    let text = `Good ${time_of_day}! :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago in need of some love and attention:\n\n`;
+
+    for await (const pr of forgotten_prs) {
+      const message_url = await pr.get_message_url();
+      text += `<${message_url}|${pr.slug}>`;
+      text += ` _(${pr.hours_since_post} hours ago)_\n`;
+      ops.push(pr.poster_id);
+    }
+
+    const message = await Message.send({
+      type: 'forgotten_prs',
+      channel: channel_id,
+      text,
+      payload: forgotten_prs.map(pr => pr.slug),
+      replies: {},
+    });
+
+    message.replies.mentions = await Message.send({
+      channel: channel_id,
+      thread_ts: message.ts,
+      text: `:surprisedpikachu: Original posters: ${forgotten_prs
+        .map(pr => pr.poster_id && `<@${pr.poster_id}>`)
+        .filter(Boolean)
+        .join(', ')}`,
+    });
+
+    DB.save_channel_message(message, 3);
   }
 
   return Object.freeze({
@@ -210,5 +251,6 @@ exports.create = ({ channel_id, prs, messages }) => {
     remove_pr,
     remove_pr_by_timestamp,
     replace_pr,
+    check_forgotten_prs,
   });
 };
