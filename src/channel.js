@@ -208,15 +208,43 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     const now_date = new Date(Date.now());
     const time_of_day = now_date.getHours() < 12 ? 'morning' : 'afternoon';
-    const ops = [];
 
     let text = `Good ${time_of_day}! :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago in need of some love and attention:\n\n`;
 
-    for await (const pr of forgotten_prs) {
-      const message_url = await pr.get_message_url();
-      text += `<${message_url}|${pr.slug}>`;
-      text += ` _(${pr.hours_since_post} hours ago)_\n`;
-      ops.push(pr.poster_id);
+    const sections = forgotten_prs.reduce(
+      (acc, pr) => {
+        if (pr.state.approved) acc.ready_to_merge.list.push(pr);
+        else if (pr.state.changes_requested)
+          acc.changes_requested.list.push(pr);
+        else acc.waiting_review.list.push(pr);
+        return acc;
+      },
+      {
+        ready_to_merge: {
+          title: `:${EMOJIS.merged}: Ready to be merged`,
+          list: [],
+        },
+        changes_requested: {
+          title: `:${EMOJIS.changes_requested}: Changes requested`,
+          list: [],
+        },
+        waiting_review: {
+          title: `:${EMOJIS.waiting}: Waiting review`,
+          list: [],
+        },
+      },
+    );
+
+    for await (const { title, list } of Object.values(sections)) {
+      if (list.length === 0) continue;
+
+      text += `*${title}*:\n`;
+      for await (const pr of list) {
+        const message_url = await pr.get_message_url();
+        text += `<${message_url}|${pr.slug}>`;
+        text += ` _(${pr.hours_since_post} hours ago)_\n`;
+      }
+      text += '\n';
     }
 
     const message = await Message.send({

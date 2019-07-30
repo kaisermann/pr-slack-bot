@@ -440,7 +440,7 @@ exports.create = ({
       ts,
       reactions,
       replies,
-      pr_actions: state.pr_actions,
+      state,
     };
   }
 
