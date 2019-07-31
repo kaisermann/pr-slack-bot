@@ -3,7 +3,7 @@ const throttling = require('@octokit/plugin-throttling');
 const retry = require('@octokit/plugin-retry');
 
 const Logger = require('./logger.js');
-// const Balancer = require('../balancer.js');
+const Balancer = require('../balancer.js');
 
 const REQUEST_SIGNATURES = {};
 
@@ -85,39 +85,39 @@ const github_client = Octokit.plugin([throttling, retry, etag_plugin])({
 exports.github_client = github_client;
 
 exports.get_pr_data = (owner, repo, pull_number) => {
-  // return Balancer.Github.request(
-  //   () => {
-  return github_client.pulls
-    .get({
-      owner,
-      repo,
-      pull_number,
-    })
-    .then(({ status, data }) => {
-      Logger.add_call(`github.pulls.get.${status}`);
-      return { status, data };
-    });
-  //   },
-  //   `data${owner}${repo}${pull_number}`,
-  //   'get_pr_data',
-  // );
+  return Balancer.Github.request(
+    () => {
+      return github_client.pulls
+        .get({
+          owner,
+          repo,
+          pull_number,
+        })
+        .then(({ status, data }) => {
+          Logger.add_call(`github.pulls.get.${status}`);
+          return { status, data };
+        });
+    },
+    `data${owner}${repo}${pull_number}`,
+    'get_pr_data',
+  );
 };
 
 exports.get_review_data = (owner, repo, pull_number) => {
-  // return Balancer.Github.request(
-  //   () => {
-  return github_client.pulls
-    .listReviews({
-      owner,
-      repo,
-      pull_number,
-    })
-    .then(({ status, data }) => {
-      Logger.add_call(`github.pulls.listReviews.${status}`);
-      return { status, data };
-    });
-  //   },
-  //   `review${owner}${repo}${pull_number}`,
-  //   'get_review_data',
-  // );
+  return Balancer.Github.request(
+    () => {
+      return github_client.pulls
+        .listReviews({
+          owner,
+          repo,
+          pull_number,
+        })
+        .then(({ status, data }) => {
+          Logger.add_call(`github.pulls.listReviews.${status}`);
+          return { status, data };
+        });
+    },
+    `review${owner}${repo}${pull_number}`,
+    'get_review_data',
+  );
 };

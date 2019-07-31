@@ -19,10 +19,12 @@ exports.Slack = new Queue({
 exports.Github = new Queue({
   rules: {
     common: {
-      rate: 5000,
-      limit: 60 * 60,
-      priority: 5,
+      // we want 10 requests per second
+      rate: 30,
+      limit: 1,
+      priority: 1,
     },
   },
   retryTime: 300,
+  ignoreOverallOverheat: true,
 });

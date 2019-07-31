@@ -92,8 +92,8 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       `# ${channel_name} ${channel_id} - Updating PRs (${prs.length} prs)`,
     );
 
-    await prs.reduce(async (acc, pr) => acc.then(pr.update), Promise.resolve());
-    // await Promise.all(prs.map(pr => pr.update()));
+    // await prs.reduce(async (acc, pr) => acc.then(pr.update), Promise.resolve());
+    await Promise.all(prs.map(pr => pr.update()));
 
     const prs_map = prs.reduce((acc, pr) => {
       acc[pr.slug] = pr;
