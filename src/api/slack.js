@@ -3,6 +3,7 @@ const { WebClient, retryPolicies } = require('@slack/web-api');
 
 const Balancer = require('../balancer.js');
 const Logger = require('./logger.js');
+const DB = require('./db.js');
 const { PRIVATE_TEST_CHANNELS } = require('../consts.js');
 
 const TOKEN = process.env.SLACK_TOKEN;
@@ -82,6 +83,7 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
 
       let pr_message = e.text;
       let ts = e.event_ts;
+      let poster_id = e.user || (e.message ? e.message.user : null);
 
       const is_deleted_message =
         subtype === 'message_deleted' ||
@@ -122,9 +124,14 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       }
 
       if (!pr_message && e.attachments.length) {
-        const { title_link, pretext } = e.attachments[0];
+        const { title_link, pretext, author_name } = e.attachments[0];
         if (pretext.match(/pull request opened/i)) {
           pr_message = title_link;
+
+          const user = DB.get_user_by_github_user(author_name);
+          if (user) {
+            poster_id = user.id;
+          }
         }
       }
 
@@ -137,7 +144,7 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       const [, owner, repo, pr_id] = match;
 
       on_new_message({
-        poster_id: e.user || (e.message ? e.message.user : null),
+        poster_id,
         slug: `${owner}/${repo}/${pr_id}`,
         owner,
         repo,
