@@ -92,7 +92,7 @@ exports.create = ({
   }
 
   async function delete_reply(id) {
-    if (!has_reply(id)) return;
+    if (!has_reply(id)) return false;
     await Message.delete(replies[id]);
     delete replies[id];
   }
@@ -383,20 +383,12 @@ exports.create = ({
       header_message: await update_header_message(),
     };
 
-    if (dirty) {
-      changes.dirty = await reply(
-        'is_dirty',
-        `The branch \`${pr_branch}\` is dirty. It may need a rebase with \`${base_branch}\`.`,
-      );
-    } else {
-      if (has_reply('is_dirty')) {
-        changes.dirty = await update_reply(
+    changes.dirty = dirty
+      ? await reply(
           'is_dirty',
-          ({ text }) => `~${text}~`,
-          { discarded: true },
-        );
-      }
-    }
+          `The branch \`${pr_branch}\` is dirty. It may need a rebase with \`${base_branch}\`.`,
+        )
+      : await delete_reply('is_dirty');
 
     changes.ready_to_merge = ready_to_merge
       ? await reply('ready_to_merge', 'PR is ready to be merged :doit:!')
