@@ -78,7 +78,8 @@ exports.create = ({
 }) => {
   let self;
   let last_update = null;
-  let _cached_url;
+  let _cached_remote_state = null;
+  let _cached_url = null;
 
   async function get_message_url() {
     if (_cached_url == null) {
@@ -215,9 +216,29 @@ exports.create = ({
       });
   }
 
+  async function get_remote_state() {
+    const pr_response = await Github.get_pr_data(owner, repo, pr_id);
+    const review_response = await Github.get_review_data(owner, repo, pr_id);
+
+    let pr_data = pr_response.data;
+    let review_data = review_response.data;
+
+    if (_cached_remote_state != null) {
+      if (pr_response.status === 304) {
+        pr_data = _cached_remote_state.pr_data;
+      }
+
+      if (review_response.status === 304) {
+        review_data = _cached_remote_state.review_data;
+      }
+    }
+
+    _cached_remote_state = { pr_data, review_data };
+    return _cached_remote_state;
+  }
+
   async function update_state() {
-    const pr_data = await Github.get_pr_data(owner, repo, pr_id);
-    const review_data = await Github.get_review_data(owner, repo, pr_id);
+    const { pr_data, review_data } = await get_remote_state();
 
     // review data mantains a list of reviews
     const action_lists = Object.entries(

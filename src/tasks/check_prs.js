@@ -5,8 +5,9 @@ const { MAX_PRS } = require('../consts.js');
 module.exports = async () => {
   const { channels, prs } = runtime;
 
-  const channel_updates = await Promise.all(
-    channels.map(channel => channel.update_prs()),
+  await channels.reduce(
+    async (acc, channel) => acc.then(channel.update_prs),
+    Promise.resolve(),
   );
 
   console.log('');
@@ -14,6 +15,4 @@ module.exports = async () => {
 
   Logger.log_metrics();
   Logger.reset_metrics();
-
-  return channel_updates;
 };
