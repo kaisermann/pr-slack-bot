@@ -89,7 +89,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
   async function update_prs() {
     console.log(
-      `# ${channel_name} ${channel_id}- Updating PRs (${prs.length} prs)`,
+      `# ${channel_name} ${channel_id} - Updating PRs (${prs.length} prs)`,
     );
 
     await prs.reduce(async (acc, pr) => acc.then(pr.update), Promise.resolve());
