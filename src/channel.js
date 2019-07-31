@@ -213,7 +213,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     const sections = forgotten_prs.reduce(
       (acc, pr) => {
-        if (pr.state.approved) acc.ready_to_merge.list.push(pr);
+        if (pr.state.ready_to_merge) acc.ready_to_merge.list.push(pr);
         else if (pr.state.changes_requested)
           acc.changes_requested.list.push(pr);
         else acc.waiting_review.list.push(pr);
