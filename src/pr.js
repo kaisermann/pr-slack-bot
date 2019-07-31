@@ -6,7 +6,7 @@ const Logger = require('./api/logger.js');
 const DB = require('./api/db.js');
 const Message = require('./message.js');
 
-const { EMOJIS, PR_SIZES, NEEDED_REVIEWS } = require('./consts.js');
+const { EMOJIS, PR_SIZES } = require('./consts.js');
 
 const ACTIONS = Object.freeze({
   approved: 'APPROVED',
@@ -231,12 +231,6 @@ exports.create = ({
       list.includes(ACTIONS.pending_review),
     );
 
-    const approvals = action_lists.filter(([, list]) =>
-      list.includes(ACTIONS.approved),
-    );
-
-    const approved = !changes_requested && approvals.length >= NEEDED_REVIEWS;
-
     const requested_reviewers = pr_data.requested_reviewers.map(({ login }) => {
       return {
         github_user: login,
@@ -267,25 +261,27 @@ exports.create = ({
         return { github_user, pr_action };
       });
 
-    const on_hold = pr_data.labels.some(({ name }) => name.match(/(on )?hold/));
-
     const pr_size = get_pr_size(pr_data.additions, pr_data.deletions);
+
+    // const on_hold = pr_data.labels.some(({ name }) => name.match(/(on )?hold/));
+    // const approved = !changes_requested && approvals.length >= NEEDED_REVIEWS;
+    // const approvals = action_lists.filter(([, list]) =>
+    //   list.includes(ACTIONS.approved),
+    // );
 
     state = Object.freeze({
       pr_actions,
       changes_requested,
-      approved,
       has_pending_review,
       size: pr_size,
       reviewed: pr_data.review_comments > 0,
       merged: pr_data.merged,
-      mergeable: pr_data.mergeable,
+      ready_to_merge: pr_data.mergeable_state === 'clean',
       dirty: pr_data.mergeable_state === 'dirty',
       unstable: pr_data.mergeable_state === 'unstable',
       closed: pr_data.state === 'closed',
       pr_branch: pr_data.head.ref,
       base_branch: pr_data.base.ref,
-      on_hold,
     });
 
     return state;
@@ -330,6 +326,7 @@ exports.create = ({
       changes_requested,
       has_pending_review,
       size,
+      ready_to_merge,
       reviewed,
       unstable,
       merged,
@@ -339,6 +336,10 @@ exports.create = ({
     const changes = {};
 
     changes.size = await add_reaction('size', EMOJIS[`size_${size.label}`]);
+
+    changes.ready_to_merge = ready_to_merge
+      ? await add_reaction('approved', EMOJIS.approved)
+      : await remove_reaction('approved');
 
     changes.changes_requested = changes_requested
       ? await add_reaction('changes_requested', EMOJIS.changes_requested)
@@ -371,7 +372,7 @@ exports.create = ({
       dirty,
       pr_branch,
       base_branch,
-      approved,
+      ready_to_merge,
       merged,
       closed,
     } = state;
@@ -388,7 +389,7 @@ exports.create = ({
       );
     }
 
-    if (approved && !unstable && !merged && !closed) {
+    if (ready_to_merge && !unstable && !merged && !closed) {
       changes.ready_to_merge = reply(
         'ready_to_merge',
         'PR is ready to be merged :doit:!',
