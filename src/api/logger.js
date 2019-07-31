@@ -1,13 +1,13 @@
-const { createWriteStream } = require('fs');
+// const { createWriteStream } = require('fs');
 
 let calls = {};
-const log_stream = createWriteStream('out.log', { flags: 'a' });
+// const log_stream = createWriteStream('out.log', { flags: 'a' });
 const log = (...args) => {
-  log_stream.write(
-    `[${new Date().toISOString()}] ${args
-      .map(arg => JSON.stringify(arg))
-      .join(' ')}\n`,
-  );
+  // log_stream.write(
+  //   `[${new Date().toISOString()}] ${args
+  //     .map(arg => JSON.stringify(arg))
+  //     .join(' ')}\n`,
+  // );
   console.log(...args);
 };
 
