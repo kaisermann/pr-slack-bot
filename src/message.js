@@ -35,3 +35,10 @@ exports.delete = async message => {
 
   return true;
 };
+
+exports.build_text = (parts) => {
+  parts = Array.isArray(parts) ? parts : [parts];
+  return parts
+    .map(part => (typeof part === 'function' ? part() : part))
+    .join('');
+};

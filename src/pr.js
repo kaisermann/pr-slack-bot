@@ -87,47 +87,57 @@ exports.create = ({
     return _cached_url;
   }
 
+  function has_reply(id) {
+    return id in replies;
+  }
+
   async function delete_reply(id) {
+    if (!has_reply(id)) return;
     await Message.delete(replies[id]);
     delete replies[id];
   }
 
-  function build_message_text(parts) {
-    parts = Array.isArray(parts) ? parts : [parts];
-    return parts
-      .map(part => (typeof part === 'function' ? part() : part))
-      .join('');
-  }
+  async function update_reply(id, updateFn, payload) {
+    if (!has_reply(id)) return false;
 
-  async function reply(id, text_parts, payload) {
-    if (id in replies) {
-      const saved_reply = replies[id];
+    const saved_reply = replies[id];
 
-      if (is_equal(saved_reply.payload, payload)) return false;
+    if (
+      saved_reply.payload != null &&
+      payload != null &&
+      is_equal(saved_reply.payload, payload)
+    )
+      return false;
 
-      const text = build_message_text(text_parts);
+    const text = Message.build_text(updateFn(saved_reply));
 
-      if (saved_reply.text === text) return false;
+    if (saved_reply.text === text) return false;
 
-      if (text === '') {
-        await delete_reply(id);
-        return true;
-      }
-
-      try {
-        replies[id] = await Message.update(saved_reply, { text, payload });
-      } catch (e) {
-        Logger.log_error(
-          saved_reply.channel,
-          saved_reply.ts,
-          saved_reply.text,
-          e,
-        );
-      }
+    if (text === '') {
+      await delete_reply(id);
       return true;
     }
 
-    const text = build_message_text(text_parts);
+    try {
+      Logger.log_pr_action(`Updating reply: ${text}`);
+      replies[id] = await Message.update(saved_reply, { text, payload });
+    } catch (e) {
+      Logger.log_error(
+        saved_reply.channel,
+        saved_reply.ts,
+        saved_reply.text,
+        e,
+      );
+    }
+    return true;
+  }
+
+  async function reply(id, text_parts, payload) {
+    if (has_reply(id)) {
+      return update_reply(id, () => text_parts, payload);
+    }
+
+    const text = Message.build_text(text_parts);
 
     if (text === '') return false;
 
@@ -367,34 +377,30 @@ exports.create = ({
   }
 
   async function update_replies() {
-    const {
-      unstable,
-      dirty,
-      pr_branch,
-      base_branch,
-      ready_to_merge,
-      merged,
-      closed,
-    } = state;
+    const { dirty, pr_branch, base_branch, ready_to_merge } = state;
 
     const changes = {
       header_message: await update_header_message(),
     };
 
-    // no need to await those replies
     if (dirty) {
-      changes.dirty = reply(
+      changes.dirty = await reply(
         'is_dirty',
         `The branch \`${pr_branch}\` is dirty. It may need a rebase with \`${base_branch}\`.`,
       );
+    } else {
+      if (has_reply('is_dirty')) {
+        changes.dirty = await update_reply(
+          'is_dirty',
+          ({ text }) => `~${text}~`,
+          { discarded: true },
+        );
+      }
     }
 
-    if (ready_to_merge && !unstable && !merged && !closed) {
-      changes.ready_to_merge = reply(
-        'ready_to_merge',
-        'PR is ready to be merged :doit:!',
-      );
-    }
+    changes.ready_to_merge = ready_to_merge
+      ? await reply('ready_to_merge', 'PR is ready to be merged :doit:!')
+      : await delete_reply('ready_to_merge');
 
     return changes;
   }
