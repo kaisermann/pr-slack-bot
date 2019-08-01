@@ -24,8 +24,6 @@
     "prettier": "^1.16.4"
   },
   "dependencies": {
-    "@octokit/plugin-retry": "^2.2.0",
-    "@octokit/plugin-throttling": "^2.6.0",
     "@octokit/rest": "^16.28.2",
     "@slack/client": "^5.0.1",
     "@slack/rtm-api": "^5.0.1",

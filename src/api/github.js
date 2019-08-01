@@ -1,6 +1,4 @@
 const Octokit = require('@octokit/rest');
-const throttling = require('@octokit/plugin-throttling');
-const retry = require('@octokit/plugin-retry');
 
 const Logger = require('./logger.js');
 const Balancer = require('../balancer.js');
@@ -59,27 +57,8 @@ const etag_plugin = octokit => {
   });
 };
 
-const github_client = Octokit.plugin([throttling, retry, etag_plugin])({
+const github_client = Octokit.plugin([etag_plugin])({
   auth: process.env.GITHUB_TOKEN,
-  throttle: {
-    onRateLimit: (retryAfter, options) => {
-      github_client.log.warn(
-        `Request quota exhausted for request ${options.method} ${options.url}`,
-      );
-
-      if (options.request.retryCount === 0) {
-        // only retries once
-        console.log(`Retrying after ${retryAfter} seconds!`);
-        return true;
-      }
-    },
-    onAbuseLimit: (retryAfter, options) => {
-      // does not retry, only logs a warning
-      github_client.log.warn(
-        `Abuse detected for request ${options.method} ${options.url}`,
-      );
-    },
-  },
 });
 
 exports.github_client = github_client;
