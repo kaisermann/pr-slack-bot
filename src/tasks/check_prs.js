@@ -1,6 +1,5 @@
 const Logger = require('../api/logger.js');
 const runtime = require('../runtime.js');
-const { MAX_PRS } = require('../consts.js');
 
 module.exports = async () => {
   const { channels, prs } = runtime;
@@ -11,7 +10,10 @@ module.exports = async () => {
   );
 
   console.log('');
-  console.log(`Total PRs: ${prs.length}/${MAX_PRS}`);
+  console.log(`Active PRs: ${prs.active.length}`);
+  if (prs.inactive.length) {
+    console.log(`Inactive PRs: ${prs.inactive.length}`);
+  }
 
   Logger.log_metrics();
   Logger.reset_metrics();

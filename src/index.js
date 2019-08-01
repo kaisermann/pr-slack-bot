@@ -20,7 +20,7 @@ runtime.init();
 // check_prs();
 async function check_loop() {
   await check_prs();
-  // const interval = Math.max(60, Math.ceil((3600 / 2500) * runtime.prs.length));
+  // const interval = Math.max(60, Math.ceil((3600 / 2500) * runtime.prs.active.length));
   setTimeout(check_loop, 10000);
   // console.log(`Current interval: ${interval} seconds`);
 }

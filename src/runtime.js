@@ -41,6 +41,18 @@ module.exports = {
     return users;
   },
   get prs() {
-    return channels.flatMap(channel => channel.prs);
+    const prs = channels.flatMap(channel => channel.prs);
+    return prs.reduce(
+      (acc, pr) => {
+        if (pr.is_active()) acc.active.push(pr);
+        else acc.inactive.push(pr);
+        return acc;
+      },
+      {
+        active: [],
+        inactive: [],
+        all: prs,
+      },
+    );
   },
 };

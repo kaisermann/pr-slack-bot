@@ -436,6 +436,16 @@ exports.create = ({
       await update_state();
       Logger.log(`PR: ${slug}`);
 
+      last_update = {
+        has_changed: false,
+        changes: { replies: {}, reactions: {} },
+      };
+
+      if (!is_active()) {
+        Logger.log_pr_action('Ignoring because PR is inactive');
+        return self;
+      }
+
       const reaction_changes = await update_reactions();
       const message_changes = await update_replies();
       const changed_results = await Promise.all(
@@ -450,11 +460,6 @@ exports.create = ({
         },
       };
     } catch (error) {
-      last_update = {
-        error,
-        has_changed: false,
-        changes: { replies: {}, reactions: {} },
-      };
       Logger.log_error(error);
     }
 

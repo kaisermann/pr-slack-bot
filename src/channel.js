@@ -71,7 +71,10 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
   async function update_pr(slug) {
     const pr = prs.find(pr => pr.slug === slug);
-    const update_result = await pr.update();
+
+    await pr.update();
+
+    if (!pr.is_active()) return;
 
     const has_changed = pr.last_update.has_changed;
     const is_resolved = pr.state.merged || pr.state.closed;
@@ -87,8 +90,6 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       save_pr(pr);
     }
     db_transaction.write();
-
-    return update_result;
   }
 
   async function update_prs() {
