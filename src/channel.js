@@ -224,7 +224,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       },
       {
         ready_to_merge: {
-          title: `:${EMOJIS.merged}: Ready to be merged`,
+          title: `:${EMOJIS.ready_to_merge}: Ready to be merged`,
           list: [],
         },
         changes_requested: {
