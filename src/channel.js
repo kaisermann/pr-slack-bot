@@ -23,6 +23,10 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     return DB.get_channel_messages(channel_id, type);
   }
 
+  function get_active_prs() {
+    return prs.filter(pr => pr.is_active());
+  }
+
   async function on_prs_resolved(resolved_prs_map) {
     const resolved_prs = Object.values(resolved_prs_map);
     const forgotten_messages = get_messages('forgotten_prs').filter(
@@ -88,12 +92,13 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   }
 
   async function update_prs() {
+    const active_prs = get_active_prs();
     console.log(
-      `# ${channel_name} ${channel_id} - Updating PRs (${prs.length} prs)`,
+      `# ${channel_name} ${channel_id} - Updating PRs (${active_prs.length} prs)`,
     );
 
     // await prs.reduce(async (acc, pr) => acc.then(pr.update), Promise.resolve());
-    const updated_prs = await Promise.all(prs.map(pr => pr.update()));
+    const updated_prs = await Promise.all(active_prs.map(pr => pr.update()));
 
     const prs_map = updated_prs.reduce((acc, pr) => {
       acc[pr.slug] = pr;

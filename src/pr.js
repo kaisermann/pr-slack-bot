@@ -216,6 +216,11 @@ exports.create = ({
       });
   }
 
+  function is_active() {
+    const { is_draft } = state;
+    return !is_draft;
+  }
+
   async function update_state() {
     const pr_response = await Github.get_pr_data(owner, repo, pr_id);
     const review_response = await Github.get_review_data(owner, repo, pr_id);
@@ -314,6 +319,7 @@ exports.create = ({
       size: pr_size,
       reviewed: pr_data.review_comments > 0,
       merged: pr_data.merged,
+      is_draft: pr_data.mergeable_state === 'draft',
       ready_to_merge: pr_data.mergeable_state === 'clean',
       dirty: pr_data.mergeable_state === 'dirty',
       unstable: pr_data.mergeable_state === 'unstable',
@@ -495,9 +501,9 @@ exports.create = ({
     to_json,
     update,
     get_message_url,
-    reply,
+    is_active,
     needs_attention(hours) {
-      return this.minutes_since_post >= 60 * hours;
+      return is_active() && this.minutes_since_post >= 60 * hours;
     },
   });
 
