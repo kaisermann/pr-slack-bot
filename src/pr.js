@@ -216,12 +216,17 @@ exports.create = ({
       });
   }
 
-  async function get_remote_state() {
+  async function update_state() {
     const pr_response = await Github.get_pr_data(owner, repo, pr_id);
     const review_response = await Github.get_review_data(owner, repo, pr_id);
 
     let pr_data = pr_response.data;
     let review_data = review_response.data;
+
+    // nothing changed, nothing to change
+    if (pr_response.status === 304 && review_response.status === 304) {
+      return;
+    }
 
     if (_cached_remote_state != null) {
       if (pr_response.status === 304) {
@@ -233,17 +238,14 @@ exports.create = ({
       }
     }
 
+    _cached_remote_state = { pr_data, review_data };
+
     if (pr_data == null || review_data == null) {
+      console.log(`slug`, slug);
       console.log(`pr_response`, pr_response);
       console.log(`review_respnse`, review_response);
+      console.log(`_cached_remote_state`, _cached_remote_state);
     }
-
-    _cached_remote_state = { pr_data, review_data };
-    return _cached_remote_state;
-  }
-
-  async function update_state() {
-    const { pr_data, review_data } = await get_remote_state();
 
     // review data mantains a list of reviews
     const action_lists = Object.entries(

@@ -4,6 +4,7 @@
 
 # WIP
 
+- [ ] deletar todos os replies de uma thread deletada
 - [ ] mensagem de deletar branch
 - [ ] marcar check de approval
 - [ ] ignorar mudanças em yarn.lock (?)
