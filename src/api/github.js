@@ -26,7 +26,13 @@ const get_cached_signature = (url, signature) => {
   return REQUEST_SIGNATURES[url][signature];
 };
 
-const etag_plugin = octokit => {
+const etag_plugin = (octokit, octokit_options = {}) => {
+  const { cache_limiter } = octokit_options.etag || {};
+
+  if (typeof cache_limiter === 'function') {
+    cache_limiter(REQUEST_SIGNATURES);
+  }
+
   octokit.hook.wrap('request', async (request_fn, request_options) => {
     const request_url = request_options.url;
     const request_signature = get_request_signature(request_options);
@@ -59,6 +65,28 @@ const etag_plugin = octokit => {
 
 const github_client = Octokit.plugin([etag_plugin])({
   auth: process.env.GITHUB_TOKEN,
+  etag: {
+    cache_limiter(signature_cache) {
+      const MAX_PER_URL = 100;
+      const INTERVAL = 60 * 60 * 60; // one hour
+      setInterval(() => {
+        Object.entries(signature_cache).forEach(([url, signatures]) => {
+          const keys = Object.keys(signatures);
+
+          if (keys.length <= MAX_PER_URL) return;
+
+          const begin_index = Math.max(0, keys.length - 1 - MAX_PER_URL);
+          const end_index = begin_index + MAX_PER_URL;
+          signature_cache[url] = keys
+            .slice(begin_index, end_index)
+            .reduce((acc, key) => {
+              acc[key] = signatures[key];
+              return acc;
+            }, {});
+        });
+      }, INTERVAL);
+    },
+  },
 });
 
 exports.github_client = github_client;
