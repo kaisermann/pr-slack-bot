@@ -444,7 +444,6 @@ exports.create = ({
         },
       };
     } catch (error) {
-      state = Object.freeze({});
       last_update = {
         error,
         has_changed: false,
