@@ -92,6 +92,14 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
         subtype === 'message_changed' && !is_deleted_message;
 
       if (is_deleted_message) {
+        // ignore if this is a event dispatched by the bot deleting a message
+        if (
+          'bot_id' in e.previous_message ||
+          e.previous_message.subtype === 'tombstone'
+        ) {
+          return;
+        }
+
         return on_message_deleted({
           channel,
           deleted_ts: e.deleted_ts || e.previous_message.ts,

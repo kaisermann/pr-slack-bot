@@ -125,6 +125,10 @@ exports.create = ({
       });
   }
 
+  async function delete_replies(reply_ids = Object.keys(replies)) {
+    return Promise.all(reply_ids.map(delete_reply));
+  }
+
   async function update_reply(id, updateFn, payload) {
     if (!has_reply(id)) return false;
 
@@ -547,6 +551,9 @@ exports.create = ({
     get state() {
       return state;
     },
+    get replies() {
+      return replies;
+    },
     get minutes_since_post() {
       return Math.abs(new Date(ts * 1000) - new Date()) / (1000 * 60);
     },
@@ -562,6 +569,10 @@ exports.create = ({
       return is_active() && this.minutes_since_post >= 60 * hours;
     },
     invalidate_etag_signature,
+    reply,
+    update_reply,
+    delete_reply,
+    delete_replies,
   });
 
   return self;

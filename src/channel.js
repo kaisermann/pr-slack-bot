@@ -183,11 +183,16 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       .write();
   }
 
-  function remove_pr_by_timestamp(deleted_ts) {
+  async function remove_pr_by_timestamp(deleted_ts) {
     const index = prs.findIndex(({ ts }) => ts === deleted_ts);
     if (index < 0) return;
 
-    prs[index].invalidate_etag_signature();
+    const pr = prs[index];
+
+    pr.invalidate_etag_signature();
+
+    await pr.delete_replies();
+
     prs.splice(index, 1);
 
     return DB.client
