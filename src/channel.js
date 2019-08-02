@@ -1,5 +1,4 @@
 const DB = require('./api/db.js');
-
 const Logger = require('./api/logger.js');
 const { EMOJIS, FORGOTTEN_PR_HOUR_THRESHOLD } = require('./consts.js');
 const Message = require('./message.js');
@@ -188,6 +187,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     const index = prs.findIndex(({ ts }) => ts === deleted_ts);
     if (index < 0) return;
 
+    prs[index].invalidate_etag_signature();
     prs.splice(index, 1);
 
     return DB.client
@@ -200,6 +200,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     const index = prs.findIndex(pr => pr.slug === slug);
     if (index < 0) return;
 
+    prs[index].invalidate_etag_signature();
     prs.splice(index, 1);
 
     DB.client

@@ -5,7 +5,13 @@ const Balancer = require('../balancer.js');
 
 const REQUEST_SIGNATURES = {};
 
+const create_signature = props => JSON.stringify(props);
+
 const get_request_signature = request_options => {
+  if (request_options.signature) {
+    return create_signature(request_options.signature);
+  }
+
   const signature_obj = Object.assign({}, request_options);
   delete signature_obj.request;
   delete signature_obj.headers;
@@ -14,7 +20,7 @@ const get_request_signature = request_options => {
   delete signature_obj.method;
   delete signature_obj.url;
 
-  return JSON.stringify(signature_obj);
+  return create_signature(signature_obj);
 };
 
 const has_cached_signature = (url, signature) => {
@@ -28,6 +34,15 @@ const get_cached_signature = (url, signature) => {
 
 const etag_plugin = (octokit, octokit_options = {}) => {
   const { cache_limiter } = octokit_options.etag || {};
+
+  octokit.invalidate_etag_signature = signature_props => {
+    const signature = create_signature(signature_props);
+    Object.values(REQUEST_SIGNATURES).forEach(signatures => {
+      if (signature in signatures) {
+        delete signatures[signature];
+      }
+    });
+  };
 
   if (typeof cache_limiter === 'function') {
     cache_limiter(REQUEST_SIGNATURES);
@@ -89,9 +104,9 @@ const github_client = Octokit.plugin([etag_plugin])({
   },
 });
 
-exports.github_client = github_client;
+exports.client = github_client;
 
-exports.get_pr_data = (owner, repo, pull_number) => {
+exports.get_pr_data = (owner, repo, pull_number, signature) => {
   return Balancer.Github.request(
     () => {
       return github_client.pulls
@@ -99,6 +114,7 @@ exports.get_pr_data = (owner, repo, pull_number) => {
           owner,
           repo,
           pull_number,
+          signature,
         })
         .then(({ status, data }) => {
           Logger.add_call(`github.pulls.get.${status}`);
@@ -110,7 +126,7 @@ exports.get_pr_data = (owner, repo, pull_number) => {
   );
 };
 
-exports.get_review_data = (owner, repo, pull_number) => {
+exports.get_review_data = (owner, repo, pull_number, signature) => {
   return Balancer.Github.request(
     () => {
       return github_client.pulls
@@ -118,6 +134,7 @@ exports.get_review_data = (owner, repo, pull_number) => {
           owner,
           repo,
           pull_number,
+          signature,
         })
         .then(({ status, data }) => {
           Logger.add_call(`github.pulls.listReviews.${status}`);

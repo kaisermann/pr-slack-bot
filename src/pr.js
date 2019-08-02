@@ -81,6 +81,12 @@ exports.create = ({
   let _cached_remote_state = null;
   let _cached_url = null;
 
+  const _etag_signature = [owner, repo, pr_id];
+
+  function invalidate_etag_signature() {
+    Github.client.invalidate_etag_signature(_etag_signature);
+  }
+
   async function get_message_url() {
     if (_cached_url == null) {
       _cached_url = await Slack.get_message_url(channel, ts);
@@ -222,8 +228,18 @@ exports.create = ({
   }
 
   async function update_state() {
-    const pr_response = await Github.get_pr_data(owner, repo, pr_id);
-    const review_response = await Github.get_review_data(owner, repo, pr_id);
+    const pr_response = await Github.get_pr_data(
+      owner,
+      repo,
+      pr_id,
+      _etag_signature,
+    );
+    const review_response = await Github.get_review_data(
+      owner,
+      repo,
+      pr_id,
+      _etag_signature,
+    );
 
     let pr_data = pr_response.data;
     let review_data = review_response.data;
@@ -510,6 +526,7 @@ exports.create = ({
     needs_attention(hours) {
       return is_active() && this.minutes_since_post >= 60 * hours;
     },
+    invalidate_etag_signature,
   });
 
   return self;
