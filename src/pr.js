@@ -100,8 +100,21 @@ exports.create = ({
 
   async function delete_reply(id) {
     if (!has_reply(id)) return false;
-    await Message.delete(replies[id]);
-    delete replies[id];
+
+    Logger.log_pr_action(`Deleting reply with id: ${id}`);
+
+    return Message.delete(replies[id])
+      .then(() => {
+        delete replies[id];
+        return true;
+      })
+      .catch(e => {
+        if (e.data.error === 'message_not_found') {
+          Logger.log_pr_action(`Tried to delete an already deleted message`);
+          delete replies[id];
+        }
+        return false;
+      });
   }
 
   async function update_reply(id, updateFn, payload) {
@@ -121,8 +134,7 @@ exports.create = ({
     if (saved_reply.text === text) return false;
 
     if (text === '') {
-      await delete_reply(id);
-      return true;
+      return delete_reply(id);
     }
 
     try {
