@@ -86,7 +86,7 @@ exports.create = ({
 }) => {
   let self;
   let last_update = null;
-  let _cached_remote_state = null;
+  let _cached_remote_state = {};
   let _cached_url = null;
 
   const _etag_signature = [owner, repo, pr_id];
@@ -280,18 +280,27 @@ exports.create = ({
       return;
     }
 
-    if (_cached_remote_state != null) {
-      if (pr_response.status === 304) {
-        pr_data = _cached_remote_state.pr_data;
-      }
+    if (pr_response.status === 304) {
+      pr_data = _cached_remote_state.pr_data;
+    } else {
+      _cached_remote_state.pr_data = pr_data;
+    }
 
-      if (review_response.status === 304) {
-        review_data = _cached_remote_state.review_data;
-      }
+    if (review_response.status === 304) {
+      review_data = _cached_remote_state.review_data;
+    } else {
+      _cached_remote_state.review_data = review_data;
+    }
 
-      if (files_response.status === 304) {
-        files_data = _cached_remote_state.files_data;
-      }
+    if (files_response.status === 304) {
+      files_data = _cached_remote_state.files_data;
+    } else {
+      _cached_remote_state.files_data = files_data;
+    }
+
+    if (pr_data == null || review_data == null || files_data == null) {
+      console.log(!!pr_data, !!review_data, !!files_data);
+      console.log(_cached_remote_state);
     }
 
     _cached_remote_state = { pr_data, review_data, files_data };
