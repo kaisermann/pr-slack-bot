@@ -50,10 +50,18 @@ function get_action_label(pr_action) {
   return { label: 'Unknown action', emoji: EMOJIS.unknown };
 }
 
-function get_pr_size(additions, deletions) {
-  const n_changes = additions + deletions;
+function get_pr_size(pr_data, files_data) {
+  const lock_file_changes = files_data
+    .filter(
+      f => f.filename === 'package-lock.json' || f.filename === 'yarn.lock',
+    )
+    .reduce((acc, file) => acc + file.changes, 0);
+  const [additions, deletions] = [pr_data.additions, pr_data.deletions];
+  const n_changes = additions + deletions - lock_file_changes;
+
   let i;
   for (i = 0; i < PR_SIZES.length && n_changes > PR_SIZES[i][1]; i++);
+
   return {
     label: PR_SIZES[i][0],
     limit: PR_SIZES[i][1],
@@ -252,12 +260,23 @@ exports.create = ({
       pr_id,
       _etag_signature,
     );
+    const files_response = await Github.get_pr_files(
+      owner,
+      repo,
+      pr_id,
+      _etag_signature,
+    );
 
     let pr_data = pr_response.data;
     let review_data = review_response.data;
+    let files_data = files_response.data;
 
     // nothing changed, nothing to change
-    if (pr_response.status === 304 && review_response.status === 304) {
+    if (
+      pr_response.status === 304 &&
+      review_response.status === 304 &&
+      files_response.status === 304
+    ) {
       return;
     }
 
@@ -269,16 +288,13 @@ exports.create = ({
       if (review_response.status === 304) {
         review_data = _cached_remote_state.review_data;
       }
+
+      if (files_response.status === 304) {
+        files_data = _cached_remote_state.files_data;
+      }
     }
 
-    _cached_remote_state = { pr_data, review_data };
-
-    if (pr_data == null || review_data == null) {
-      console.log(`slug`, slug);
-      console.log(`pr_response`, pr_response);
-      console.log(`review_respnse`, review_response);
-      console.log(`_cached_remote_state`, _cached_remote_state);
-    }
+    _cached_remote_state = { pr_data, review_data, files_data };
 
     // review data mantains a list of reviews
     const action_lists = Object.entries(
@@ -332,8 +348,6 @@ exports.create = ({
         return { github_user, pr_action };
       });
 
-    const pr_size = get_pr_size(pr_data.additions, pr_data.deletions);
-
     // const on_hold = pr_data.labels.some(({ name }) => name.match(/(on )?hold/));
     // const approved = !changes_requested && approvals.length >= NEEDED_REVIEWS;
     // const approvals = action_lists.filter(([, list]) =>
@@ -344,7 +358,7 @@ exports.create = ({
       pr_actions,
       changes_requested,
       has_pending_review,
-      size: pr_size,
+      size: get_pr_size(pr_data, files_data),
       reviewed: pr_data.review_comments > 0,
       merged: pr_data.merged,
       is_draft: pr_data.mergeable_state === 'draft',

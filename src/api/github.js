@@ -8,8 +8,8 @@ const REQUEST_SIGNATURES = {};
 const create_signature = props => JSON.stringify(props);
 
 const get_request_signature = request_options => {
-  if (request_options.signature) {
-    return create_signature(request_options.signature);
+  if (request_options.etag_signature) {
+    return create_signature(request_options.etag_signature);
   }
 
   const signature_obj = Object.assign({}, request_options);
@@ -106,7 +106,7 @@ const github_client = Octokit.plugin([etag_plugin])({
 
 exports.client = github_client;
 
-exports.get_pr_data = (owner, repo, pull_number, signature) => {
+exports.get_pr_data = (owner, repo, pull_number, etag_signature) => {
   return Balancer.Github.request(
     () => {
       return github_client.pulls
@@ -114,7 +114,7 @@ exports.get_pr_data = (owner, repo, pull_number, signature) => {
           owner,
           repo,
           pull_number,
-          signature,
+          etag_signature,
         })
         .then(({ status, data }) => {
           Logger.add_call(`github.pulls.get.${status}`);
@@ -126,7 +126,7 @@ exports.get_pr_data = (owner, repo, pull_number, signature) => {
   );
 };
 
-exports.get_review_data = (owner, repo, pull_number, signature) => {
+exports.get_review_data = (owner, repo, pull_number, etag_signature) => {
   return Balancer.Github.request(
     () => {
       return github_client.pulls
@@ -134,7 +134,7 @@ exports.get_review_data = (owner, repo, pull_number, signature) => {
           owner,
           repo,
           pull_number,
-          signature,
+          etag_signature,
         })
         .then(({ status, data }) => {
           Logger.add_call(`github.pulls.listReviews.${status}`);
@@ -143,5 +143,26 @@ exports.get_review_data = (owner, repo, pull_number, signature) => {
     },
     `review${owner}${repo}${pull_number}`,
     'get_review_data',
+  );
+};
+
+exports.get_pr_files = (owner, repo, pull_number, etag_signature) => {
+  return Balancer.Github.request(
+    () => {
+      return github_client.pulls
+        .listFiles({
+          owner,
+          repo,
+          pull_number,
+          per_page: 300,
+          etag_signature,
+        })
+        .then(({ status, data }) => {
+          Logger.add_call(`github.pulls.listFiles.${status}`);
+          return { status, data };
+        });
+    },
+    `listFiles${owner}${repo}${pull_number}`,
+    'get_pr_files',
   );
 };
