@@ -2,15 +2,14 @@
 
 ## TODO
 
-- [ ] deletar todos os replies de uma thread deletada
 - [ ] mensagem de deletar branch
-- [ ] marcar check de approval
-- [ ] ignorar mudanças em yarn.lock (?)
-- [ ] mandar mensagem de prs prontos pra serem mergeados em thread
-- [ ] nao listar prs com label `on hold`
-- [ ] ao deletar mensagem do pr, deletar os replies do bot
 - [ ] verificar changelog (?)
 - [ ] marcar na thread quem tiver marcado como reviewer em pr listado ou marcar o dono do post se tiver com 2 approvals
+- [x] ignorar mudanças em yarn.lock (?)
+- [x] marcar check de approval
+- [x] mandar mensagem de prs prontos pra serem mergeados em thread
+- [x] nao listar prs draft
+- [x] ao deletar mensagem do pr, deletar os replies do bot
 - [x] marcar todo mundo que mandou os prs na thread de prs esquecidos
 - [x] mensagem big pr
 - [x] editar mensagens de pr esquecidos
