@@ -98,44 +98,62 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     );
 
     // await prs.reduce(async (acc, pr) => acc.then(pr.update), Promise.resolve());
-    const updated_prs = await Promise.all(active_prs.map(pr => pr.update()));
+    try {
+      const result_prs = await Promise.all(active_prs.map(pr => pr.update()));
+      const { updated_prs, errored_prs } = result_prs.reduce(
+        (acc, pr) => {
+          if (pr.last_update == null) acc.errored_prs.push(pr);
+          else acc.updated_prs.push(pr);
+          return acc;
+        },
+        { updated_prs: [], errored_prs: [] },
+      );
 
-    const prs_map = updated_prs.reduce((acc, pr) => {
-      acc[pr.slug] = pr;
-      return acc;
-    }, {});
-    const changed_prs_map = filter_object(
-      prs_map,
-      pr => pr.last_update.has_changed,
-    );
-    const resolved_prs_map = filter_object(
-      prs_map,
-      pr => pr.state.merged || pr.state.closed,
-    );
-    const to_update_prs_map = filter_object(
-      changed_prs_map,
-      pr => !pr.state.merged && !pr.state.closed,
-    );
+      if (errored_prs.length) {
+        errored_prs.forEach(pr =>
+          Logger.log_error(`Error with PR: ${pr.slug}`),
+        );
+      }
 
-    const resolved_prs = Object.values(resolved_prs_map);
-    if (resolved_prs.length) {
-      await on_prs_resolved(resolved_prs_map);
-      prs = prs.filter(({ slug }) => !(slug in resolved_prs_map));
+      const prs_map = updated_prs.reduce((acc, pr) => {
+        acc[pr.slug] = pr;
+        return acc;
+      }, {});
+      const changed_prs_map = filter_object(
+        prs_map,
+        pr => pr.last_update.has_changed,
+      );
+      const resolved_prs_map = filter_object(
+        prs_map,
+        pr => pr.state.merged || pr.state.closed,
+      );
+      const to_update_prs_map = filter_object(
+        changed_prs_map,
+        pr => !pr.state.merged && !pr.state.closed,
+      );
+
+      const resolved_prs = Object.values(resolved_prs_map);
+      if (resolved_prs.length) {
+        await on_prs_resolved(resolved_prs_map);
+        prs = prs.filter(({ slug }) => !(slug in resolved_prs_map));
+      }
+
+      DB.client
+        .get(DB_PR_PATH)
+        // update prs
+        .each(pr => {
+          if (pr.slug in to_update_prs_map) {
+            const updated_pr = to_update_prs_map[pr.slug];
+            Object.assign(pr, updated_pr.to_json());
+          }
+        })
+        .remove(pr => pr.slug in resolved_prs_map)
+        .write();
+
+      console.log('');
+    } catch (e) {
+      Logger.log_error('Something wrong happened', e);
     }
-
-    DB.client
-      .get(DB_PR_PATH)
-      // update prs
-      .each(pr => {
-        if (pr.slug in to_update_prs_map) {
-          const updated_pr = to_update_prs_map[pr.slug];
-          Object.assign(pr, updated_pr.to_json());
-        }
-      })
-      .remove(pr => pr.slug in resolved_prs_map)
-      .write();
-
-    console.log('');
   }
 
   function has_pr(slug) {
