@@ -223,10 +223,15 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     const sections = forgotten_prs.reduce(
       (acc, pr) => {
-        if (pr.state.ready_to_merge) acc.ready_to_merge.list.push(pr);
-        else if (pr.state.changes_requested)
-          acc.changes_requested.list.push(pr);
-        else acc.waiting_review.list.push(pr);
+        let section;
+        if (pr.state.ready_to_merge) section = acc.ready_to_merge;
+        else if (pr.state.dirty || pr.state.unstable)
+          section = acc.unstable_or_dirty;
+        else if (pr.state.changes_requested) section = acc.changes_requested;
+        else section = acc.waiting_review;
+
+        section.list.push(pr);
+
         return acc;
       },
       {
@@ -236,6 +241,10 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
         },
         changes_requested: {
           title: `:${EMOJIS.changes_requested}: Changes requested`,
+          list: [],
+        },
+        unstable_or_dirty: {
+          title: `:${EMOJIS.unstable}: Unstable or needs rebase`,
           list: [],
         },
         waiting_review: {

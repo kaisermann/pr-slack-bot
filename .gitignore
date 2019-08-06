@@ -4,3 +4,4 @@ daemon.*
 !daemon.js
 db.json
 .env
+data.json
