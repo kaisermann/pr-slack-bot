@@ -305,6 +305,7 @@ exports.create = ({
     if (pr_data == null || review_data == null || files_data == null) {
       console.log(!!pr_data, !!review_data, !!files_data);
       console.log(_cached_remote_state);
+      throw new Error(`Somethign wrong with ${slug}`);
     }
 
     _cached_remote_state = { pr_data, review_data, files_data };
