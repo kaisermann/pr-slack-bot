@@ -312,11 +312,13 @@ exports.create = ({
 
     // review data mantains a list of reviews
     const action_lists = Object.entries(
-      review_data.reduce((acc, { user, state: pr_action }) => {
-        if (!acc[user.login]) acc[user.login] = [];
-        acc[user.login].push(pr_action);
-        return acc;
-      }, {}),
+      review_data
+        .filter(({ state: pr_action }) => pr_action !== 'DISMISSED')
+        .reduce((acc, { user, state: pr_action }) => {
+          if (!acc[user.login]) acc[user.login] = [];
+          acc[user.login].push(pr_action);
+          return acc;
+        }, {}),
     )
       // don't want status update by the assignee of the pr
       .filter(
