@@ -1,17 +1,18 @@
+const R = require('ramda');
 const DB = require('./api/db.js');
 const Logger = require('./api/logger.js');
 const { EMOJIS, FORGOTTEN_PR_HOUR_THRESHOLD } = require('./consts.js');
 const Message = require('./message.js');
 const PR = require('./pr.js');
 
-const filter_object = (o, fn) => {
-  return Object.entries(o).reduce((acc, [key, value]) => {
-    if (fn(value, key)) {
-      acc[key] = value;
-    }
-    return acc;
-  }, {});
-};
+const get_resolved_prs = R.pickBy(pr => pr.state.merged || pr.state.closed);
+const get_to_update_prs = R.pickBy(
+  pr =>
+    pr.last_update &&
+    pr.last_update.has_changed &&
+    !pr.state.merged &&
+    !pr.state.closed,
+);
 
 exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   prs = prs.map(PR.create);
@@ -24,45 +25,6 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
   function get_active_prs() {
     return prs.filter(pr => pr.is_active());
-  }
-
-  async function on_prs_resolved(resolved_prs_map) {
-    const resolved_prs = Object.values(resolved_prs_map);
-    const forgotten_messages = get_messages('forgotten_prs').filter(
-      ({ payload }) => payload.some(slug => slug in resolved_prs_map),
-    );
-
-    for await (const message of forgotten_messages) {
-      const { text } = message;
-      const new_text = resolved_prs.reduce((acc, pr) => {
-        const state_emoji = pr.state.merged
-          ? EMOJIS.merged
-          : pr.state.closed
-          ? EMOJIS.closed
-          : EMOJIS.unknown;
-
-        return acc.replace(
-          new RegExp(`(<.*${pr.slug}>.*$)`, 'm'),
-          `:${state_emoji}: ~$1~`,
-        );
-      }, text);
-
-      if (text === new_text) return;
-
-      Logger.log_pr_action(
-        `Updating forgotten PR message: ${resolved_prs.map(pr => pr.slug)}`,
-      );
-      const updated_message = await Message.update(message, {
-        text: new_text,
-        payload: message.payload.filter(slug => !(slug in resolved_prs_map)),
-      });
-
-      if (updated_message.payload.length === 0) {
-        DB.remove_channel_message(updated_message);
-      } else {
-        DB.update_channel_message(updated_message);
-      }
-    }
   }
 
   // TODO
@@ -100,37 +62,20 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     // await prs.reduce(async (acc, pr) => acc.then(pr.update), Promise.resolve());
     try {
       const result_prs = await Promise.all(active_prs.map(pr => pr.update()));
-      const { updated_prs, errored_prs } = result_prs.reduce(
-        (acc, pr) => {
-          if (pr.last_update == null) acc.errored_prs.push(pr);
-          else acc.updated_prs.push(pr);
-          return acc;
-        },
-        { updated_prs: [], errored_prs: [] },
+      const { updated_prs, errored_prs } = R.groupBy(
+        pr => (pr.last_update == null ? 'errored_prs' : 'updated_prs'),
+        result_prs,
       );
 
-      if (errored_prs.length) {
+      if (errored_prs) {
         errored_prs.forEach(pr =>
           Logger.log_error(`Error with PR: ${pr.slug}`),
         );
       }
 
-      const prs_map = updated_prs.reduce((acc, pr) => {
-        acc[pr.slug] = pr;
-        return acc;
-      }, {});
-      const changed_prs_map = filter_object(
-        prs_map,
-        pr => pr.last_update.has_changed,
-      );
-      const resolved_prs_map = filter_object(
-        prs_map,
-        pr => pr.state.merged || pr.state.closed,
-      );
-      const to_update_prs_map = filter_object(
-        changed_prs_map,
-        pr => !pr.state.merged && !pr.state.closed,
-      );
+      const prs_map = R.fromPairs(updated_prs.map(pr => [pr.slug, pr]));
+      const resolved_prs_map = get_resolved_prs(prs_map);
+      const to_update_prs_map = get_to_update_prs(prs_map);
 
       const resolved_prs = Object.values(resolved_prs_map);
       if (resolved_prs.length) {
@@ -232,6 +177,45 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       .write();
   }
 
+  async function on_prs_resolved(resolved_prs_map) {
+    const resolved_prs = Object.values(resolved_prs_map);
+    const forgotten_messages = get_messages('forgotten_prs').filter(
+      ({ payload }) => payload.some(slug => slug in resolved_prs_map),
+    );
+
+    for await (const message of forgotten_messages) {
+      const { text } = message;
+      const new_text = resolved_prs.reduce((acc, pr) => {
+        const state_emoji = pr.state.merged
+          ? EMOJIS.merged
+          : pr.state.closed
+          ? EMOJIS.closed
+          : EMOJIS.unknown;
+
+        return acc.replace(
+          new RegExp(`^(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm'),
+          `:${state_emoji}: ~$1~`,
+        );
+      }, text);
+
+      if (text === new_text) return;
+
+      Logger.log_pr_action(
+        `Updating forgotten PR message: ${resolved_prs.map(pr => pr.slug)}`,
+      );
+      const updated_message = await Message.update(message, {
+        text: new_text,
+        payload: message.payload.filter(slug => !(slug in resolved_prs_map)),
+      });
+
+      if (updated_message.payload.length === 0) {
+        DB.remove_channel_message(updated_message);
+      } else {
+        DB.update_channel_message(updated_message);
+      }
+    }
+  }
+
   async function check_forgotten_prs() {
     const forgotten_prs = prs.filter(pr =>
       pr.needs_attention(FORGOTTEN_PR_HOUR_THRESHOLD),
@@ -239,10 +223,13 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     if (forgotten_prs.length === 0) return;
 
-    const now_date = new Date(Date.now());
-    const time_of_day = now_date.getHours() < 12 ? 'morning' : 'afternoon';
+    const link_map = R.fromPairs(
+      await Promise.all(
+        forgotten_prs.map(async pr => [pr.slug, await pr.get_message_url()]),
+      ),
+    );
 
-    let text = `Good ${time_of_day}! :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago in need of some love and attention:\n\n`;
+    const get_pr_link = pr => `<${[link_map[pr.slug]]}|${pr.repo}/${pr.pr_id}>`;
 
     const sections = forgotten_prs.reduce(
       (acc, pr) => {
@@ -277,41 +264,54 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       },
     );
 
-    for await (const { title, list } of Object.values(sections)) {
-      if (list.length === 0) continue;
+    const sections_text = R.pipe(
+      R.values,
+      R.filter(({ list }) => list.length),
+      R.map(
+        ({ title, list }) =>
+          `*${title}*:\n` +
+          `${list
+            .map(
+              pr =>
+                `${get_pr_link(pr)} ` + `_(${pr.hours_since_post} hours ago)_`,
+            )
+            .join('\n')}`,
+      ),
+      R.join('\n\n'),
+    )(sections);
 
-      text += `*${title}*:\n`;
-      for await (const pr of list) {
-        const message_url = await pr.get_message_url();
-        text += `<${message_url}|${pr.slug}>`;
-        text += ` _(${pr.hours_since_post} hours ago)_\n`;
-      }
-      text += '\n';
-    }
+    const now_date = new Date(Date.now());
+    const time_of_day = now_date.getHours() < 12 ? 'morning' : 'afternoon';
+
+    const forgotten_text = `Good ${time_of_day}! :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago in need of some love and attention:\n\n${sections_text}`;
 
     const message = await Message.send({
       type: 'forgotten_prs',
       channel: channel_id,
-      text,
+      text: forgotten_text,
       payload: forgotten_prs.map(pr => pr.slug),
       replies: {},
     });
 
-    const post_owners = [
-      ...new Set(forgotten_prs.map(pr => pr.poster_id).filter(Boolean)),
-    ];
+    const owners_text = `Can you help :awthanks:?\n\n${R.pipe(
+      R.groupBy(pr => pr.poster_id),
+      R.toPairs,
+      R.filter(([, list]) => list.length),
+      R.map(
+        ([user_id, list]) =>
+          `*<@${user_id}>*:\n` +
+          `${list.map(pr => get_pr_link(pr)).join(', ')}`,
+      ),
+      R.join('\n\n'),
+    )(forgotten_prs)}`;
 
-    if (post_owners.length) {
-      message.replies.mentions = await Message.send({
-        channel: channel_id,
-        thread_ts: message.ts,
-        text: `Can you guys help :awthanks:? ${post_owners
-          .map(id => `<@${id}>`)
-          .join(', ')}`,
-      });
-    }
+    message.replies.mentions = await Message.send({
+      channel: channel_id,
+      thread_ts: message.ts,
+      text: owners_text,
+    });
 
-    DB.save_channel_message(message, 3);
+    DB.save_channel_message(message, 2);
   }
 
   return Object.freeze({
