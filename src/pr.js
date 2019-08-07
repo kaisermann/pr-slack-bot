@@ -1,3 +1,4 @@
+const R = require('ramda');
 const is_equal = require('fast-deep-equal');
 
 const Github = require('./api/github.js');
@@ -69,6 +70,20 @@ function get_pr_size(pr_data, files_data) {
     additions,
     deletions,
   };
+}
+
+function get_pr_action_lists(pr_data, review_data) {
+  return R.pipe(
+    R.filter(
+      ({ user, state: pr_action }) =>
+        pr_action !== 'DISMISSED' ||
+        pr_data.assignee == null ||
+        user !== pr_data.assignee.login,
+    ),
+    R.groupBy(R.path(['user', 'login'])),
+    R.toPairs,
+    R.map(([user, actions]) => [user, actions.map(action => action.state)]),
+  )(review_data);
 }
 
 // todo: prevent always creating new PR obj on memory for every db.get
@@ -311,20 +326,7 @@ exports.create = ({
     _cached_remote_state = { pr_data, review_data, files_data };
 
     // review data mantains a list of reviews
-    const action_lists = Object.entries(
-      review_data
-        .filter(({ state: pr_action }) => pr_action !== 'DISMISSED')
-        .reduce((acc, { user, state: pr_action }) => {
-          if (!acc[user.login]) acc[user.login] = [];
-          acc[user.login].push(pr_action);
-          return acc;
-        }, {}),
-    )
-      // don't want status update by the assignee of the pr
-      .filter(
-        ([login]) =>
-          pr_data.assignee == null || login !== pr_data.assignee.login,
-      );
+    const action_lists = get_pr_action_lists(pr_data, review_data);
 
     const changes_requested = action_lists.some(([, list]) =>
       has_changes_requested(list),
