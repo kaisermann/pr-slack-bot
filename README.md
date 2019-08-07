@@ -16,6 +16,10 @@
 - [x] editar mensagem pr
 - [x] ignorar usuarios desativados do slack
 
+## How does it work?
+
+For now, the bot works by pooling the Github API in a 10 seconds interval between each check cycle. For each PR, it makes 3 requests: one for general PR data, one for review data and the last for files data.
+
 ## Features
 
 > TODO
