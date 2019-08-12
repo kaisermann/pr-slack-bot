@@ -266,7 +266,7 @@ exports.create = ({
     return !is_draft;
   }
 
-  async function update_state() {
+  async function fetch_remote_state() {
     const pr_response = await Github.get_pr_data(
       owner,
       repo,
@@ -296,32 +296,30 @@ exports.create = ({
       review_response.status === 304 &&
       files_response.status === 304
     ) {
-      return;
+      return _cached_remote_state;
     }
 
-    if (pr_response.status === 304) {
-      pr_data = _cached_remote_state.pr_data;
-    } else {
+    if (pr_response.status === 200) {
       _cached_remote_state.pr_data = pr_data;
+    } else {
+      pr_data = _cached_remote_state.pr_data;
     }
 
-    if (review_response.status === 304) {
-      review_data = _cached_remote_state.review_data;
-    } else {
+    if (review_response.status === 200) {
       _cached_remote_state.review_data = review_data;
+    } else {
+      review_data = _cached_remote_state.review_data;
     }
 
-    if (files_response.status === 304) {
-      files_data = _cached_remote_state.files_data;
-    } else {
+    if (files_response.status === 200) {
       _cached_remote_state.files_data = files_data;
+    } else {
+      files_data = _cached_remote_state.files_data;
     }
 
     if (pr_data == null || review_data == null || files_data == null) {
-      // console.log(!!pr_data, !!review_data, !!files_data);
-      // console.log(_cached_remote_state);
       Logger.log_error(
-        pr_response.data,
+        pr_response.status,
         review_response.status,
         files_response.status,
       );
@@ -329,7 +327,11 @@ exports.create = ({
       throw new Error(`Something wrong with ${slug} github requests.`);
     }
 
-    _cached_remote_state = { pr_data, review_data, files_data };
+    return { pr_data, review_data, files_data };
+  }
+
+  async function update_state() {
+    const { pr_data, review_data, files_data } = await fetch_remote_state();
 
     // review data mantains a list of reviews
     const action_lists = get_pr_action_lists(pr_data, review_data);
