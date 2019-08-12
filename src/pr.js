@@ -1,3 +1,4 @@
+const { basename } = require('path');
 const R = require('ramda');
 const is_equal = require('fast-deep-equal');
 
@@ -53,10 +54,12 @@ function get_action_label(pr_action) {
 
 function get_pr_size(pr_data, files_data) {
   const lock_file_changes = files_data
-    .filter(
-      f => f.filename === 'package-lock.json' || f.filename === 'yarn.lock',
-    )
+    .filter(f => {
+      const filename = basename(f.filename);
+      return filename === 'package-lock.json' || filename === 'yarn.lock';
+    })
     .reduce((acc, file) => acc + file.changes, 0);
+
   const [additions, deletions] = [pr_data.additions, pr_data.deletions];
   const n_changes = additions + deletions - lock_file_changes;
 
@@ -381,11 +384,14 @@ exports.create = ({
     //   list.includes(ACTIONS.approved),
     // );
 
-    const modified_changelog = files_data.some(
-      f =>
-        f.filename.toLowerCase() === 'changelog.md' &&
-        (f.status === 'modified' || f.status === 'added'),
-    );
+    const modified_changelog = files_data.some(f => {
+      const filename = basename(f.filename).toLowerCase();
+
+      return (
+        filename === 'changelog.md' &&
+        (f.status === 'modified' || f.status === 'added')
+      );
+    });
 
     state = Object.freeze({
       pr_actions,
