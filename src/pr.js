@@ -103,6 +103,7 @@ exports.create = ({
   let last_update = null;
   let _cached_remote_state = {};
   let _cached_url = null;
+  let _updating = false;
 
   const _etag_signature = [owner, repo, pr_id];
 
@@ -324,7 +325,7 @@ exports.create = ({
         files_response.status,
       );
       Logger.log_error(!!pr_data, !!review_data, !!files_data);
-      throw new Error(`Something wrong with ${slug} github requests.`);
+      throw new Error(`Something went wrong with ${slug} github requests.`);
     }
 
     return { pr_data, review_data, files_data };
@@ -380,6 +381,12 @@ exports.create = ({
     //   list.includes(ACTIONS.approved),
     // );
 
+    const modified_changelog = files_data.some(
+      f =>
+        f.filename.toLowerCase() === 'changelog.md' &&
+        (f.status === 'modified' || f.status === 'added'),
+    );
+
     state = Object.freeze({
       pr_actions,
       changes_requested,
@@ -394,6 +401,7 @@ exports.create = ({
       closed: pr_data.state === 'closed',
       pr_branch: pr_data.head.ref,
       base_branch: pr_data.base.ref,
+      modified_changelog,
     });
 
     return state;
@@ -479,7 +487,13 @@ exports.create = ({
   }
 
   async function update_replies() {
-    const { dirty, pr_branch, base_branch, ready_to_merge } = state;
+    const {
+      dirty,
+      modified_changelog,
+      pr_branch,
+      base_branch,
+      ready_to_merge,
+    } = state;
 
     const changes = {
       header_message: await update_header_message(),
@@ -492,6 +506,14 @@ exports.create = ({
         )
       : await delete_reply('is_dirty');
 
+    changes.modified_changelog =
+      modified_changelog === false
+        ? await reply(
+            'modified_changelog',
+            `I couln't find an addition to the \`CHANGELOG.md\`.\n\nDid you forget to add it :notsure:?`,
+          )
+        : await delete_reply('modified_changelog');
+
     changes.ready_to_merge = ready_to_merge
       ? await reply('ready_to_merge', 'PR is ready to be merged :doit:!')
       : await delete_reply('ready_to_merge');
@@ -501,6 +523,10 @@ exports.create = ({
 
   async function update() {
     try {
+      if (_updating) return self;
+
+      _updating = true;
+
       await update_state();
       Logger.log(`PR: ${slug}`);
 
@@ -511,6 +537,7 @@ exports.create = ({
 
       if (!is_active()) {
         Logger.log_pr_action('Ignoring because PR is inactive');
+        _updating = false;
         return self;
       }
 
@@ -531,6 +558,7 @@ exports.create = ({
       Logger.log_error(error);
     }
 
+    _updating = false;
     return self;
   }
 

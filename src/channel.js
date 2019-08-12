@@ -73,6 +73,10 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
         );
       }
 
+      if (updated_prs == null) {
+        return;
+      }
+
       const prs_map = R.fromPairs(updated_prs.map(pr => [pr.slug, pr]));
       const resolved_prs_map = get_resolved_prs(prs_map);
       const to_update_prs_map = get_to_update_prs(prs_map);
