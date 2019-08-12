@@ -33,7 +33,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   async function update_pr(slug) {
     const pr = prs.find(pr => pr.slug === slug);
 
-    await pr.update();
+    await pr.update({ priority: true });
 
     if (!pr.is_active()) return;
 

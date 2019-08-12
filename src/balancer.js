@@ -22,6 +22,11 @@ exports.Github = new Queue({
       // we want a max of 50 requests per second
       rate: 50,
       limit: 1,
+      priority: 5,
+    },
+    priority: {
+      rate: 100,
+      limit: 1,
       priority: 1,
     },
   },

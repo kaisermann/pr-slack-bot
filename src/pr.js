@@ -108,10 +108,10 @@ exports.create = ({
   let _cached_url = null;
   let _updating = false;
 
-  const _etag_signature = [owner, repo, pr_id];
+  const etag_signature = [owner, repo, pr_id];
 
   function invalidate_etag_signature() {
-    Github.client.invalidate_etag_signature(_etag_signature);
+    Github.client.invalidate_etag_signature(etag_signature);
   }
 
   async function get_message_url() {
@@ -270,25 +270,28 @@ exports.create = ({
     return !is_draft;
   }
 
-  async function fetch_remote_state() {
-    const pr_response = await Github.get_pr_data(
+  async function fetch_remote_state({ priority }) {
+    const pr_response = await Github.get_pr_data({
       owner,
       repo,
       pr_id,
-      _etag_signature,
-    );
-    const review_response = await Github.get_review_data(
+      etag_signature,
+      priority,
+    });
+    const review_response = await Github.get_review_data({
       owner,
       repo,
       pr_id,
-      _etag_signature,
-    );
-    const files_response = await Github.get_pr_files(
+      etag_signature,
+      priority,
+    });
+    const files_response = await Github.get_files_data({
       owner,
       repo,
       pr_id,
-      _etag_signature,
-    );
+      etag_signature,
+      priority,
+    });
 
     let pr_data = pr_response.data;
     let review_data = review_response.data;
@@ -334,8 +337,10 @@ exports.create = ({
     return { pr_data, review_data, files_data };
   }
 
-  async function update_state() {
-    const { pr_data, review_data, files_data } = await fetch_remote_state();
+  async function update_state({ priority }) {
+    const { pr_data, review_data, files_data } = await fetch_remote_state({
+      priority,
+    });
 
     // review data mantains a list of reviews
     const action_lists = get_pr_action_lists(pr_data, review_data);
@@ -529,13 +534,13 @@ exports.create = ({
     return changes;
   }
 
-  async function update() {
+  async function update({ priority = false } = {}) {
     try {
       if (_updating) return self;
 
       _updating = true;
 
-      await update_state();
+      await update_state({ priority });
       Logger.log(`PR: ${slug}`);
 
       last_update = {
