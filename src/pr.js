@@ -451,6 +451,7 @@ exports.create = ({
       unstable,
       merged,
       closed,
+      dirty,
     } = state;
 
     const changes = {};
@@ -469,9 +470,10 @@ exports.create = ({
       ? await add_reaction('pending_review', EMOJIS.pending_review)
       : await remove_reaction('pending_review');
 
-    changes.unstable = unstable
-      ? await add_reaction('unstable', EMOJIS.unstable)
-      : await remove_reaction('unstable');
+    changes.unstable_or_dirty =
+      unstable || dirty
+        ? await add_reaction('unstable_or_dirty', EMOJIS.unstable_or_dirty)
+        : await remove_reaction('unstable_or_dirty');
 
     if (reviewed) {
       changes.reviewed = await add_reaction('reviewed', EMOJIS.commented);

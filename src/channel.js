@@ -258,7 +258,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
           list: [],
         },
         unstable_or_dirty: {
-          title: `:${EMOJIS.unstable}: Unstable or needs rebase`,
+          title: `:${EMOJIS.unstable_or_dirty}: Unstable or needs rebase`,
           list: [],
         },
         waiting_review: {
