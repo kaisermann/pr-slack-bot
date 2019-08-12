@@ -107,62 +107,50 @@ const github_client = Octokit.plugin([etag_plugin])({
 exports.client = github_client;
 
 exports.get_pr_data = (owner, repo, pull_number, etag_signature) => {
-  return Balancer.Github.request(
-    () => {
-      return github_client.pulls
-        .get({
-          owner,
-          repo,
-          pull_number,
-          etag_signature,
-        })
-        .then(({ status, data }) => {
-          Logger.add_call(`github.pulls.get.${status}`);
-          return { status, data };
-        });
-    },
-    `data${owner}${repo}${pull_number}`,
-    'get_pr_data',
-  );
+  return Balancer.Github.request(() => {
+    return github_client.pulls
+      .get({
+        owner,
+        repo,
+        pull_number,
+        etag_signature,
+      })
+      .then(({ status, data }) => {
+        Logger.add_call(`github.pulls.get.${status}`);
+        return { status, data };
+      });
+  }, `data${owner}${repo}${pull_number}`);
 };
 
 exports.get_review_data = (owner, repo, pull_number, etag_signature) => {
-  return Balancer.Github.request(
-    () => {
-      return github_client.pulls
-        .listReviews({
-          owner,
-          repo,
-          pull_number,
-          etag_signature,
-        })
-        .then(({ status, data }) => {
-          Logger.add_call(`github.pulls.listReviews.${status}`);
-          return { status, data };
-        });
-    },
-    `review${owner}${repo}${pull_number}`,
-    'get_review_data',
-  );
+  return Balancer.Github.request(() => {
+    return github_client.pulls
+      .listReviews({
+        owner,
+        repo,
+        pull_number,
+        etag_signature,
+      })
+      .then(({ status, data }) => {
+        Logger.add_call(`github.pulls.listReviews.${status}`);
+        return { status, data };
+      });
+  }, `review${owner}${repo}${pull_number}`);
 };
 
 exports.get_pr_files = (owner, repo, pull_number, etag_signature) => {
-  return Balancer.Github.request(
-    () => {
-      return github_client.pulls
-        .listFiles({
-          owner,
-          repo,
-          pull_number,
-          per_page: 300,
-          etag_signature,
-        })
-        .then(({ status, data }) => {
-          Logger.add_call(`github.pulls.listFiles.${status}`);
-          return { status, data };
-        });
-    },
-    `listFiles${owner}${repo}${pull_number}`,
-    'get_pr_files',
-  );
+  return Balancer.Github.request(() => {
+    return github_client.pulls
+      .listFiles({
+        owner,
+        repo,
+        pull_number,
+        per_page: 300,
+        etag_signature,
+      })
+      .then(({ status, data }) => {
+        Logger.add_call(`github.pulls.listFiles.${status}`);
+        return { status, data };
+      });
+  }, `listFiles${owner}${repo}${pull_number}`);
 };
