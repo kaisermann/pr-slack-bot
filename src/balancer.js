@@ -20,7 +20,7 @@ exports.Github = new Queue({
   rules: {
     common: {
       // we want a max of 50 requests per second
-      rate: 50,
+      rate: 100,
       limit: 1,
       priority: 5,
     },

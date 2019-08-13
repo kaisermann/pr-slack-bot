@@ -54,7 +54,9 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   }
 
   async function update_prs() {
-    const active_prs = get_active_prs();
+    // reverse to update recent prs first
+    const active_prs = get_active_prs().reverse();
+
     console.log(
       `# ${channel_name} ${channel_id} - Updating PRs (${active_prs.length} prs)`,
     );
