@@ -32,10 +32,5 @@ exports.PR_SIZES = [
   ['gigantic', Infinity],
 ];
 
-// github api 5000 calls/hour / 2 calls per pr / checks per minute
-const GITHUB_MAX_REQUESTS = 5000;
-const REQUESTS_PER_PR = 2;
-exports.MAX_PRS = ~~(GITHUB_MAX_REQUESTS / REQUESTS_PER_PR / 60);
-
 // dev
 exports.PRIVATE_TEST_CHANNELS = ['GKSCG1GRX', 'GLAM8UANR'];

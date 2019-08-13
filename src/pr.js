@@ -618,6 +618,9 @@ exports.create = ({
     to_json,
     update,
     get_message_url,
+    async get_message_link(fn) {
+      return `<${[await get_message_url()]}|${fn(self)}>`;
+    },
     is_active,
     needs_attention(hours) {
       return is_active() && this.minutes_since_post >= 60 * hours;

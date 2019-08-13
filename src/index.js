@@ -10,6 +10,8 @@ const update_users = require('./tasks/update_users.js');
 
 const runtime = require('./runtime.js');
 
+require('./server.js');
+
 const cron_options = {
   scheduled: true,
   timezone: 'America/Sao_Paulo',
@@ -20,9 +22,7 @@ runtime.init();
 // check_prs();
 async function check_loop() {
   await check_prs();
-  // const interval = Math.max(60, Math.ceil((3600 / 2500) * runtime.prs.active.length));
   setTimeout(check_loop, 4000);
-  // console.log(`Current interval: ${interval} seconds`);
 }
 check_loop();
 

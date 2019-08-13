@@ -5,6 +5,8 @@ const { EMOJIS, FORGOTTEN_PR_HOUR_THRESHOLD } = require('./consts.js');
 const Message = require('./message.js');
 const PR = require('./pr.js');
 
+const format_section_list = require('./messages/section_pr_list.js');
+
 const get_resolved_prs = R.pickBy(pr => pr.state.merged || pr.state.closed);
 const get_to_update_prs = R.pickBy(
   pr =>
@@ -231,60 +233,14 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     const link_map = R.fromPairs(
       await Promise.all(
-        forgotten_prs.map(async pr => [pr.slug, await pr.get_message_url()]),
+        forgotten_prs.map(async pr => [
+          pr.slug,
+          await pr.get_message_link(pr => `${pr.repo}/${pr.pr_id}`),
+        ]),
       ),
     );
 
-    const get_pr_link = pr => `<${[link_map[pr.slug]]}|${pr.repo}/${pr.pr_id}>`;
-
-    const sections = forgotten_prs.reduce(
-      (acc, pr) => {
-        let section;
-        if (pr.state.ready_to_merge) section = acc.ready_to_merge;
-        else if (pr.state.dirty || pr.state.unstable)
-          section = acc.unstable_or_dirty;
-        else if (pr.state.changes_requested) section = acc.changes_requested;
-        else section = acc.waiting_review;
-
-        section.list.push(pr);
-
-        return acc;
-      },
-      {
-        ready_to_merge: {
-          title: `:${EMOJIS.ready_to_merge}: Ready to be merged`,
-          list: [],
-        },
-        changes_requested: {
-          title: `:${EMOJIS.changes_requested}: Changes requested`,
-          list: [],
-        },
-        unstable_or_dirty: {
-          title: `:${EMOJIS.unstable_or_dirty}: Unstable or needs rebase`,
-          list: [],
-        },
-        waiting_review: {
-          title: `:${EMOJIS.waiting}: Waiting review`,
-          list: [],
-        },
-      },
-    );
-
-    const sections_text = R.pipe(
-      R.values,
-      R.filter(({ list }) => list.length),
-      R.map(
-        ({ title, list }) =>
-          `*${title}*:\n` +
-          `${list
-            .map(
-              pr =>
-                `${get_pr_link(pr)} ` + `_(${pr.hours_since_post} hours ago)_`,
-            )
-            .join('\n')}`,
-      ),
-      R.join('\n\n'),
-    )(sections);
+    const sections_text = await format_section_list(forgotten_prs);
 
     const now_date = new Date(Date.now());
     const time_of_day = now_date.getHours() < 12 ? 'morning' : 'afternoon';
@@ -306,7 +262,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       R.map(
         ([user_id, list]) =>
           `*<@${user_id}>*:\n` +
-          `${list.map(pr => get_pr_link(pr)).join(', ')}`,
+          `${list.map(pr => link_map[pr.slug]).join(', ')}`,
       ),
       R.join('\n\n'),
     )(forgotten_prs)}`;
