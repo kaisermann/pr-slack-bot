@@ -16,7 +16,7 @@ module.exports = async () => {
   );
   let db_user_transaction = DB.client.get('users');
 
-  Logger.log(`Updating users`);
+  console.log(`Updating users`);
   const users_promise = active_users.map(
     async ({ id, profile: { display_name } }) => {
       const user_info = await Slack.get_user_info(id);
@@ -39,12 +39,12 @@ module.exports = async () => {
         github_user,
       });
 
-      // Logger.log(`Getting user [${i}]: ${id}, ${display_name}, ${github_user}`);
+      // console.log(`Getting user [${i}]: ${id}, ${display_name}, ${github_user}`);
     },
   );
 
   await Promise.all(users_promise);
 
-  Logger.log(`Users updated`);
+  console.log(`Users updated`);
   db_user_transaction.write();
 };

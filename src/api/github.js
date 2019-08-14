@@ -1,136 +1,127 @@
-const Octokit = require('@octokit/rest');
+const { App } = require('@octokit/app');
+const { request } = require('@octokit/request');
 
 const Logger = require('./logger.js');
-const Balancer = require('../balancer.js');
+const db = require('../api/db.js');
+
+const github_app = new App({
+  id: process.env.APP_ID,
+  privateKey: process.env.APP_PRIVATE_KEY,
+});
+
+const jwt_token = github_app.getSignedJsonWebToken();
 
 const REQUEST_SIGNATURES = {};
 
 const create_signature = props => JSON.stringify(props);
 
-const get_request_signature = request_options => {
-  if (request_options.etag_signature) {
-    return create_signature(request_options.etag_signature);
+const get_request_signature = options => {
+  if (options.etag_signature) {
+    return create_signature(options.etag_signature);
   }
-
-  const signature_obj = Object.assign({}, request_options);
-  delete signature_obj.request;
-  delete signature_obj.headers;
-  delete signature_obj.mediaType;
-  delete signature_obj.baseUrl;
-  delete signature_obj.method;
-  delete signature_obj.url;
-
-  return create_signature(signature_obj);
+  return create_signature(options);
 };
 
-const has_cached_signature = (url, signature) => {
+const has_cached_etag = (url, signature) => {
   return url in REQUEST_SIGNATURES && signature in REQUEST_SIGNATURES[url];
 };
 
-const get_cached_signature = (url, signature) => {
-  if (!has_cached_signature(url, signature)) return null;
+const get_cached_etag = (url, signature) => {
+  if (!has_cached_etag(url, signature)) return null;
   return REQUEST_SIGNATURES[url][signature];
 };
 
-const etag_plugin = (octokit, octokit_options = {}) => {
-  const { cache_limiter } = octokit_options.etag || {};
-
-  octokit.invalidate_etag_signature = signature_props => {
-    const signature = create_signature(signature_props);
-    Object.values(REQUEST_SIGNATURES).forEach(signatures => {
-      if (signature in signatures) {
-        delete signatures[signature];
-      }
-    });
-  };
-
-  if (typeof cache_limiter === 'function') {
-    cache_limiter(REQUEST_SIGNATURES);
-  }
-
-  octokit.hook.wrap('request', async (request_fn, request_options) => {
-    const request_url = request_options.url;
-    const request_signature = get_request_signature(request_options);
-
-    if (!(request_url in REQUEST_SIGNATURES)) {
-      REQUEST_SIGNATURES[request_url] = {};
-    }
-
-    const cached_signature = get_cached_signature(
-      request_url,
-      request_signature,
-    );
-
-    if (cached_signature != null) {
-      request_options.headers['If-None-Match'] = cached_signature;
-    }
-
-    try {
-      const response = await request_fn(request_options);
-      const { etag } = response.headers;
-
-      REQUEST_SIGNATURES[request_url][request_signature] = etag;
-
-      return response;
-    } catch (e) {
-      return e;
+exports.invalidate_etag_signature = signature_props => {
+  const signature = get_request_signature(signature_props);
+  Object.values(REQUEST_SIGNATURES).forEach(signatures => {
+    if (signature in signatures) {
+      delete signatures[signature];
     }
   });
 };
 
-const github_client = Octokit.plugin([etag_plugin])({
-  auth: process.env.GITHUB_TOKEN,
-  etag: {
-    cache_limiter(signature_cache) {
-      const MAX_PER_URL = 100;
-      const INTERVAL = 60 * 60 * 60; // one hour
-      setInterval(() => {
-        Object.entries(signature_cache).forEach(([url, signatures]) => {
-          const keys = Object.keys(signatures);
+// const MAX_PER_URL = 100;
+// const INTERVAL = 60 * 60 * 60; // one hour
+// setInterval(() => {
+//   Object.entries(REQUEST_SIGNATURES).forEach(([url, signatures]) => {
+//     const keys = Object.keys(signatures);
 
-          if (keys.length <= MAX_PER_URL) return;
+//     if (keys.length <= MAX_PER_URL) return;
 
-          const begin_index = Math.max(0, keys.length - 1 - MAX_PER_URL);
-          const end_index = begin_index + MAX_PER_URL;
-          signature_cache[url] = keys
-            .slice(begin_index, end_index)
-            .reduce((acc, key) => {
-              acc[key] = signatures[key];
-              return acc;
-            }, {});
-        });
-      }, INTERVAL);
+//     const begin_index = Math.max(0, keys.length - 1 - MAX_PER_URL);
+//     const end_index = begin_index + MAX_PER_URL;
+//     REQUEST_SIGNATURES[url] = keys
+//       .slice(begin_index, end_index)
+//       .reduce((acc, key) => {
+//         acc[key] = signatures[key];
+//         return acc;
+//       }, {});
+//   });
+// }, INTERVAL);
+
+const get_installation_id = async repo_full_name => {
+  const { data } = await request(`GET /repos/${repo_full_name}/installation`, {
+    headers: {
+      authorization: `Bearer ${jwt_token}`,
+      accept: 'application/vnd.github.machine-man-preview+json',
     },
-  },
-});
+  });
+  return data.id;
+};
 
-exports.client = github_client;
+const gh_request = async (url, options) => {
+  const full_name = `${options.owner}/${options.repo}`;
+  const request_headers = { ...options.headers };
+  let installationId = db.installations.get_id(full_name);
 
-exports.get_pr_data = ({
-  owner,
-  repo,
-  pr_id: pull_number,
-  etag_signature,
-  priority = false,
-}) => {
-  const rule_name = priority ? 'priority' : 'common';
-  return Balancer.Github.request(
-    () => {
-      return github_client.pulls
-        .get({
-          owner,
-          repo,
-          pull_number,
-          etag_signature,
-        })
-        .then(({ status, data }) => {
-          Logger.add_call(`github.pulls.get.${status}`);
-          return { status, data };
-        });
-    },
-    `data${owner}${repo}${pull_number}`,
-    rule_name,
-  );
+  const request_signature = get_request_signature(options);
+
+  if (!(url in REQUEST_SIGNATURES)) {
+    REQUEST_SIGNATURES[url] = {};
+  }
+
+  const cached_signature = get_cached_etag(url, request_signature);
+  if (cached_signature != null) {
+    request_headers['If-None-Match'] = cached_signature;
+  }
+
+  if (installationId == null) {
+    installationId = await get_installation_id(full_name);
+    db.installations.set_id(full_name, installationId);
+  }
+
+  try {
+    const installationAccessToken = await github_app.getInstallationAccessToken(
+      { installationId },
+    );
+
+    const response = await request(url, {
+      ...options,
+      headers: {
+        ...request_headers,
+        authorization: `token ${installationAccessToken}`,
+      },
+    });
+
+    const { etag } = response.headers;
+    REQUEST_SIGNATURES[url][request_signature] = etag;
+
+    return response;
+  } catch (e) {
+    return e;
+  }
+};
+
+exports.get_pr_data = ({ owner, repo, pr_id: pull_number, etag_signature }) => {
+  return gh_request('GET /repos/:owner/:repo/pulls/:pull_number', {
+    owner,
+    repo,
+    pull_number,
+    etag_signature,
+  }).then(({ status, data }) => {
+    Logger.add_call(`github.pulls.get.${status}`);
+    return { status, data };
+  });
 };
 
 exports.get_review_data = ({
@@ -138,26 +129,16 @@ exports.get_review_data = ({
   repo,
   pr_id: pull_number,
   etag_signature,
-  priority = false,
 }) => {
-  const rule_name = priority ? 'priority' : 'common';
-  return Balancer.Github.request(
-    () => {
-      return github_client.pulls
-        .listReviews({
-          owner,
-          repo,
-          pull_number,
-          etag_signature,
-        })
-        .then(({ status, data }) => {
-          Logger.add_call(`github.pulls.listReviews.${status}`);
-          return { status, data };
-        });
-    },
-    `review${owner}${repo}${pull_number}`,
-    rule_name,
-  );
+  return gh_request('GET /repos/:owner/:repo/pulls/:pull_number/reviews', {
+    owner,
+    repo,
+    pull_number,
+    etag_signature,
+  }).then(({ status, data }) => {
+    Logger.add_call(`github.pulls.listReviews.${status}`);
+    return { status, data };
+  });
 };
 
 exports.get_files_data = ({
@@ -165,25 +146,15 @@ exports.get_files_data = ({
   repo,
   pr_id: pull_number,
   etag_signature,
-  priority = false,
 }) => {
-  const rule_name = priority ? 'priority' : 'common';
-  return Balancer.Github.request(
-    () => {
-      return github_client.pulls
-        .listFiles({
-          owner,
-          repo,
-          pull_number,
-          per_page: 300,
-          etag_signature,
-        })
-        .then(({ status, data }) => {
-          Logger.add_call(`github.pulls.listFiles.${status}`);
-          return { status, data };
-        });
-    },
-    `listFiles${owner}${repo}${pull_number}`,
-    rule_name,
-  );
+  return gh_request('GET /repos/:owner/:repo/pulls/:pull_number/files', {
+    owner,
+    repo,
+    pull_number,
+    etag_signature,
+    per_page: 300,
+  }).then(({ status, data }) => {
+    Logger.add_call(`github.pulls.listFiles.${status}`);
+    return { status, data };
+  });
 };

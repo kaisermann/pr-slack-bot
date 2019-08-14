@@ -1,5 +1,5 @@
-const runtime = require('../runtime.js');
-const format_section_pr_list = require('../messages/section_pr_list.js');
+const runtime = require('../../runtime.js');
+const format_section_pr_list = require('../../messages/section_pr_list.js');
 
 module.exports = async ({ channel_id, user_id, params }) => {
   const channel = runtime.get_channel(channel_id);

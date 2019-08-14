@@ -2,6 +2,7 @@ node_modules
 *.log
 daemon.*
 !daemon.js
-db.json
 .env
+db.json
 data.json
+installations.json

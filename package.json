@@ -24,7 +24,8 @@
     "prettier": "^1.16.4"
   },
   "dependencies": {
-    "@octokit/rest": "^16.28.2",
+    "@octokit/app": "^4.1.0",
+    "@octokit/request": "^5.0.2",
     "@slack/client": "^5.0.1",
     "@slack/rtm-api": "^5.0.1",
     "@slack/web-api": "^5.0.1",
