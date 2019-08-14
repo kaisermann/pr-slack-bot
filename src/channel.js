@@ -1,112 +1,70 @@
 const R = require('ramda');
 const DB = require('./api/db.js');
-const Logger = require('./api/logger.js');
 const { EMOJIS, FORGOTTEN_PR_HOUR_THRESHOLD } = require('./consts.js');
 const Message = require('./message.js');
 const PR = require('./pr.js');
-
 const format_section_list = require('./messages/section_pr_list.js');
+const Lock = require('./includes/lock.js');
 
-const get_resolved_prs = R.pickBy(pr => pr.state.merged || pr.state.closed);
-const get_to_update_prs = R.pickBy(
-  pr =>
-    pr.last_update &&
-    pr.last_update.has_changed &&
-    !pr.state.merged &&
-    !pr.state.closed,
-);
+const forgotten_message_lock = new Lock();
 
 exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   prs = prs.map(PR.create);
 
   const DB_PR_PATH = ['channels', channel_id, 'prs'];
+  const DB_MSG_PATH = ['channels', channel_id, 'messages'];
+  const get_db_message_path = type => [...DB_MSG_PATH, type].filter(Boolean);
+
+  function remove_message(message) {
+    const { ts, type } = message;
+    DB.client
+      .get(get_db_message_path(type), [])
+      .remove({ ts })
+      .write();
+  }
+
+  function update_message(message) {
+    const { type, ts } = message;
+    DB.client
+      .get(get_db_message_path(type), [])
+      .find({ ts })
+      .assign(message)
+      .write();
+  }
+
+  function save_message(message, limit) {
+    const { type } = message;
+    let messages_of_type = DB.client
+      .get(get_db_message_path(type), [])
+      .push(message);
+
+    if (typeof limit === 'number') {
+      messages_of_type = messages_of_type.takeRight(limit);
+    }
+
+    return DB.client
+      .get(get_db_message_path(), [])
+      .set(type, messages_of_type.value())
+      .write();
+  }
 
   function get_messages(type) {
-    return DB.get_channel_messages(channel_id, type);
+    return DB.client.get(get_db_message_path(type), []).value();
   }
 
   function get_active_prs() {
     return prs.filter(pr => pr.is_active());
   }
 
-  // TODO
-  // async function send_message(type, message) {}
-
-  async function update_pr(slug) {
-    const pr = prs.find(pr => pr.slug === slug);
-
-    await pr.update({ priority: true });
-
-    if (!pr.is_active()) return;
-
-    const has_changed = pr.last_update.has_changed;
-    const is_resolved = pr.state.merged || pr.state.closed;
-
-    if (is_resolved) {
-      on_prs_resolved({ [pr.slug]: pr });
-    }
-
-    let db_transaction = DB.client.get(DB_PR_PATH);
-    if (is_resolved) {
-      remove_pr(pr);
-    } else if (has_changed) {
-      save_pr(pr);
-    }
-    db_transaction.write();
-  }
-
-  async function update_prs() {
+  async function init() {
+    console.log(`# ${channel_name} ${channel_id} - Initializing PRs`);
     // reverse to update recent prs first
     const active_prs = get_active_prs().reverse();
+    return Promise.all(active_prs.map(update_pr));
+  }
 
-    console.log(
-      `# ${channel_name} ${channel_id} - Updating PRs (${active_prs.length} prs)`,
-    );
-
-    // await prs.reduce(async (acc, pr) => acc.then(pr.update), Promise.resolve());
-    try {
-      const result_prs = await Promise.all(active_prs.map(pr => pr.update()));
-      const { updated_prs, errored_prs } = R.groupBy(
-        pr => (pr.last_update == null ? 'errored_prs' : 'updated_prs'),
-        result_prs,
-      );
-
-      if (errored_prs) {
-        errored_prs.forEach(pr =>
-          Logger.log_error(`Error with PR: ${pr.slug}`),
-        );
-      }
-
-      if (updated_prs == null) {
-        return;
-      }
-
-      const prs_map = R.fromPairs(updated_prs.map(pr => [pr.slug, pr]));
-      const resolved_prs_map = get_resolved_prs(prs_map);
-      const to_update_prs_map = get_to_update_prs(prs_map);
-
-      const resolved_prs = Object.values(resolved_prs_map);
-      if (resolved_prs.length) {
-        await on_prs_resolved(resolved_prs_map);
-        prs = prs.filter(({ slug }) => !(slug in resolved_prs_map));
-      }
-
-      DB.client
-        .get(DB_PR_PATH)
-        // update prs
-        .each(pr => {
-          if (pr.slug in to_update_prs_map) {
-            const updated_pr = to_update_prs_map[pr.slug];
-            Object.assign(pr, updated_pr.to_json());
-          }
-        })
-        .remove(pr => pr.slug in resolved_prs_map)
-        .write();
-
-      console.log('');
-    } catch (e) {
-      Logger.log_error('Something wrong happened', e);
-    }
+  async function update_pr(pr) {
+    pr.update().then(on_pr_updated);
   }
 
   function has_pr(slug) {
@@ -126,21 +84,19 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   }
 
   function replace_pr(slug, pr_data) {
-    const saved_pr_index = prs.findIndex(pr => pr.slug === slug);
+    const index = prs.findIndex(pr => pr.slug === slug);
 
-    if (saved_pr_index < 0) return null;
+    if (index < 0) return null;
 
-    prs[saved_pr_index] = PR.create(
-      Object.assign(prs[saved_pr_index].to_json(), pr_data, {
+    prs[index].invalidate_etag_signature();
+    prs[index] = PR.create(
+      Object.assign(prs[index].to_json(), pr_data, {
         reactions: {},
         replies: {},
-        pr_actions: [],
       }),
     );
 
-    save_pr(prs[saved_pr_index]);
-
-    return prs[saved_pr_index];
+    return save_pr(prs[index]);
   }
 
   function save_pr(pr) {
@@ -152,24 +108,8 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       .find({ slug: pr.slug })
       .assign(pr.to_json())
       .write();
-  }
 
-  async function remove_pr_by_timestamp(deleted_ts) {
-    const index = prs.findIndex(({ ts }) => ts === deleted_ts);
-    if (index < 0) return;
-
-    const pr = prs[index];
-
-    pr.invalidate_etag_signature();
-
-    await pr.delete_replies();
-
-    prs.splice(index, 1);
-
-    return DB.client
-      .get(DB_PR_PATH)
-      .remove({ ts: deleted_ts })
-      .write();
+    return pr;
   }
 
   function remove_pr({ slug }) {
@@ -185,43 +125,71 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       .write();
   }
 
-  async function on_prs_resolved(resolved_prs_map) {
-    const resolved_prs = Object.values(resolved_prs_map);
+  async function remove_pr_by_timestamp(deleted_ts) {
+    const index = prs.findIndex(({ ts }) => ts === deleted_ts);
+    if (index < 0) return;
+
+    prs[index].invalidate_etag_signature();
+    await prs[index].delete_replies();
+
+    prs.splice(index, 1);
+
+    return DB.client
+      .get(DB_PR_PATH)
+      .remove({ ts: deleted_ts })
+      .write();
+  }
+
+  async function on_pr_updated(pr) {
+    if (!pr.is_active()) return;
+
+    const is_resolved = pr.state.merged || pr.state.closed;
+    if (is_resolved) {
+      await on_pr_resolved(pr);
+      remove_pr(pr);
+    } else {
+      save_pr(pr);
+    }
+  }
+
+  async function on_pr_resolved(pr) {
+    await forgotten_message_lock.acquire();
+
     const forgotten_messages = get_messages('forgotten_prs').filter(
-      ({ payload }) => payload.some(slug => slug in resolved_prs_map),
+      ({ payload }) => payload.some(slug => pr.slug === slug),
     );
+
+    if (forgotten_messages.length) {
+      console.log(`- Updating forgotten PR message: ${pr.slug}`);
+    }
 
     for await (const message of forgotten_messages) {
       const { text } = message;
-      const new_text = resolved_prs.reduce((acc, pr) => {
-        const state_emoji = pr.state.merged
-          ? EMOJIS.merged
-          : pr.state.closed
-          ? EMOJIS.closed
-          : EMOJIS.unknown;
+      const state_emoji = pr.state.merged
+        ? EMOJIS.merged
+        : pr.state.closed
+        ? EMOJIS.closed
+        : EMOJIS.unknown;
 
-        return acc.replace(
-          new RegExp(`^(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm'),
-          `:${state_emoji}: ~$1~`,
-        );
-      }, text);
+      const new_text = text.replace(
+        new RegExp(`^(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm'),
+        `:${state_emoji}: ~$1~`,
+      );
 
       if (text === new_text) return;
 
-      Logger.log_pr_action(
-        `Updating forgotten PR message: ${resolved_prs.map(pr => pr.slug)}`,
-      );
       const updated_message = await Message.update(message, {
         text: new_text,
-        payload: message.payload.filter(slug => !(slug in resolved_prs_map)),
+        payload: message.payload.filter(slug => pr.slug !== slug),
       });
 
       if (updated_message.payload.length === 0) {
-        DB.remove_channel_message(updated_message);
+        remove_message(updated_message);
       } else {
-        DB.update_channel_message(updated_message);
+        update_message(updated_message);
       }
     }
+    await forgotten_message_lock.release();
   }
 
   async function check_forgotten_prs() {
@@ -273,7 +241,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       text: owners_text,
     });
 
-    DB.save_channel_message(message, 2);
+    save_message(message, 2);
   }
 
   return Object.freeze({
@@ -286,13 +254,15 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       return prs;
     },
     // methods
+    init,
     update_pr,
-    update_prs,
     has_pr,
     add_pr,
+    save_pr,
     remove_pr,
     remove_pr_by_timestamp,
     replace_pr,
+    on_pr_updated,
     check_forgotten_prs,
   });
 };

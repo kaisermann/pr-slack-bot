@@ -15,11 +15,15 @@ module.exports = async prs => {
   const sections = prs.reduce(
     (acc, pr) => {
       let section;
-      if (pr.state.ready_to_merge) section = acc.ready_to_merge;
-      else if (pr.state.dirty || pr.state.unstable)
+      if (pr.is_ready_to_merge()) {
+        section = acc.ready_to_merge;
+      } else if (pr.is_dirty() || pr.is_unstable()) {
         section = acc.unstable_or_dirty;
-      else if (pr.state.changes_requested) section = acc.changes_requested;
-      else section = acc.waiting_review;
+      } else if (pr.has_changes_requested()) {
+        section = acc.changes_requested;
+      } else {
+        section = acc.waiting_review;
+      }
 
       section.list.push(pr);
 
