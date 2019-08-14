@@ -7,7 +7,9 @@ module.exports = async ({ channel_id, user_id, params }) => {
   if (!channel) return;
 
   if (params.length === 0) {
-    return format_section_pr_list(channel.prs);
+    return `Here's all PRs listed on this channel:\n\n${await format_section_pr_list(
+      channel.prs,
+    )}`;
   }
 
   if (params === 'mine') {
@@ -16,7 +18,9 @@ module.exports = async ({ channel_id, user_id, params }) => {
     if (prs.length === 0) {
       return "You don't have any pull requests listed on this channel";
     }
-    return format_section_pr_list(prs);
+    return `Here's all PRs owned by you:\n\n${await format_section_pr_list(
+      prs,
+    )}`;
   }
 
   const match = params.match(/^<@(\w*?)\|[\w.-_]*?>$/im);
@@ -28,8 +32,10 @@ module.exports = async ({ channel_id, user_id, params }) => {
       return `<@${mentioned_user}> don't have any pull requests listed on this channel`;
     }
 
-    return format_section_pr_list(prs);
+    return `Here's all PRs owned by <@${mentioned_user}>:\n\n${await format_section_pr_list(
+      prs,
+    )}`;
   }
 
-  return 'Invalid command parameters.';
+  return 'Invalid command parameters: `/pr list [ |mine|@user]`';
 };
