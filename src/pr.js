@@ -271,27 +271,12 @@ exports.create = ({
   }
 
   async function fetch_remote_state({ priority }) {
-    const pr_response = await Github.get_pr_data({
-      owner,
-      repo,
-      pr_id,
-      etag_signature,
-      priority,
-    });
-    const review_response = await Github.get_review_data({
-      owner,
-      repo,
-      pr_id,
-      etag_signature,
-      priority,
-    });
-    const files_response = await Github.get_files_data({
-      owner,
-      repo,
-      pr_id,
-      etag_signature,
-      priority,
-    });
+    const params = { owner, repo, pr_id, etag_signature, priority };
+    const [pr_response, review_response, files_response] = await Promise.all([
+      Github.get_pr_data(params),
+      Github.get_review_data(params),
+      Github.get_files_data(params),
+    ]);
 
     let pr_data = pr_response.data;
     let review_data = review_response.data;
