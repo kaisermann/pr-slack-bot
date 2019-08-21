@@ -65,7 +65,7 @@ function get_pr_size({ additions, deletions, files }) {
       const filename = basename(f.filename);
       return filename === 'package-lock.json' || filename === 'yarn.lock';
     })
-    .reduce((acc, file) => acc + file.changes, 0);
+    .reduce((acc, file) => acc + file.additions + file.deletions, 0);
 
   const n_changes = additions + deletions - lock_file_changes;
 
@@ -353,13 +353,18 @@ exports.create = ({
       });
 
     const { additions, deletions } = pr_data;
+    const files = files_data.map(
+      ({ filename, status, additions, deletions }) => {
+        return { filename, status, additions, deletions };
+      },
+    );
 
     return {
       actions,
       additions,
       deletions,
-      files: files_data,
-      size: get_pr_size({ additions, deletions, files: files_data }),
+      files,
+      size: get_pr_size({ additions, deletions, files }),
       merged: pr_data.merged,
       closed: pr_data.state === 'closed',
       mergeable_state: pr_data.mergeable_state,
