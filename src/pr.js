@@ -513,25 +513,16 @@ exports.create = ({
   }
 
   async function update() {
-    await update_lock.acquire();
-    console.log(`Getting consolidated state: ${slug}`);
-    state = await get_consolidated_state();
-
-    return after_state_update();
-  }
-
-  // we always update the consolidated state for making things easier :)
-  async function update_on_hook() {
-    await update_lock.acquire();
-
-    state = await get_consolidated_state();
-
-    return after_state_update();
-  }
-
-  async function after_state_update() {
-    await Promise.all([update_reactions(), update_replies()]);
-    update_lock.release();
+    try {
+      await update_lock.acquire();
+      state = await get_consolidated_state();
+      console.log(`Updating state: ${slug}`);
+      await Promise.all([update_reactions(), update_replies()]);
+    } catch (e) {
+      console.log(`Something went wrong with ${slug}`);
+    } finally {
+      update_lock.release();
+    }
 
     return self;
   }
@@ -591,7 +582,6 @@ exports.create = ({
     needs_attention(hours) {
       return is_active() && this.minutes_since_post >= 60 * hours;
     },
-    update_on_hook,
   });
 
   return self;
