@@ -62,7 +62,7 @@ exports.parse_github_webhook = async (req, res) => {
     return on_pull_request_change({ event, req, res });
   }
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(yellow(`Ignoring event: "${event}/${req.body.action}"`));
-  }
+  // if (process.env.NODE_ENV !== 'production') {
+  console.log(yellow(`Ignoring event: "${event}/${req.body.action}"`));
+  // }
 };
