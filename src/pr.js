@@ -475,9 +475,10 @@ exports.create = ({
       ? await add_reaction('merged', EMOJIS.merged)
       : await remove_reaction('merged');
 
-    changes.closed = closed
-      ? await add_reaction('closed', EMOJIS.closed)
-      : await remove_reaction('closed');
+    changes.closed =
+      closed && !merged
+        ? await add_reaction('closed', EMOJIS.closed)
+        : await remove_reaction('closed');
 
     return changes;
   }
