@@ -521,19 +521,10 @@ exports.create = ({
   }
 
   // we always update the consolidated state for making things easier :)
-  async function update_on_hook({ event, action }) {
+  async function update_on_hook() {
     await update_lock.acquire();
-    if (event === 'pull_request') {
-      if (action === 'reopened') {
-        state.closed = false;
-      } else if (action === 'closed') {
-        state.closed = true;
-      } else {
-        state = await get_consolidated_state();
-      }
-    } else {
-      state = await get_consolidated_state();
-    }
+
+    state = await get_consolidated_state();
 
     return after_state_update();
   }
