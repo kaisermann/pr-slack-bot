@@ -14,6 +14,19 @@ async function boot() {
   // initialize all prs before starting server
   await Promise.all(channels.map(channel => channel.init()));
 
+  setInterval(
+    (function loop() {
+      console.log(`----------`);
+      console.log(`Channels:\n`);
+      channels.forEach(c => console.log(`${c.name} | ${c.prs.length} PRs`));
+      console.log(
+        `\nTotal PRs: ${channels.reduce((acc, c) => acc + c.prs.length, 0)}`,
+      );
+      return loop;
+    })(),
+    5000,
+  );
+
   // start the web server
   server.start();
 

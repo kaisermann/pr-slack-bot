@@ -9,7 +9,7 @@ const users = users_data;
 module.exports = {
   init() {},
   get_channel(id) {
-    return channels.find(channel => channel.channel_id === id);
+    return channels.find(channel => channel.id === id);
   },
   async create_channel(id) {
     const channel_info = await Slack.get_channel_info(id);
