@@ -255,7 +255,6 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     },
     // methods
     init,
-    update_pr,
     has_pr,
     add_pr,
     save_pr,
