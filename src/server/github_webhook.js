@@ -1,3 +1,5 @@
+const { cyan, yellow } = require('colorette');
+
 const db = require('../api/db.js');
 const runtime = require('../runtime.js');
 
@@ -32,7 +34,7 @@ async function on_pull_request_change({ event, req }) {
   }
 
   const pr_slug = `${repository.full_name}/${pull_request.number}`;
-  console.log(`\nTriggered "${event}/${action}" on "${pr_slug}"`);
+  console.log(cyan(`Triggered "${event}/${action}" on "${pr_slug}"`));
 
   const pr = runtime.prs.all.find(pr => pr.slug === pr_slug);
   if (pr == null) return;
@@ -61,6 +63,6 @@ exports.parse_github_webhook = async (req, res) => {
   }
 
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`\nIgnoring event: "${event}/${req.body.action}"`);
+    console.log(yellow(`Ignoring event: "${event}/${req.body.action}"`));
   }
 };
