@@ -368,6 +368,10 @@ exports.create = ({
     };
   }
 
+  function get_approvals() {
+    return state.actions.filter(a => a.action === ACTIONS.approved).length;
+  }
+
   function has_changelog() {
     return state.files.some(f => {
       const filename = basename(f.filename).toLowerCase();
@@ -505,9 +509,16 @@ exports.create = ({
           )
         : await delete_reply('modified_changelog');
 
-    changes.ready_to_merge = is_ready_to_merge()
-      ? await reply('ready_to_merge', 'PR is ready to be merged :doit:!')
-      : await delete_reply('ready_to_merge');
+    if (is_ready_to_merge() === false) {
+      changes.ready_to_merge = await delete_reply('ready_to_merge');
+    } else {
+      const n_approvals = get_approvals();
+      const text =
+        n_approvals > 0
+          ? 'PR is ready to be merged :doit:!'
+          : `PR is ready to be merged, but I can't seem to find any reviews approving it :notsure-left:.\n\nIs there a merge protection rule configured for the \`${base_branch}\` branch?`;
+      changes.ready_to_merge = await reply('ready_to_merge', text);
+    }
 
     return changes;
   }

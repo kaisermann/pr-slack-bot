@@ -59,11 +59,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     console.log(`# ${channel_name} ${channel_id} - Initializing PRs`);
     // reverse to update recent prs first
     const active_prs = get_active_prs().reverse();
-    return Promise.all(active_prs.map(update_pr));
-  }
-
-  async function update_pr(pr) {
-    pr.update().then(on_pr_updated);
+    return Promise.all(active_prs.map(pr => pr.update().then(on_pr_updated)));
   }
 
   function has_pr(slug) {
@@ -255,7 +251,6 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     },
     // methods
     init,
-    update_pr,
     has_pr,
     add_pr,
     save_pr,
