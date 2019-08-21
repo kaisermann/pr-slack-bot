@@ -15,7 +15,12 @@ const github_app = new App(
         privateKey: process.env.DEV_APP_PRIVATE_KEY,
       },
 );
-const jwt_token = github_app.getSignedJsonWebToken();
+
+let jwt_token = github_app.getSignedJsonWebToken();
+// renew after 9:30 mins
+setInterval(() => {
+  jwt_token = github_app.getSignedJsonWebToken();
+}, 1000 * (60 * 10 - 30));
 
 const REQUEST_SIGNATURES = {};
 const get_request_signature = options => {
