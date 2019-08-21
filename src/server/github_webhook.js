@@ -54,7 +54,7 @@ exports.parse_github_webhook = async (req, res) => {
   if (
     event === 'pull_request' ||
     event === 'pull_request_review' ||
-    event === 'pull_request_review_comment' ||
+    // event === 'pull_request_review_comment' ||
     event === 'check_suite'
   ) {
     return on_pull_request_change({ event, req, res });

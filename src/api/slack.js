@@ -149,12 +149,14 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
 
       if (!pr_message && e.attachments.length) {
         const { title_link, pretext, author_name } = e.attachments[0];
-        if (pretext.match(/pull request opened/i)) {
-          pr_message = title_link;
+        if (typeof pretext === 'string') {
+          if (pretext.match(/pull request opened/i)) {
+            pr_message = title_link;
 
-          const user = DB.get_user_by_github_user(author_name);
-          if (user) {
-            poster_id = user.id;
+            const user = DB.get_user_by_github_user(author_name);
+            if (user) {
+              poster_id = user.id;
+            }
           }
         }
       }
