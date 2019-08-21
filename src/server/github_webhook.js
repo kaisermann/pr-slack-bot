@@ -23,7 +23,7 @@ function on_installation({ req }) {
   return;
 }
 
-const update_pr = debounce(pr => pr.update(), 200);
+const update_pr = debounce(pr => pr.update(), 400);
 
 async function on_pull_request_change({ event, req }) {
   const { action, repository } = req.body;
