@@ -2,6 +2,7 @@ const { cyan, yellow } = require('colorette');
 
 const db = require('../api/db.js');
 const runtime = require('../runtime.js');
+const debounce = require('../includes/debounce');
 
 function on_installation({ req }) {
   const {
@@ -22,6 +23,8 @@ function on_installation({ req }) {
   return;
 }
 
+const update_pr = debounce(pr => pr.update(), 200);
+
 async function on_pull_request_change({ event, req }) {
   const { action, repository } = req.body;
   let pull_request = req.body.pull_request;
@@ -40,7 +43,7 @@ async function on_pull_request_change({ event, req }) {
   if (pr == null) return;
 
   const channel = runtime.get_channel(pr.channel);
-  return pr.update().then(channel.on_pr_updated);
+  return update_pr(pr).then(channel.on_pr_updated);
 }
 
 exports.parse_github_webhook = async (req, res) => {

@@ -530,7 +530,7 @@ exports.create = ({
       console.log(`Updating state: ${slug}`);
       await Promise.all([update_reactions(), update_replies()]);
     } catch (e) {
-      console.log(`Something went wrong with ${slug}`);
+      console.log(`Something went wrong with "${slug}":`, e);
     } finally {
       update_lock.release();
     }
