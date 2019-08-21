@@ -30,6 +30,7 @@
     "@slack/rtm-api": "^5.0.1",
     "@slack/web-api": "^5.0.1",
     "body-parser": "^1.19.0",
+    "colorette": "^1.1.0",
     "dotenv": "^8.0.0",
     "fast-deep-equal": "^2.0.1",
     "forever": "^1.0.0",
