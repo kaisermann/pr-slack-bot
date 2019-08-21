@@ -6,14 +6,13 @@ const PR = require('./pr.js');
 const format_section_list = require('./messages/section_pr_list.js');
 const Lock = require('./includes/lock.js');
 
-const forgotten_message_lock = new Lock();
-
 exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
-  prs = prs.map(PR.create);
-
+  const forgotten_message_lock = new Lock();
   const DB_PR_PATH = ['channels', channel_id, 'prs'];
   const DB_MSG_PATH = ['channels', channel_id, 'messages'];
   const get_db_message_path = type => [...DB_MSG_PATH, type].filter(Boolean);
+
+  prs = prs.map(PR.create);
 
   function remove_message(message) {
     const { ts, type } = message;
