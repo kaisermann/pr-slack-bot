@@ -38,7 +38,7 @@ async function on_pull_request_change({ event, req }) {
   if (pr == null) return;
 
   const channel = runtime.get_channel(pr.channel);
-  return pr.update_on_hook({ event, ...req.body }).then(channel.on_pr_updated);
+  return pr.update().then(channel.on_pr_updated);
 }
 
 exports.parse_github_webhook = async (req, res) => {
