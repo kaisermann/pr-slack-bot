@@ -4,30 +4,30 @@ const { request } = require('@octokit/request');
 const Logger = require('./logger.js');
 const db = require('../api/db.js');
 
-const github_app = new App({
-  id: process.env.APP_ID,
-  privateKey: process.env.APP_PRIVATE_KEY,
-});
-
+const github_app = new App(
+  process.env.NODE_ENV === 'production'
+    ? {
+        id: process.env.APP_ID,
+        privateKey: process.env.APP_PRIVATE_KEY,
+      }
+    : {
+        id: process.env.DEV_APP_ID,
+        privateKey: process.env.DEV_APP_PRIVATE_KEY,
+      },
+);
 const jwt_token = github_app.getSignedJsonWebToken();
 
 const REQUEST_SIGNATURES = {};
-
-const create_signature = props => JSON.stringify(props);
-
 const get_request_signature = options => {
   if (options.etag_signature) {
-    return create_signature(options.etag_signature);
+    return JSON.stringify(options.etag_signature);
   }
-  return create_signature(options);
-};
-
-const has_cached_etag = (url, signature) => {
-  return url in REQUEST_SIGNATURES && signature in REQUEST_SIGNATURES[url];
+  return JSON.stringify(options);
 };
 
 const get_cached_etag = (url, signature) => {
-  if (!has_cached_etag(url, signature)) return null;
+  if (!(url in REQUEST_SIGNATURES && signature in REQUEST_SIGNATURES[url]))
+    return null;
   return REQUEST_SIGNATURES[url][signature];
 };
 
@@ -39,25 +39,6 @@ exports.invalidate_etag_signature = signature_props => {
     }
   });
 };
-
-// const MAX_PER_URL = 100;
-// const INTERVAL = 60 * 60 * 60; // one hour
-// setInterval(() => {
-//   Object.entries(REQUEST_SIGNATURES).forEach(([url, signatures]) => {
-//     const keys = Object.keys(signatures);
-
-//     if (keys.length <= MAX_PER_URL) return;
-
-//     const begin_index = Math.max(0, keys.length - 1 - MAX_PER_URL);
-//     const end_index = begin_index + MAX_PER_URL;
-//     REQUEST_SIGNATURES[url] = keys
-//       .slice(begin_index, end_index)
-//       .reduce((acc, key) => {
-//         acc[key] = signatures[key];
-//         return acc;
-//       }, {});
-//   });
-// }, INTERVAL);
 
 const get_installation_id = async repo_full_name => {
   const { data } = await request(`GET /repos/${repo_full_name}/installation`, {
