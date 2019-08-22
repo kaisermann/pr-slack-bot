@@ -8,6 +8,7 @@ const Logger = require('./includes/logger.js');
 const DB = require('./api/db.js');
 const Message = require('./message.js');
 const Lock = require('./includes/lock.js');
+const debounce = require('./includes/debounce.js');
 
 const { EMOJIS, PR_SIZES, GITHUB_APP_URL } = require('./consts.js');
 
@@ -605,11 +606,10 @@ exports.create = ({
       return ~~(this.minutes_since_post / 60);
     },
     // methods
-    update,
+    // we debounce the update method so many consecutive updates fire just once
+    update: debounce(update, 400),
     get_message_url,
-    async get_message_link(fn) {
-      return `<${[await get_message_url()]}|${fn(self)}>`;
-    },
+    get_message_link: async fn => `<${[await get_message_url()]}|${fn(self)}>`,
     reply,
     update_reply,
     delete_reply,
@@ -620,12 +620,11 @@ exports.create = ({
     is_dirty,
     is_unstable,
     is_resolved,
+    is_active,
+    needs_attention: hours =>
+      is_active() && this.minutes_since_post >= 60 * hours,
     invalidate_etag_signature,
     to_json,
-    is_active,
-    needs_attention(hours) {
-      return is_active() && this.minutes_since_post >= 60 * hours;
-    },
   });
 
   return self;
