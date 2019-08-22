@@ -13,14 +13,11 @@ exports.EMOJIS = {
   waiting: 'sonic_waiting',
   quick_read: 'zap',
   pending_review: 'eyes',
-  // size_small: 'ant',
-  // size_medium: 'dog2',
-  // size_big: 'elephant',
-  // size_gigantic: 'sauropod',
   size_small: 'pr-small',
   size_medium: 'pr-medium',
   size_big: 'pr-large',
   size_gigantic: 'pr-xlarge',
+  info: 'info',
 };
 
 exports.GITHUB_APP_URL = 'https://github.com/apps/paul-robotson-pr-bot';
