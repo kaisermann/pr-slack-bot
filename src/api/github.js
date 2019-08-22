@@ -1,3 +1,4 @@
+const R = require('ramda');
 const { App } = require('@octokit/app');
 const { request } = require('@octokit/request');
 
@@ -104,10 +105,12 @@ exports.get_pr_data = ({ owner, repo, pr_id: pull_number, etag_signature }) => {
     repo,
     pull_number,
     etag_signature,
-  }).then(({ status, data }) => {
-    Logger.add_call(`github.pulls.get.${status}`);
-    return { status, data };
-  });
+  })
+    .then(({ status, data }) => {
+      Logger.add_call(`github.pulls.get.${status}`);
+      return { status, data };
+    })
+    .catch(R.pick(['status', 'name']));
 };
 
 exports.get_review_data = ({
@@ -121,10 +124,12 @@ exports.get_review_data = ({
     repo,
     pull_number,
     etag_signature,
-  }).then(({ status, data }) => {
-    Logger.add_call(`github.pulls.listReviews.${status}`);
-    return { status, data };
-  });
+  })
+    .then(({ status, data }) => {
+      Logger.add_call(`github.pulls.listReviews.${status}`);
+      return { status, data };
+    })
+    .catch(R.pick(['status', 'name']));
 };
 
 exports.get_files_data = ({
@@ -139,8 +144,10 @@ exports.get_files_data = ({
     pull_number,
     etag_signature,
     per_page: 300,
-  }).then(({ status, data }) => {
-    Logger.add_call(`github.pulls.listFiles.${status}`);
-    return { status, data };
-  });
+  })
+    .then(({ status, data }) => {
+      Logger.add_call(`github.pulls.listFiles.${status}`);
+      return { status, data };
+    })
+    .catch(R.pick(['status', 'name']));
 };

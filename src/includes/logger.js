@@ -8,12 +8,14 @@ const now = () => {
     .toISOString()
     .slice(0, -1);
 };
-const log = (...args) => console.log(`[${now()}] ${args.join(' ')}`);
+const log = (...args) => console.log(`[${now()}]`, ...args);
+const error = (...args) => console.error(`[${now()}]`, ...args);
 
 module.exports = {
-  info: (...args) => log(cyan(...args)),
-  warn: (...args) => log(yellow(...args)),
-  error: (...args) => log(red(...args)),
+  log: (...args) => log(...args),
+  info: (...args) => log(cyan(args.join(' '))),
+  warn: (...args) => log(yellow(args.join(' '))),
+  error: (err, msg) => error(`${red(`${msg}\n${err.stack}`)}`),
   add_call: method => {
     // calls[method] = (calls[method] || 0) + 1;
   },
