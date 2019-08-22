@@ -260,11 +260,43 @@ exports.create = ({
 
   async function fetch_remote_state() {
     const params = { owner, repo, pr_id, etag_signature };
-    const [pr_response, review_response, files_response] = await Promise.all([
-      Github.get_pr_data(params),
+
+    const responses = await Promise.all([
+      new Promise(async res => {
+        try {
+          let known_mergeable_state = false;
+          let response;
+          do {
+            response = await Github.get_pr_data(params);
+            if (response.status === 200) {
+              const { mergeable } = response.data;
+              known_mergeable_state = mergeable != null;
+            } else if (response.status !== 304) {
+              break;
+            }
+
+            if (known_mergeable_state === false) {
+              Logger.warn(`Unknown mergeable state for ${slug}. Retrying...`);
+              await new Promise(res => setTimeout(res, 400));
+            }
+          } while (known_mergeable_state === false);
+          res(response);
+        } catch (e) {
+          Logger.error(e);
+          res({ status: 520 });
+        }
+      }),
       Github.get_review_data(params),
       Github.get_files_data(params),
     ]);
+
+    if (responses.some(response => response.status === 520)) {
+      return {
+        error: { status: 520 },
+      };
+    }
+
+    const [pr_response, review_response, files_response] = responses;
 
     const has_404ed =
       pr_response.status === 404 ||
@@ -520,6 +552,11 @@ exports.create = ({
           'error',
           `Sorry, but I think my <${GITHUB_APP_URL}|Github App> is not installed on this repository :thinking_face:. I should be able to watch this PR after the app is installed •ᴥ•`,
         );
+      } else if (error.status === 520) {
+        changes.error = await reply(
+          'error',
+          `Sorry, but something awful happened :scream:. I can't see this PR status...`,
+        );
       }
       return changes;
     } else {
@@ -561,7 +598,7 @@ exports.create = ({
     try {
       await update_lock.acquire();
       state = await get_consolidated_state();
-      Logger.info(`Updating state: ${slug}`);
+      Logger.info(`Updated state: ${slug}`);
       await Promise.all([update_reactions(), update_replies()]);
     } catch (e) {
       Logger.error(e, `Something went wrong with "${slug}":`);

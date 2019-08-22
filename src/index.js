@@ -47,7 +47,9 @@ async function boot() {
     // on pr message deleted
     ({ channel: channel_id, deleted_ts }) => {
       const channel = runtime.get_channel(channel_id);
-      channel.remove_pr_by_timestamp(deleted_ts);
+      if (channel) {
+        channel.remove_pr_by_timestamp(deleted_ts);
+      }
     },
   );
 }

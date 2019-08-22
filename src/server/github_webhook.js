@@ -75,7 +75,7 @@ async function on_push({ req }) {
     Logger.success(
       `Triggered "push" on "${repository.owner.name}/${
         repository.name
-      }: ${related_prs.map(pr => pr.pr_id).join(', ')}"`,
+      }": ${related_prs.map(pr => pr.pr_id).join(', ')}`,
     );
   }
 
