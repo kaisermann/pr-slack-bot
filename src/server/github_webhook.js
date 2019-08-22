@@ -39,11 +39,32 @@ async function on_pull_request_change({ event, req }) {
   const pr_slug = `${repository.full_name}/${pull_request.number}`;
   console.log(cyan(`Triggered "${event}/${action}" on "${pr_slug}"`));
 
-  const pr = runtime.prs.all.find(pr => pr.slug === pr_slug);
+  const pr = runtime.prs.find(pr => pr.slug === pr_slug);
   if (pr == null) return;
 
   const channel = runtime.get_channel(pr.channel);
   return update_pr(pr).then(channel.on_pr_updated);
+}
+
+async function on_push({ req }) {
+  const { ref, repository } = req.body;
+  const branch = ref.split('/').pop();
+
+  const related_prs = runtime.prs.filter(
+    pr =>
+      pr.repo === repository.name &&
+      pr.owner === repository.owner.name &&
+      pr.state.base_branch === branch,
+  );
+
+  if (related_prs.length === 0) return;
+
+  return Promise.all(
+    related_prs.map(async pr => {
+      const channel = runtime.get_channel(pr.channel);
+      return update_pr(pr).then(channel.on_pr_updated);
+    }),
+  );
 }
 
 exports.parse_github_webhook = async (req, res) => {
@@ -59,10 +80,13 @@ exports.parse_github_webhook = async (req, res) => {
   if (
     event === 'pull_request' ||
     event === 'pull_request_review' ||
-    // event === 'pull_request_review_comment' ||
     event === 'check_suite'
   ) {
     return on_pull_request_change({ event, req, res });
+  }
+
+  if (event === 'push') {
+    return on_push({ event, req, res });
   }
 
   // if (process.env.NODE_ENV !== 'production') {
