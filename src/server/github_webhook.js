@@ -51,7 +51,7 @@ async function on_pull_request_change({ event, req }) {
   }
 
   const pr_slug = `${repository.full_name}/${pull_request.number}`;
-  Logger.info(`Triggered "${event}/${action}" on "${pr_slug}"`);
+  Logger.success(`Triggered "${event}/${action}" on "${pr_slug}"`);
 
   const pr = runtime.prs.find(pr => pr.slug === pr_slug);
   if (pr == null) return;
@@ -70,6 +70,14 @@ async function on_push({ req }) {
       pr.owner === repository.owner.name &&
       pr.state.base_branch === branch,
   );
+
+  if (related_prs.length) {
+    Logger.success(
+      `Triggered "push" on "${repository.owner.name}/${
+        repository.name
+      }: ${related_prs.map(pr => pr.pr_id).join(', ')}"`,
+    );
+  }
 
   return update_prs(related_prs);
 }

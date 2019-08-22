@@ -36,10 +36,10 @@ async function boot() {
 
       let pr;
       if (channel.has_pr(slug)) {
-        Logger.info(`Overwriting PR message: ${slug}`);
+        Logger.success(`Overwriting PR message: ${slug}`);
         pr = channel.replace_pr(pr_data.slug, pr_data);
       } else {
-        Logger.info(`Watching ${slug}`);
+        Logger.success(`Watching ${slug}`);
         pr = channel.add_pr(pr_data);
       }
       pr.update().then(channel.on_pr_updated);
