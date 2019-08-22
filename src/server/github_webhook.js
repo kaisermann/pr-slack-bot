@@ -1,17 +1,15 @@
 const R = require('ramda');
 const db = require('../api/db.js');
 const runtime = require('../runtime.js');
-const debounce = require('../includes/debounce');
 const Logger = require('../includes/logger.js');
 
-const update_pr = debounce(pr => pr.update(), 400);
 const update_prs = async prs => {
   if (prs.length === 0) return;
 
   return Promise.all(
     prs.map(async pr => {
       const channel = runtime.get_channel(pr.channel);
-      return update_pr(pr).then(channel.on_pr_updated);
+      return pr.update().then(channel.on_pr_updated);
     }),
   );
 };
@@ -59,7 +57,7 @@ async function on_pull_request_change({ event, req }) {
   if (pr == null) return;
 
   const channel = runtime.get_channel(pr.channel);
-  return update_pr(pr).then(channel.on_pr_updated);
+  return pr.update().then(channel.on_pr_updated);
 }
 
 async function on_push({ req }) {
