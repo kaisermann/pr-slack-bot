@@ -1,6 +1,7 @@
 const low = require('lowdb');
 const FileSyncAdapter = require('lowdb/adapters/FileSync');
 
+// todo transform into file async
 const db = low(new FileSyncAdapter('db.json'));
 const installations = low(new FileSyncAdapter('installations.json'));
 

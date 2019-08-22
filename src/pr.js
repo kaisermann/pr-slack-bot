@@ -404,7 +404,7 @@ exports.create = ({
         return { github_user, action };
       });
 
-    const { additions, deletions, mergeable } = pr_data;
+    const { title, additions, deletions, mergeable } = pr_data;
     const files = files_data.map(
       ({ filename, status, additions, deletions }) => {
         return { filename, status, additions, deletions };
@@ -412,6 +412,7 @@ exports.create = ({
     );
 
     return {
+      title,
       actions,
       additions,
       deletions,
@@ -476,14 +477,13 @@ exports.create = ({
   }
 
   async function update_header_message() {
-    const { actions, size } = state;
+    const { actions, size, title } = state;
 
     const text_parts = [
-      () => {
-        return `:${EMOJIS[`size_${size.label}`]}: *PR size*: ${size.label} (_${
-          size.n_changes
-        } changes_)\n\n`;
-      },
+      `:${EMOJIS.info}: *Title*: ${title}\n\n`,
+      `:${EMOJIS[`size_${size.label}`]}: *PR size*: ${size.label} (_${
+        size.n_changes
+      } changes_)\n\n`,
       actions.length === 0
         ? `Waiting for reviewers :${EMOJIS.waiting}:`
         : () => {
@@ -506,7 +506,7 @@ exports.create = ({
           },
     ];
 
-    return reply('header_message', text_parts, { size, actions });
+    return reply('header_message', text_parts, { title, size, actions });
   }
 
   async function update_reactions() {
