@@ -1,7 +1,7 @@
 const { App } = require('@octokit/app');
 const { request } = require('@octokit/request');
 
-const Logger = require('./logger.js');
+const Logger = require('../includes/logger.js');
 const db = require('../api/db.js');
 
 const github_app = new App(

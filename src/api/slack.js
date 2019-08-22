@@ -2,7 +2,7 @@ const { RTMClient } = require('@slack/rtm-api');
 const { WebClient, retryPolicies } = require('@slack/web-api');
 const Queue = require('smart-request-balancer');
 
-const Logger = require('./logger.js');
+const Logger = require('../includes/logger.js');
 const DB = require('./db.js');
 const { PRIVATE_TEST_CHANNELS } = require('../consts.js');
 
@@ -42,7 +42,7 @@ exports.get_channel_info = channel_id => {
         .info({ channel: channel_id })
         .then(response => response.ok && response.channel)
         .catch(error => {
-          console.log(error);
+          Logger.error(error);
         });
     },
     channel_id,
@@ -58,7 +58,7 @@ exports.get_user_info = id => {
         .info({ user: id })
         .then(response => response.ok && response.user)
         .catch(error => {
-          console.log(error);
+          Logger.error(error);
         });
     },
     id,
@@ -179,7 +179,7 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
         channel,
       });
     } catch (error) {
-      console.error(error);
+      Logger.error(error);
     }
   });
 

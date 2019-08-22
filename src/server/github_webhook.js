@@ -1,8 +1,7 @@
-const { cyan, yellow } = require('colorette');
-
 const db = require('../api/db.js');
 const runtime = require('../runtime.js');
 const debounce = require('../includes/debounce');
+const Logger = require('../includes/logger.js');
 
 function on_installation({ req }) {
   const {
@@ -37,7 +36,7 @@ async function on_pull_request_change({ event, req }) {
   }
 
   const pr_slug = `${repository.full_name}/${pull_request.number}`;
-  console.log(cyan(`Triggered "${event}/${action}" on "${pr_slug}"`));
+  Logger.info(`Triggered "${event}/${action}" on "${pr_slug}"`);
 
   const pr = runtime.prs.find(pr => pr.slug === pr_slug);
   if (pr == null) return;
@@ -90,6 +89,6 @@ exports.parse_github_webhook = async (req, res) => {
   }
 
   // if (process.env.NODE_ENV !== 'production') {
-  console.log(yellow(`Ignoring event: "${event}/${req.body.action}"`));
+  Logger.warn(`Ignoring event: "${event}/${req.body.action}"`);
   // }
 };
