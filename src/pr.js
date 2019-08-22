@@ -262,25 +262,36 @@ exports.create = ({
     const params = { owner, repo, pr_id, etag_signature };
 
     const responses = await Promise.all([
+      // we make a promise that only resolves when a PR mergeability is known
       new Promise(async res => {
         try {
           let known_mergeable_state = false;
-          let response;
+          let data;
+          let status;
           do {
-            response = await Github.get_pr_data(params);
-            if (response.status === 200) {
-              const { mergeable } = response.data;
-              known_mergeable_state = mergeable != null;
-            } else if (response.status !== 304) {
+            const response = await Github.get_pr_data(params);
+            data = response.data;
+            status = response.status;
+
+            if (status !== 200 && status !== 304) {
               break;
             }
 
+            if (status === 304) {
+              data = _cached_remote_state.pr_data;
+            } else {
+              _cached_remote_state.pr_data = data;
+            }
+
+            known_mergeable_state = data.merged || data.mergeable != null;
+
             if (known_mergeable_state === false) {
               Logger.warn(`Unknown mergeable state for ${slug}. Retrying...`);
-              await new Promise(res => setTimeout(res, 400));
+              await new Promise(r => setTimeout(r, 500));
             }
           } while (known_mergeable_state === false);
-          res(response);
+
+          res({ status, data });
         } catch (e) {
           Logger.error(e);
           res({ status: 520 });
@@ -298,12 +309,11 @@ exports.create = ({
 
     const [pr_response, review_response, files_response] = responses;
 
-    const has_404ed =
+    if (
       pr_response.status === 404 ||
       review_response.status === 404 ||
-      files_response.status === 404;
-
-    if (has_404ed) {
+      files_response.status === 404
+    ) {
       return {
         error: { status: 404 },
       };
@@ -320,12 +330,6 @@ exports.create = ({
       files_response.status === 304
     ) {
       return _cached_remote_state;
-    }
-
-    if (pr_response.status === 200) {
-      _cached_remote_state.pr_data = pr_data;
-    } else {
-      pr_data = _cached_remote_state.pr_data;
     }
 
     if (review_response.status === 200) {
@@ -400,7 +404,7 @@ exports.create = ({
         return { github_user, action };
       });
 
-    const { additions, deletions } = pr_data;
+    const { additions, deletions, mergeable } = pr_data;
     const files = files_data.map(
       ({ filename, status, additions, deletions }) => {
         return { filename, status, additions, deletions };
@@ -413,6 +417,7 @@ exports.create = ({
       deletions,
       files,
       size: get_pr_size({ additions, deletions, files }),
+      mergeable,
       merged: pr_data.merged,
       closed: pr_data.state === 'closed',
       mergeable_state: pr_data.mergeable_state,
