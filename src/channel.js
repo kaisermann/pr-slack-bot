@@ -1,10 +1,12 @@
 const R = require('ramda');
+
 const DB = require('./api/db.js');
 const { EMOJIS, FORGOTTEN_PR_HOUR_THRESHOLD } = require('./consts.js');
 const Message = require('./message.js');
 const PR = require('./pr.js');
 const format_section_list = require('./messages/section_pr_list.js');
 const Lock = require('./includes/lock.js');
+const Logger = require('./includes/logger.js');
 
 exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   const forgotten_message_lock = new Lock();
@@ -55,11 +57,11 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     return prs.filter(pr => pr.is_active());
   }
 
-  async function init() {
-    console.log(`# ${channel_name} ${channel_id} - Initializing PRs`);
-    // reverse to update recent prs first
-    const active_prs = get_active_prs().reverse();
-    return Promise.all(active_prs.map(pr => pr.update().then(on_pr_updated)));
+  function update() {
+    Logger.info(`# ${channel_name} ${channel_id} - Initializing PRs`);
+    return Promise.all(
+      get_active_prs().map(async pr => pr.update().then(on_pr_updated)),
+    );
   }
 
   function has_pr(slug) {
@@ -155,7 +157,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     );
 
     if (forgotten_messages.length) {
-      console.log(`- Updating forgotten PR message: ${pr.slug}`);
+      Logger.info(`- Updating forgotten PR message: ${pr.slug}`);
     }
 
     for await (const message of forgotten_messages) {
@@ -250,7 +252,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       return prs;
     },
     // methods
-    init,
+    update,
     has_pr,
     add_pr,
     save_pr,

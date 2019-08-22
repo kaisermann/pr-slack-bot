@@ -4,7 +4,7 @@ const is_equal = require('fast-deep-equal');
 
 const Github = require('./api/github.js');
 const Slack = require('./api/slack.js');
-const Logger = require('./api/logger.js');
+const Logger = require('./includes/logger.js');
 const DB = require('./api/db.js');
 const Message = require('./message.js');
 const Lock = require('./includes/lock.js');
@@ -532,10 +532,10 @@ exports.create = ({
     try {
       await update_lock.acquire();
       state = await get_consolidated_state();
-      console.log(`Updating state: ${slug}`);
+      Logger.info(`Updating state: ${slug}`);
       await Promise.all([update_reactions(), update_replies()]);
     } catch (e) {
-      console.log(`Something went wrong with "${slug}":`, e);
+      Logger.error(`Something went wrong with "${slug}":`, e);
     } finally {
       update_lock.release();
     }

@@ -6,26 +6,14 @@ const check_forgotten_prs = require('./includes/check_forgotten_prs.js');
 const update_users = require('./includes/update_users.js');
 const runtime = require('./runtime.js');
 const server = require('./server/index.js');
+const Logger = require('./includes/logger.js');
 
 const CRON_OPTS = { scheduled: true, timezone: 'America/Sao_Paulo' };
 
 async function boot() {
   const { channels } = runtime;
   // initialize all prs before starting server
-  await Promise.all(channels.map(channel => channel.init()));
-
-  // setInterval(
-  //   (function loop() {
-  //     console.log(`----------`);
-  //     console.log(`Channels:\n`);
-  //     channels.forEach(c => console.log(`${c.name} | ${c.prs.length} PRs`));
-  //     console.log(
-  //       `\nTotal PRs: ${channels.reduce((acc, c) => acc + c.prs.length, 0)}`,
-  //     );
-  //     return loop;
-  //   })(),
-  //   5000,
-  // );
+  await Promise.all(channels.map(channel => channel.update()));
 
   // start the web server
   server.start();
@@ -48,10 +36,10 @@ async function boot() {
 
       let pr;
       if (channel.has_pr(slug)) {
-        console.log(`Overwriting PR message: ${slug}`);
+        Logger.info(`Overwriting PR message: ${slug}`);
         pr = channel.replace_pr(pr_data.slug, pr_data);
       } else {
-        console.log(`Watching ${slug}`);
+        Logger.info(`Watching ${slug}`);
         pr = channel.add_pr(pr_data);
       }
       pr.update().then(channel.on_pr_updated);

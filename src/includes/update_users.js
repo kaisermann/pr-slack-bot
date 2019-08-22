@@ -2,7 +2,7 @@ require('dotenv/config');
 
 const DB = require('../api/db.js');
 const Slack = require('../api/slack.js');
-const Logger = require('../api/logger.js');
+const Logger = require('./logger.js');
 
 const { GITHUB_FIELD_ID } = require('../consts.js');
 
@@ -16,7 +16,7 @@ module.exports = async () => {
   );
   let db_user_transaction = DB.client.get('users');
 
-  console.log(`Updating users`);
+  Logger.info(`Updating users`);
   const users_promise = active_users.map(
     async ({ id, profile: { display_name } }) => {
       const user_info = await Slack.get_user_info(id);
@@ -45,6 +45,6 @@ module.exports = async () => {
 
   await Promise.all(users_promise);
 
-  console.log(`Users updated`);
+  Logger.info(`Users updated`);
   db_user_transaction.write();
 };
