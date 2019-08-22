@@ -9,7 +9,7 @@ const DB = require('./api/db.js');
 const Message = require('./message.js');
 const Lock = require('./includes/lock.js');
 
-const { EMOJIS, PR_SIZES } = require('./consts.js');
+const { EMOJIS, PR_SIZES, GITHUB_APP_URL } = require('./consts.js');
 
 const ACTIONS = Object.freeze({
   approved: 'APPROVED',
@@ -131,7 +131,7 @@ exports.create = ({
   async function delete_reply(id) {
     if (!has_reply(id)) return false;
 
-    console.log(`- Deleting reply with id: ${id}`);
+    Logger.info(`- Deleting reply with id: ${id}`);
 
     return Message.delete(replies[id])
       .then(() => {
@@ -140,7 +140,7 @@ exports.create = ({
       })
       .catch(e => {
         if (e.data.error === 'message_not_found') {
-          console.log(`- Tried to delete an already deleted message`);
+          Logger.info(`- Tried to delete an already deleted message`);
           delete replies[id];
         }
         return false;
@@ -172,13 +172,13 @@ exports.create = ({
     }
 
     try {
-      console.log(`- Updating reply: ${text}`);
+      Logger.info(`- Updating reply: ${text}`);
       replies[id] = await Message.update(saved_reply, {
         text,
         payload,
       });
     } catch (e) {
-      console.error(saved_reply.channel, saved_reply.ts, saved_reply.text, e);
+      Logger.error(e);
     }
     return true;
   }
@@ -192,7 +192,7 @@ exports.create = ({
 
     if (text === '') return false;
 
-    console.log(`- Sending reply: ${text}`);
+    Logger.info(`- Sending reply: ${text}`);
     return Message.send({
       text,
       channel,
@@ -204,7 +204,7 @@ exports.create = ({
         return true;
       })
       .catch(e => {
-        console.error(`Reply error`, text, channel, ts, e);
+        Logger.error(e);
         return false;
       });
   }
@@ -213,10 +213,9 @@ exports.create = ({
     if (!(type in reactions)) {
       return false;
     }
-
     const name = reactions[type];
 
-    console.log(`- Removing reaction of type: ${type} (${reactions[type]})`);
+    Logger.info(`- Removing reaction of type: ${type} (${reactions[type]})`);
     Logger.add_call('slack.reactions.remove');
 
     return Slack.web_client.reactions
@@ -229,10 +228,7 @@ exports.create = ({
         if (e.data.error === 'no_reaction') {
           delete reactions[type];
         }
-
-        if (process.env.NODE_ENV !== 'production') {
-          console.error(e);
-        }
+        Logger.error(e);
         return false;
       });
   }
@@ -243,7 +239,7 @@ exports.create = ({
       await remove_reaction(type);
     }
 
-    console.log(`- Adding reaction of type: ${type} (${name})`);
+    Logger.info(`- Adding reaction of type: ${type} (${name})`);
     Logger.add_call('slack.reactions.add');
 
     return Slack.web_client.reactions
@@ -256,10 +252,7 @@ exports.create = ({
         if (e.data.error === 'already_reacted') {
           reactions[type] = name;
         }
-
-        if (process.env.NODE_ENV !== 'production') {
-          console.error(e);
-        }
+        Logger.error(e);
         return false;
       });
   }
@@ -271,6 +264,17 @@ exports.create = ({
       Github.get_review_data(params),
       Github.get_files_data(params),
     ]);
+
+    const has_404ed =
+      pr_response.status === 404 ||
+      review_response.status === 404 ||
+      files_response.status === 404;
+
+    if (has_404ed) {
+      return {
+        error: { status: 404 },
+      };
+    }
 
     let pr_data = pr_response.data;
     let review_data = review_response.data;
@@ -304,12 +308,12 @@ exports.create = ({
     }
 
     if (pr_data == null || review_data == null || files_data == null) {
-      console.error(
+      Logger.log(
         pr_response.status,
         review_response.status,
         files_response.status,
       );
-      console.error(!!pr_data, !!review_data, !!files_data);
+      Logger.log(!!pr_data, !!review_data, !!files_data);
       throw new Error(`Something went wrong with ${slug} github requests.`);
     }
 
@@ -317,7 +321,18 @@ exports.create = ({
   }
 
   async function get_consolidated_state() {
-    const { pr_data, review_data, files_data } = await fetch_remote_state();
+    const {
+      error,
+      pr_data,
+      review_data,
+      files_data,
+    } = await fetch_remote_state();
+
+    if (error) {
+      return {
+        error,
+      };
+    }
 
     // review data mantains a list of reviews
     const action_lists = get_action_lists(pr_data, review_data);
@@ -457,7 +472,9 @@ exports.create = ({
   }
 
   async function update_reactions() {
-    const { size, merged, closed } = state;
+    const { error, size, merged, closed } = state;
+
+    if (error) return;
 
     const changes = {};
 
@@ -493,11 +510,22 @@ exports.create = ({
   }
 
   async function update_replies() {
-    const { head_branch, base_branch } = state;
+    const { error, head_branch, base_branch } = state;
 
-    const changes = {
-      header_message: await update_header_message(),
-    };
+    const changes = {};
+    if (error) {
+      if (error.status === 404) {
+        changes.error = await reply(
+          'error',
+          `Sorry, but I think my <${GITHUB_APP_URL}|Github App> is not installed on this repository :thinking_face:. I should be able to watch this PR after the app is installed •ᴥ•`,
+        );
+      }
+      return changes;
+    } else {
+      changes.error = await delete_reply('error');
+    }
+
+    changes.header_message = await update_header_message();
 
     changes.dirty = is_dirty()
       ? await reply(
@@ -535,7 +563,7 @@ exports.create = ({
       Logger.info(`Updating state: ${slug}`);
       await Promise.all([update_reactions(), update_replies()]);
     } catch (e) {
-      Logger.error(`Something went wrong with "${slug}":`, e);
+      Logger.error(e, `Something went wrong with "${slug}":`);
     } finally {
       update_lock.release();
     }
