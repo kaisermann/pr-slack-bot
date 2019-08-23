@@ -14,7 +14,7 @@ module.exports = async () => {
   const active_users = list_response.members.filter(
     user => user.deleted !== true,
   );
-  let db_user_transaction = DB.client.get('users');
+  let transaction = DB.users;
 
   Logger.info(`Updating users`);
   const users_promise = active_users.map(
@@ -33,7 +33,7 @@ module.exports = async () => {
         GITHUB_FIELD_ID
       ].value.replace(/(?:https:\/\/github.com\/|^@)([\w-.]*)?/, '$1');
 
-      db_user_transaction = db_user_transaction.set(id, {
+      transaction = transaction.set(id, {
         id,
         slack_user: display_name,
         github_user,
@@ -46,5 +46,5 @@ module.exports = async () => {
   await Promise.all(users_promise);
 
   Logger.info(`Users updated`);
-  db_user_transaction.write();
+  transaction.write();
 };

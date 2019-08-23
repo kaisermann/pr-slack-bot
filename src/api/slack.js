@@ -153,7 +153,7 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
           if (pretext.match(/pull request opened/i)) {
             pr_message = title_link;
 
-            const user = DB.get_user_by_github_user(author_name);
+            const user = DB.users.get_by_github_user(author_name);
             if (user) {
               poster_id = user.id;
             }

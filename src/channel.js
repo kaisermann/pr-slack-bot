@@ -10,15 +10,15 @@ const Logger = require('./includes/logger.js');
 
 exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   const forgotten_message_lock = new Lock();
-  const DB_PR_PATH = ['channels', channel_id, 'prs'];
-  const DB_MSG_PATH = ['channels', channel_id, 'messages'];
+  const DB_PR_PATH = [channel_id, 'prs'];
+  const DB_MSG_PATH = [channel_id, 'messages'];
   const get_db_message_path = type => [...DB_MSG_PATH, type].filter(Boolean);
 
   prs = prs.map(PR.create);
 
   function remove_message(message) {
     const { ts, type } = message;
-    DB.client
+    DB.channels
       .get(get_db_message_path(type), [])
       .remove({ ts })
       .write();
@@ -26,7 +26,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
   function update_message(message) {
     const { type, ts } = message;
-    DB.client
+    DB.channels
       .get(get_db_message_path(type), [])
       .find({ ts })
       .assign(message)
@@ -35,7 +35,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
   function save_message(message, limit) {
     const { type } = message;
-    let messages_of_type = DB.client
+    let messages_of_type = DB.channels
       .get(get_db_message_path(type), [])
       .push(message);
 
@@ -43,14 +43,14 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       messages_of_type = messages_of_type.takeRight(limit);
     }
 
-    return DB.client
+    return DB.channels
       .get(get_db_message_path(), [])
       .set(type, messages_of_type.value())
       .write();
   }
 
   function get_messages(type) {
-    return DB.client.get(get_db_message_path(type), []).value();
+    return DB.channels.get(get_db_message_path(type), []).value();
   }
 
   function get_active_prs() {
@@ -72,7 +72,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     const pr = PR.create(pr_data);
 
     prs.push(pr);
-    DB.client
+    DB.channels
       .get(DB_PR_PATH, [])
       .push(pr.to_json())
       .write();
@@ -100,7 +100,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     const index = prs.findIndex(({ slug }) => slug === pr.slug);
     if (index < 0) return;
 
-    DB.client
+    DB.channels
       .get(DB_PR_PATH, [])
       .find({ slug: pr.slug })
       .assign(pr.to_json())
@@ -116,7 +116,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     prs[index].invalidate_etag_signature();
     prs.splice(index, 1);
 
-    DB.client
+    DB.channels
       .get(DB_PR_PATH)
       .remove({ slug: slug })
       .write();
@@ -131,7 +131,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     prs.splice(index, 1);
 
-    return DB.client
+    return DB.channels
       .get(DB_PR_PATH)
       .remove({ ts: deleted_ts })
       .write();
