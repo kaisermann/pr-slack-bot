@@ -22,7 +22,7 @@ exports.EMOJIS = {
 
 exports.GITHUB_APP_URL = 'https://github.com/apps/paul-robotson-pr-bot';
 exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
-exports.FORGOTTEN_PR_HOUR_THRESHOLD = 24;
+exports.FORGOTTEN_PR_HOUR_THRESHOLD = 0;
 exports.PR_SIZES = [
   ['small', 80],
   ['medium', 250],

@@ -399,7 +399,7 @@ exports.create = ({
           : [],
       )
       .map(({ github_user, action }) => {
-        const user = DB.get_user_by_github_user(github_user);
+        const user = DB.users.get_by_github_user(github_user);
         if (user) {
           return { ...user, action };
         }

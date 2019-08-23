@@ -6,3 +6,4 @@ daemon.*
 db.json
 data.json
 installations.json
+db/

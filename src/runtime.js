@@ -2,12 +2,13 @@ const DB = require('./api/db.js');
 const Slack = require('./api/slack.js');
 const Channel = require('./channel.js');
 
-const [users_data, channels_data] = [DB.get_users(), DB.get_channels()];
-const channels = Object.values(channels_data).map(Channel.create);
-const users = users_data;
+const channels = DB.channels
+  .values()
+  .value()
+  .map(Channel.create);
+const users = DB.users.value();
 
 module.exports = {
-  init() {},
   get_channel(id) {
     return channels.find(channel => channel.id === id);
   },
@@ -22,10 +23,7 @@ module.exports = {
     const channel = Channel.create(channel_data);
 
     channels.push(channel);
-    DB.client
-      .get('channels')
-      .set(id, channel_data)
-      .write();
+    DB.channels.set(id, channel_data).write();
     return channel;
   },
   async get_or_create_channel(id) {
