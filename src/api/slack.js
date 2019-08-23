@@ -167,16 +167,16 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
       if (!matches || matches.length > 1) return;
 
       const match = pr_message.match(PR_REGEX);
-      const [, owner, repo, pr_id] = match;
+      const [, owner, repo_name, number] = match;
 
       on_new_message({
         poster_id,
-        slug: `${owner}/${repo}/${pr_id}`,
+        slug: `${owner}/${repo_name}/${number}`,
         owner,
-        repo,
-        pr_id,
+        repo_name,
+        number,
         ts,
-        channel,
+        channel_id: channel,
       });
     } catch (error) {
       Logger.error(error);

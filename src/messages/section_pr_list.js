@@ -7,7 +7,7 @@ module.exports = async prs => {
     await Promise.all(
       prs.map(async pr => [
         pr.slug,
-        await pr.get_message_link(pr => `${pr.repo}/${pr.pr_id}`),
+        await pr.get_message_link(pr => `${pr.repo}/${pr.number}`),
       ]),
     ),
   );

@@ -1,33 +1,28 @@
 const DB = require('./api/db.js');
-const Slack = require('./api/slack.js');
-const Channel = require('./channel.js');
 
-const channels = DB.channels
-  .values()
-  .value()
-  .map(Channel.create);
-const users = DB.users.value();
+let channels;
+let users;
+let repos;
 
 module.exports = {
+  async init(fn) {
+    ({ channels, users, repos } = await fn());
+  },
+  get_repo(full_name) {
+    return repos[full_name];
+  },
+  add_repo(repo) {
+    repos[repo.full_name] = repo;
+    DB.repos.set(repo.full_name, repo.to_json()).write();
+    return repo;
+  },
   get_channel(id) {
-    return channels.find(channel => channel.id === id);
+    return channels[id];
   },
-  async create_channel(id) {
-    const channel_info = await Slack.get_channel_info(id);
-    const channel_data = {
-      channel_id: id,
-      name: channel_info.name,
-      prs: [],
-      messages: {},
-    };
-    const channel = Channel.create(channel_data);
-
-    channels.push(channel);
-    DB.channels.set(id, channel_data).write();
+  async add_channel(channel) {
+    channels[channel.id] = channel;
+    DB.channels.set(channel.id, channel.to_json()).write();
     return channel;
-  },
-  async get_or_create_channel(id) {
-    return this.get_channel(id) || this.create_channel(id);
   },
   get channels() {
     return channels;
@@ -35,7 +30,20 @@ module.exports = {
   get users() {
     return users;
   },
+  get repos() {
+    return repos;
+  },
   get prs() {
-    return channels.flatMap(channel => channel.prs);
+    return repos.flatMap(repo => Object.values(repo.prs));
+  },
+  get_pr(slug) {
+    const [owner, name, number] = slug.split('/');
+    const repo = this.get_repo(`${owner}/${name}`);
+
+    if (!repo) return null;
+    const pr = repo.get_pr(number);
+
+    if (!pr) return null;
+    return pr;
   },
 };

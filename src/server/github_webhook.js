@@ -1,18 +1,6 @@
-const R = require('ramda');
 const db = require('../api/db.js');
 const runtime = require('../runtime.js');
 const Logger = require('../includes/logger.js');
-
-const update_prs = async prs => {
-  if (prs.length === 0) return;
-
-  return Promise.all(
-    prs.map(async pr => {
-      const channel = runtime.get_channel(pr.channel);
-      return pr.update().then(channel.on_pr_updated);
-    }),
-  );
-};
 
 function on_installation({ req }) {
   const {
@@ -26,15 +14,13 @@ function on_installation({ req }) {
   }
 
   if (added) {
-    added.forEach(repo =>
-      db.installations.set_id(repo.full_name, installation.id),
-    );
-    const added_map = R.groupBy(R.prop('full_name'), added);
-    const related_prs = runtime.prs.filter(
-      pr => `${pr.owner}/${pr.repo}` in added_map,
-    );
+    added.forEach(repository => {
+      db.installations.set_id(repository.full_name, installation.id);
 
-    return update_prs(related_prs);
+      const repo = runtime.get_repo(repository.full_name);
+      if (!repo) return;
+      repo.update_prs();
+    });
   }
   return;
 }
@@ -50,37 +36,37 @@ async function on_pull_request_change({ event, req }) {
     throw `Couldn't find a Pull Request for "${event}/${action}"`;
   }
 
-  const pr_slug = `${repository.full_name}/${pull_request.number}`;
-  Logger.success(`Triggered "${event}/${action}" on "${pr_slug}"`);
+  const repo = runtime.get_repo(repository.full_name);
+  if (repo == null) return;
 
-  const pr = runtime.prs.find(pr => pr.slug === pr_slug);
+  const pr = repo.get_pr(pull_request.number);
   if (pr == null) return;
 
-  const channel = runtime.get_channel(pr.channel);
-  return pr.update().then(channel.on_pr_updated);
+  Logger.success(
+    `Triggered "${event}/${action}" on " ${repository.full_name}/${pull_request.number}"`,
+  );
+
+  pr.update();
 }
 
 async function on_push({ req }) {
   const { ref, repository } = req.body;
   const branch = ref.split('/').pop();
 
-  const related_prs = runtime.prs.filter(
-    pr =>
-      pr.repo === repository.name &&
-      pr.owner === repository.owner.name &&
-      pr.state.base_branch === branch,
-  );
+  const repo = runtime.get_repo(repository.full_name);
+  if (repo == null) return;
+
+  const related_prs = repo.find_prs(pr => pr.state.base_branch === branch);
 
   if (related_prs.length) {
     Logger.success(
       `Triggered "push" on "${repository.owner.name}/${
         repository.name
-      }": ${related_prs.map(pr => pr.pr_id).join(', ')}`,
+      }": ${related_prs.map(pr => pr.number).join(', ')}`,
     );
   }
 
-  // intentional delay to try to wait for github background mergeability calculation
-  setTimeout(() => update_prs(related_prs), 800);
+  setTimeout(() => related_prs.map(pr => pr.update()), 800);
 }
 
 exports.parse_github_webhook = async (req, res) => {

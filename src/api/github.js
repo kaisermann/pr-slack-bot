@@ -99,7 +99,12 @@ const gh_request = async (url, options) => {
   }
 };
 
-exports.get_pr_data = ({ owner, repo, pr_id: pull_number, etag_signature }) => {
+exports.get_pr_data = ({
+  owner,
+  repo,
+  number: pull_number,
+  etag_signature,
+}) => {
   return gh_request('GET /repos/:owner/:repo/pulls/:pull_number', {
     owner,
     repo,
@@ -116,7 +121,7 @@ exports.get_pr_data = ({ owner, repo, pr_id: pull_number, etag_signature }) => {
 exports.get_review_data = ({
   owner,
   repo,
-  pr_id: pull_number,
+  number: pull_number,
   etag_signature,
 }) => {
   return gh_request('GET /repos/:owner/:repo/pulls/:pull_number/reviews', {
@@ -135,7 +140,7 @@ exports.get_review_data = ({
 exports.get_files_data = ({
   owner,
   repo,
-  pr_id: pull_number,
+  number: pull_number,
   etag_signature,
 }) => {
   return gh_request('GET /repos/:owner/:repo/pulls/:pull_number/files', {

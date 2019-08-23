@@ -4,9 +4,12 @@ const is_equal = require('fast-deep-equal');
 
 const Github = require('./api/github.js');
 const Slack = require('./api/slack.js');
-const Logger = require('./includes/logger.js');
 const DB = require('./api/db.js');
+
 const Message = require('./message.js');
+const runtime = require('./runtime.js');
+
+const Logger = require('./includes/logger.js');
 const Lock = require('./includes/lock.js');
 const debounce = require('./includes/debounce.js');
 
@@ -96,13 +99,13 @@ function get_action_lists(pr_data, review_data) {
   )(review_data);
 }
 
-exports.create = ({
+exports.factory = ({
   poster_id,
   slug,
   owner,
   repo,
-  pr_id,
-  channel,
+  number,
+  channel_id,
   ts,
   state = {},
   replies = {},
@@ -111,7 +114,8 @@ exports.create = ({
   let self;
   let _cached_remote_state = {};
   let _cached_url = null;
-  const etag_signature = [owner, repo, pr_id];
+  const repo_full_name = `${owner}/${repo}`;
+  const etag_signature = [owner, repo, number];
   const update_lock = new Lock();
 
   function invalidate_etag_signature() {
@@ -120,7 +124,7 @@ exports.create = ({
 
   async function get_message_url() {
     if (_cached_url == null) {
-      _cached_url = await Slack.get_message_url(channel, ts);
+      _cached_url = await Slack.get_message_url(channel_id, ts);
     }
     return _cached_url;
   }
@@ -196,7 +200,7 @@ exports.create = ({
     Logger.info(`- Sending reply: ${text}`);
     return Message.send({
       text,
-      channel,
+      channel: channel_id,
       thread_ts: ts,
       payload,
     })
@@ -220,7 +224,7 @@ exports.create = ({
     Logger.add_call('slack.reactions.remove');
 
     return Slack.web_client.reactions
-      .remove({ name, timestamp: ts, channel })
+      .remove({ name, timestamp: ts, channel: channel_id })
       .then(() => {
         delete reactions[type];
         return true;
@@ -244,7 +248,7 @@ exports.create = ({
     Logger.add_call('slack.reactions.add');
 
     return Slack.web_client.reactions
-      .add({ name, timestamp: ts, channel })
+      .add({ name, timestamp: ts, channel: channel_id })
       .then(() => {
         reactions[type] = name;
         return true;
@@ -259,7 +263,7 @@ exports.create = ({
   }
 
   async function fetch_remote_state() {
-    const params = { owner, repo, pr_id, etag_signature };
+    const params = { owner, repo, number, etag_signature };
 
     const responses = await Promise.all([
       // we make a promise that only resolves when a PR mergeability is known
@@ -609,6 +613,12 @@ exports.create = ({
       state = await get_consolidated_state();
       Logger.info(`Updated state: ${slug}`);
       await Promise.all([update_reactions(), update_replies()]);
+
+      const repo = runtime.get_repo(repo_full_name);
+      const channel = runtime.get_channel(channel_id);
+
+      await channel.after_pr_update(self);
+      await repo.after_pr_update(self);
     } catch (e) {
       Logger.error(e, `Something went wrong with "${slug}":`);
     } finally {
@@ -624,8 +634,8 @@ exports.create = ({
       slug,
       owner,
       repo,
-      pr_id,
-      channel,
+      number,
+      channel_id,
       ts,
       replies,
       reactions,
@@ -639,9 +649,13 @@ exports.create = ({
     slug,
     owner,
     repo,
-    pr_id,
-    channel,
-    ts,
+    number,
+    get channel_id() {
+      return channel_id;
+    },
+    get ts() {
+      return ts;
+    },
     get state() {
       return state;
     },
@@ -652,6 +666,12 @@ exports.create = ({
       return ~~(this.minutes_since_post / 60);
     },
     // methods
+    change_thread_ts(new_channel, new_ts) {
+      channel_id = new_channel;
+      ts = new_ts;
+      replies = {};
+      reactions = {};
+    },
     // we debounce the update method so many consecutive updates fire just once
     update: debounce(update, 400),
     get_message_url,

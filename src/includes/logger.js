@@ -15,7 +15,7 @@ module.exports = {
   log: (...args) => log(...args),
   info: (...args) => log(cyan(args.join(' '))),
   warn: (...args) => log(yellow(args.join(' '))),
-  error: (err, msg) => error(`${red(`${msg}\n${err.stack}`)}`),
+  error: (err, msg = '') => error(`${red(`${msg}\n${err ? err.stack : ''}`)}`),
   success: (...args) => log(greenBright(args.join(' '))),
   add_call: method => {
     // calls[method] = (calls[method] || 0) + 1;

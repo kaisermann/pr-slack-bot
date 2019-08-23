@@ -1,20 +1,29 @@
 const R = require('ramda');
 
+const Slack = require('./api/slack.js');
 const DB = require('./api/db.js');
+
 const { EMOJIS, FORGOTTEN_PR_HOUR_THRESHOLD } = require('./consts.js');
 const Message = require('./message.js');
-const PR = require('./pr.js');
+const runtime = require('./runtime.js');
+
 const format_section_list = require('./messages/section_pr_list.js');
+
 const Lock = require('./includes/lock.js');
 const Logger = require('./includes/logger.js');
 
-exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
+exports.factory = ({
+  channel_id,
+  name: channel_name,
+  prs: prs_slug = [],
+  messages,
+}) => {
   const forgotten_message_lock = new Lock();
   const DB_PR_PATH = [channel_id, 'prs'];
   const DB_MSG_PATH = [channel_id, 'messages'];
   const get_db_message_path = type => [...DB_MSG_PATH, type].filter(Boolean);
 
-  prs = prs.map(PR.create);
+  prs_slug = new Set(prs_slug);
 
   function remove_message(message) {
     const { ts, type } = message;
@@ -53,103 +62,21 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     return DB.channels.get(get_db_message_path(type), []).value();
   }
 
-  function get_active_prs() {
-    return prs.filter(pr => pr.is_active());
+  function add_pr(pr) {
+    prs_slug.add(pr.slug);
+    DB.channels.set(DB_PR_PATH, [...prs_slug]).write();
   }
 
-  function update() {
-    Logger.info(`# ${channel_name} ${channel_id} - Initializing PRs`);
-    return Promise.all(
-      get_active_prs().map(async pr => pr.update().then(on_pr_updated)),
-    );
+  function remove_pr(pr) {
+    prs_slug.delete(pr.slug);
+    DB.channels.set(DB_PR_PATH, [...prs_slug]).write();
   }
 
-  function has_pr(slug) {
-    return prs.find(pr => pr.slug === slug);
-  }
-
-  function add_pr(pr_data) {
-    const pr = PR.create(pr_data);
-
-    prs.push(pr);
-    DB.channels
-      .get(DB_PR_PATH, [])
-      .push(pr.to_json())
-      .write();
-
-    return pr;
-  }
-
-  function replace_pr(slug, pr_data) {
-    const index = prs.findIndex(pr => pr.slug === slug);
-
-    if (index < 0) return null;
-
-    prs[index].invalidate_etag_signature();
-    prs[index] = PR.create(
-      Object.assign(prs[index].to_json(), pr_data, {
-        reactions: {},
-        replies: {},
-      }),
-    );
-
-    return save_pr(prs[index]);
-  }
-
-  function save_pr(pr) {
-    const index = prs.findIndex(({ slug }) => slug === pr.slug);
-    if (index < 0) return;
-
-    DB.channels
-      .get(DB_PR_PATH, [])
-      .find({ slug: pr.slug })
-      .assign(pr.to_json())
-      .write();
-
-    return pr;
-  }
-
-  function remove_pr({ slug }) {
-    const index = prs.findIndex(pr => pr.slug === slug);
-    if (index < 0) return;
-
-    prs[index].invalidate_etag_signature();
-    prs.splice(index, 1);
-
-    DB.channels
-      .get(DB_PR_PATH)
-      .remove({ slug: slug })
-      .write();
-  }
-
-  async function remove_pr_by_timestamp(deleted_ts) {
-    const index = prs.findIndex(({ ts }) => ts === deleted_ts);
-    if (index < 0) return;
-
-    prs[index].invalidate_etag_signature();
-    await prs[index].delete_replies();
-
-    prs.splice(index, 1);
-
-    return DB.channels
-      .get(DB_PR_PATH)
-      .remove({ ts: deleted_ts })
-      .write();
-  }
-
-  async function on_pr_updated(pr) {
-    if (!pr.is_active()) return;
-
-    const is_resolved = pr.state.merged || pr.state.closed;
-    if (is_resolved) {
-      await on_pr_resolved(pr);
-      remove_pr(pr);
-    } else {
-      save_pr(pr);
+  async function after_pr_update(pr) {
+    if (!pr.is_resolved()) {
+      return;
     }
-  }
 
-  async function on_pr_resolved(pr) {
     await forgotten_message_lock.acquire();
 
     const forgotten_messages = get_messages('forgotten_prs').filter(
@@ -169,7 +96,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
         : EMOJIS.unknown;
 
       const new_text = text.replace(
-        new RegExp(`^(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm'),
+        new RegExp(`^(<.*${pr.repo}/${pr.number}>.*$)`, 'm'),
         `:${state_emoji}: ~$1~`,
       );
 
@@ -187,10 +114,16 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       }
     }
     await forgotten_message_lock.release();
+
+    remove_pr(pr);
+  }
+
+  function get_prs() {
+    return [...prs_slug].map(slug => runtime.get_pr(slug));
   }
 
   async function check_forgotten_prs() {
-    const forgotten_prs = prs.filter(pr =>
+    const forgotten_prs = get_prs().filter(pr =>
       pr.needs_attention(FORGOTTEN_PR_HOUR_THRESHOLD),
     );
 
@@ -200,7 +133,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       await Promise.all(
         forgotten_prs.map(async pr => [
           pr.slug,
-          await pr.get_message_link(pr => `${pr.repo}/${pr.pr_id}`),
+          await pr.get_message_link(pr => `${pr.repo}/${pr.number}`),
         ]),
       ),
     );
@@ -241,6 +174,15 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     save_message(message, 2);
   }
 
+  function to_json() {
+    return {
+      channel_id,
+      name: channel_name,
+      prs: [...prs_slug],
+      messages,
+    };
+  }
+
   return Object.freeze({
     // props
     id: channel_id,
@@ -249,17 +191,25 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       return messages;
     },
     get prs() {
-      return prs;
+      return prs_slug;
     },
     // methods
-    update,
-    has_pr,
+    to_json,
     add_pr,
-    save_pr,
     remove_pr,
-    remove_pr_by_timestamp,
-    replace_pr,
-    on_pr_updated,
+    get_prs,
     check_forgotten_prs,
+    after_pr_update,
+  });
+};
+
+exports.create_new = async channel_id => {
+  const channel_info = await Slack.get_channel_info(channel_id);
+
+  return exports.factory({
+    channel_id,
+    name: channel_info.name,
+    prs: [],
+    messages: {},
   });
 };
