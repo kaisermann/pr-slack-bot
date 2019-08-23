@@ -273,20 +273,22 @@ exports.create = ({
             data = response.data;
             status = response.status;
 
-            if (status !== 200 && status !== 304) {
-              break;
-            }
+            if (status === 200 || status === 304) {
+              if (status === 304) {
+                data = _cached_remote_state.pr_data;
+              } else {
+                _cached_remote_state.pr_data = data;
+              }
 
-            if (status === 304) {
-              data = _cached_remote_state.pr_data;
-            } else {
-              _cached_remote_state.pr_data = data;
+              known_mergeable_state = data.merged || data.mergeable != null;
+            } else if (status === 502) {
+              known_mergeable_state = false;
             }
-
-            known_mergeable_state = data.merged || data.mergeable != null;
 
             if (known_mergeable_state === false) {
-              Logger.warn(`Unknown mergeable state for ${slug}. Retrying...`);
+              Logger.warn(
+                `[${status}] Unknown mergeable state for ${slug}. Retrying...`,
+              );
               await new Promise(r => setTimeout(r, 500));
             }
           } while (known_mergeable_state === false);
