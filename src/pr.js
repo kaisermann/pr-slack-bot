@@ -663,8 +663,9 @@ exports.create = ({
     is_unstable,
     is_resolved,
     is_active,
-    needs_attention: hours =>
-      is_active() && this.minutes_since_post >= 60 * hours,
+    needs_attention(hours) {
+      return is_active() && this.minutes_since_post >= 60 * hours;
+    },
     invalidate_etag_signature,
     to_json,
   });
