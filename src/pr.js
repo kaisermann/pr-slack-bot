@@ -283,6 +283,8 @@ exports.create = ({
               known_mergeable_state = data.merged || data.mergeable != null;
             } else if (status === 502) {
               known_mergeable_state = false;
+            } else {
+              break;
             }
 
             if (known_mergeable_state === false) {
