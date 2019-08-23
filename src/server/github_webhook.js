@@ -84,6 +84,7 @@ async function on_push({ req }) {
 
 exports.parse_github_webhook = async (req, res) => {
   const event = req.headers['x-github-event'];
+  const { action } = req.body;
 
   res.statusCode = 200;
   res.end('ok');
@@ -95,6 +96,7 @@ exports.parse_github_webhook = async (req, res) => {
   if (
     event === 'pull_request' ||
     event === 'pull_request_review' ||
+    event === 'pull_request_review_comment' ||
     event === 'check_suite'
   ) {
     return on_pull_request_change({ event, req, res });
@@ -105,6 +107,6 @@ exports.parse_github_webhook = async (req, res) => {
   }
 
   // if (process.env.NODE_ENV !== 'production') {
-  Logger.warn(`Ignoring event: "${event}/${req.body.action}"`);
+  Logger.warn(`Ignoring event: "${event}/${action}"`);
   // }
 };
