@@ -2,21 +2,12 @@
 
 ## TODO
 
-- [ ] mensagem de deletar branch
-- [ ] verificar changelog (?)
-- [ ] marcar na thread quem tiver marcado como reviewer em pr listado ou marcar o dono do post se tiver com 2 approvals
-- [x] ignorar mudanças em yarn.lock (?)
-- [x] marcar check de approval
-- [x] mandar mensagem de prs prontos pra serem mergeados em thread
-- [x] nao listar prs draft
-- [x] ao deletar mensagem do pr, deletar os replies do bot
-- [x] marcar todo mundo que mandou os prs na thread de prs esquecidos
-- [x] mensagem big pr
-- [x] editar mensagens de pr esquecidos
-- [x] editar mensagem pr
-- [x] ignorar usuarios desativados do slack
+- [ ] update readme
+- [ ] separate prs ƒrom channels to it's possible to have a pr in multiple channels
 
 ## How does it work?
+
+> TODO: Update
 
 For now, the bot works by pooling the Github API in a 10 seconds interval between each check cycle. For each PR, it makes 3 requests: one for general PR data, one for review data and the last for files data.
 
