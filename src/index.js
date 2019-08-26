@@ -30,14 +30,14 @@ async function boot() {
   Slack.on_pr_message(
     // on new pr message
     async pr_data => {
-      const { slug, channel: channel_id } = pr_data;
+      const { slug, channel: channel_id, ts } = pr_data;
 
       const channel = await runtime.get_or_create_channel(channel_id);
 
-      let pr;
-      if (channel.has_pr(slug)) {
+      let pr = channel.has_pr(slug);
+      if (pr) {
         Logger.success(`Overwriting PR message: ${slug}`);
-        pr = channel.replace_pr(pr_data.slug, pr_data);
+        pr.change_thread_ts(channel_id, ts);
       } else {
         Logger.success(`Watching ${slug}`);
         pr = channel.add_pr(pr_data);

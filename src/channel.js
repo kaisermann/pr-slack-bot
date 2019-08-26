@@ -80,22 +80,6 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     return pr;
   }
 
-  function replace_pr(slug, pr_data) {
-    const index = prs.findIndex(pr => pr.slug === slug);
-
-    if (index < 0) return null;
-
-    prs[index].invalidate_etag_signature();
-    prs[index] = PR.create(
-      Object.assign(prs[index].to_json(), pr_data, {
-        reactions: {},
-        replies: {},
-      }),
-    );
-
-    return save_pr(prs[index]);
-  }
-
   function save_pr(pr) {
     const index = prs.findIndex(({ slug }) => slug === pr.slug);
     if (index < 0) return;
@@ -258,7 +242,6 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     save_pr,
     remove_pr,
     remove_pr_by_timestamp,
-    replace_pr,
     on_pr_updated,
     check_forgotten_prs,
   });
