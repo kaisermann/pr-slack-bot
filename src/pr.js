@@ -291,7 +291,7 @@ exports.create = ({
               Logger.warn(
                 `[${status}] Unknown mergeable state for ${slug}. Retrying...`,
               );
-              await new Promise(r => setTimeout(r, 500));
+              await new Promise(r => setTimeout(r, 800));
             }
           } while (known_mergeable_state === false);
 

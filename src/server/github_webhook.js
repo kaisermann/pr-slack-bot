@@ -79,7 +79,8 @@ async function on_push({ req }) {
     );
   }
 
-  return update_prs(related_prs);
+  // intentional delay to try to wait for github background mergeability calculation
+  setTimeout(() => update_prs(related_prs), 800);
 }
 
 exports.parse_github_webhook = async (req, res) => {
