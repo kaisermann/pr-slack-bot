@@ -53,11 +53,13 @@ async function on_pull_request_change({ event, req }) {
   const pr_slug = `${repository.full_name}/${pull_request.number}`;
   Logger.success(`Triggered "${event}/${action}" on "${pr_slug}"`);
 
-  const pr = runtime.prs.find(pr => pr.slug === pr_slug);
-  if (pr == null) return;
+  const prs = runtime.prs.filter(pr => pr.slug === pr_slug);
+  if (prs.length === 0) return;
 
-  const channel = runtime.get_channel(pr.channel);
-  return pr.update().then(channel.on_pr_updated);
+  prs.forEach(pr => {
+    const channel = runtime.get_channel(pr.channel);
+    return pr.update().then(channel.on_pr_updated);
+  });
 }
 
 async function on_push({ req }) {

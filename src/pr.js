@@ -111,7 +111,7 @@ exports.create = ({
   let self;
   let _cached_remote_state = {};
   let _cached_url = null;
-  const etag_signature = [owner, repo, pr_id];
+  const etag_signature = [channel, owner, repo, pr_id];
   const update_lock = new Lock();
 
   function invalidate_etag_signature() {
