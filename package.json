@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "cross-env node daemon.js",
     "start": "cross-env NODE_ENV=production node daemon.js",
-    "start:forever": "cross-env NODE_ENV=production forever -o daemon.out -e daemon.err start daemon.js",
-    "restart": "forever stop daemon.js && npm run start",
+    "forever:start": "cross-env NODE_ENV=production forever start daemon.js -f",
+    "forever:stop": "forever stop daemon.js",
+    "forever:restart": "npm run forever:stop && npm run forever:start",
     "test": "jest --no-cache",
     "test:watch": "jest --no-cache --watchAll",
     "lint": "eslint \"src/**/*.js\"",
