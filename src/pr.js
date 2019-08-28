@@ -535,7 +535,7 @@ exports.create = ({
       : await remove_reaction('pending_review');
 
     changes.unstable_or_dirty =
-      is_unstable() || is_dirty()
+      is_dirty()
         ? await add_reaction('unstable_or_dirty', EMOJIS.unstable_or_dirty)
         : await remove_reaction('unstable_or_dirty');
 
