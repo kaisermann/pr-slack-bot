@@ -54,7 +54,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   }
 
   function get_active_prs() {
-    return prs.filter(pr => pr.is_active());
+    return prs.filter(pr => pr.state.error == null && pr.is_active());
   }
 
   function update() {
@@ -174,7 +174,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   }
 
   async function check_forgotten_prs() {
-    const forgotten_prs = prs.filter(pr =>
+    const forgotten_prs = get_active_prs().filter(pr =>
       pr.needs_attention(FORGOTTEN_PR_HOUR_THRESHOLD),
     );
 

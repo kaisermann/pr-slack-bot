@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "cross-env node daemon.js",
     "start": "cross-env NODE_ENV=production node daemon.js",
-    "forever:start": "cross-env NODE_ENV=production forever start daemon.js -f",
+    "forever:start": "cross-env NODE_ENV=production forever daemon.js -f",
     "forever:stop": "forever stop daemon.js",
     "forever:restart": "npm run forever:stop && npm run forever:start",
     "test": "jest --no-cache",

@@ -3,6 +3,7 @@ const cron = require('node-cron');
 
 const Slack = require('./api/slack.js');
 const check_forgotten_prs = require('./includes/check_forgotten_prs.js');
+const check_error_prs = require('./includes/check_error_prs.js');
 const update_users = require('./includes/update_users.js');
 const runtime = require('./runtime.js');
 const server = require('./server/index.js');
@@ -26,6 +27,9 @@ async function boot() {
   // update user list every midnight
   // update_users();
   cron.schedule('0 0 * * 1-5', update_users, CRON_OPTS);
+
+  // delete prs with errors
+  cron.schedule('0 0 * * 1-5', check_error_prs, CRON_OPTS);
 
   Slack.on_pr_message(
     // on new pr message
