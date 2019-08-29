@@ -1,15 +1,6 @@
-# Pull Request Slack Bot
+# Open Source Pull Request Slack Bot
 
-## TODO
-
-- [ ] update readme
-- [ ] separate prs ƒrom channels to it's possible to have a pr in multiple channels
-
-## How does it work?
-
-> TODO: Update
-
-For now, the bot works by pooling the Github API in a 10 seconds interval between each check cycle. For each PR, it makes 3 requests: one for general PR data, one for review data and the last for files data.
+> a.k.a **Paul Robotson**
 
 ## Features
 
@@ -17,7 +8,12 @@ For now, the bot works by pooling the Github API in a 10 seconds interval betwee
 
 ## Configuring
 
-> TODO
+To make your own Paul Robotson watch your teams PRs, you will need two things: a `Github App` and `Slack App`.
+
+### Github App
+
+Paul authenticates with github as an app instead of using a user token. This allows to easily add
+
 
 ## Developing
 
