@@ -280,7 +280,10 @@ exports.create = ({
                 _cached_remote_state.pr_data = data;
               }
 
-              known_mergeable_state = data.merged || data.mergeable != null;
+              known_mergeable_state =
+                data.state === 'closed' ||
+                data.merged ||
+                data.mergeable != null;
             } else if (status === 502) {
               known_mergeable_state = false;
             } else {
@@ -534,10 +537,9 @@ exports.create = ({
       ? await add_reaction('pending_review', EMOJIS.pending_review)
       : await remove_reaction('pending_review');
 
-    changes.unstable_or_dirty =
-      is_dirty()
-        ? await add_reaction('unstable_or_dirty', EMOJIS.unstable_or_dirty)
-        : await remove_reaction('unstable_or_dirty');
+    changes.unstable_or_dirty = is_dirty()
+      ? await add_reaction('unstable_or_dirty', EMOJIS.unstable_or_dirty)
+      : await remove_reaction('unstable_or_dirty');
 
     changes.merged = merged
       ? await add_reaction('merged', EMOJIS.merged)
