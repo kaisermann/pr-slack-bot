@@ -4,7 +4,7 @@ const DB = require('./api/db.js');
 const { EMOJIS, FORGOTTEN_PR_HOUR_THRESHOLD } = require('./consts.js');
 const Message = require('./message.js');
 const PR = require('./pr.js');
-const format_section_list = require('./messages/section_pr_list.js');
+const get_sectioned_pr_blocks = require('./messages/section_pr_list.js');
 const Lock = require('./includes/lock.js');
 const Logger = require('./includes/logger.js');
 
@@ -129,7 +129,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   async function on_pr_updated(pr) {
     if (!pr.is_active()) return;
 
-    const is_resolved = pr.state.merged || pr.state.closed;
+    const is_resolved = pr.is_resolved();
     if (is_resolved) {
       await on_pr_resolved(pr);
       remove_pr(pr);
@@ -149,24 +149,30 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       Logger.info(`- Updating forgotten PR message: ${pr.slug}`);
     }
 
+    const pr_pattern = new RegExp(`^(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm');
+    const state_emoji = pr.state.merged
+      ? EMOJIS.merged
+      : pr.state.closed
+      ? EMOJIS.closed
+      : EMOJIS.unknown;
+
     for await (const message of forgotten_messages) {
-      const { text } = message;
-      const state_emoji = pr.state.merged
-        ? EMOJIS.merged
-        : pr.state.closed
-        ? EMOJIS.closed
-        : EMOJIS.unknown;
-
-      const new_text = text.replace(
-        new RegExp(`^(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm'),
-        `:${state_emoji}: ~$1~`,
-      );
-
-      if (text === new_text) return;
-
-      const updated_message = await Message.update(message, {
-        text: new_text,
-        payload: message.payload.filter(slug => pr.slug !== slug),
+      const updated_message = await Message.update(message, message => {
+        message.blocks = message.blocks.map(block => {
+          if (typeof block.text === 'string') {
+            block.text = block.text.replace(
+              pr_pattern,
+              `:${state_emoji}: ~$1~`,
+            );
+          } else if (block.text && block.text.type === 'mrkdwn') {
+            block.text.text = block.text.text.replace(
+              pr_pattern,
+              `:${state_emoji}: ~$1~`,
+            );
+          }
+          return block;
+        });
+        message.payload = message.payload.filter(slug => pr.slug !== slug);
       });
 
       if (updated_message.payload.length === 0) {
@@ -194,17 +200,19 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       ),
     );
 
-    const sections_text = await format_section_list(forgotten_prs);
-
     const now_date = new Date(Date.now());
     const time_of_day = now_date.getHours() < 12 ? 'morning' : 'afternoon';
 
-    const forgotten_text = `Good ${time_of_day}! :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago in need of some love and attention:\n\n${sections_text}`;
+    const blocks = [
+      Message.blocks.create_markdown_section(
+        `Good ${time_of_day}! :wave: Paul Robertson here!\nThere are some PRs posted more than 24 hours ago in need of some love and attention:`,
+      ),
+    ].concat(await get_sectioned_pr_blocks(forgotten_prs));
 
     const message = await Message.send({
       type: 'forgotten_prs',
       channel: channel_id,
-      text: forgotten_text,
+      blocks,
       payload: forgotten_prs.map(pr => pr.slug),
       replies: {},
     });

@@ -174,9 +174,9 @@ exports.create = ({
 
     try {
       Logger.info(`- Updating reply: ${text}`);
-      replies[id] = await Message.update(saved_reply, {
-        text,
-        payload,
+      replies[id] = await Message.update(saved_reply, message => {
+        message.text = text;
+        message.payload = payload;
       });
     } catch (e) {
       Logger.error(e);

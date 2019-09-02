@@ -1,5 +1,6 @@
 const R = require('ramda');
 
+const Message = require('../message.js');
 const { EMOJIS } = require('../consts.js');
 
 module.exports = async prs => {
@@ -49,17 +50,15 @@ module.exports = async prs => {
     },
   );
 
-  return R.pipe(
-    R.values,
-    R.filter(section => section.list.length),
-    R.map(
-      ({ title, list }) =>
+  return Object.values(sections)
+    .filter(section => section.list.length)
+    .map(({ title, list }) =>
+      Message.blocks.create_markdown_section(
         `*${title}*:\n${list
           .map(
             pr => `${link_map[pr.slug]} _(${pr.hours_since_post} hours ago)_`,
           )
           .join('\n')}`,
-    ),
-    R.join('\n\n'),
-  )(sections);
+      ),
+    );
 };

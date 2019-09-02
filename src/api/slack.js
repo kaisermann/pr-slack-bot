@@ -186,12 +186,13 @@ exports.on_pr_message = async (on_new_message, on_message_deleted) => {
   await RTM.start();
 };
 
-exports.send_message = (text, channel, thread_ts) => {
+exports.send_message = ({ text, blocks, channel, thread_ts }) => {
   return balancer.request(
     () => {
       Logger.add_call('slack.chat.postMessage');
       return web_client.chat.postMessage({
         text,
+        blocks,
         channel,
         thread_ts,
         unfurl_links: false,
@@ -205,12 +206,13 @@ exports.send_message = (text, channel, thread_ts) => {
   );
 };
 
-exports.update_message = ({ channel, ts }, newText) => {
+exports.update_message = ({ channel, ts, text, blocks }) => {
   return balancer.request(
     () => {
       Logger.add_call('slack.chat.update');
       return web_client.chat.update({
-        text: newText,
+        text,
+        blocks,
         channel,
         ts,
         unfurl_links: false,

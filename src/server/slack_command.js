@@ -1,3 +1,5 @@
+const send = require('@polka/send-type');
+
 exports.parse_slack_command = async (req, res) => {
   const { text, channel_id, response_url, user_id } = req.body;
   const [command, ...params] = text.split(' ');
@@ -22,11 +24,17 @@ exports.parse_slack_command = async (req, res) => {
     command,
     params: params.join(' '),
   };
-  let response;
+  let response_data;
   try {
-    response = await require(`./commands/${command}.js`)(command_obj);
+    response_data = await require(`./commands/${command}.js`)(command_obj);
+    if (typeof response_data !== 'string') {
+      response_data = {
+        blocks: response_data,
+      };
+    }
   } catch (e) {
-    response = `No command \`${text}\``;
+    response_data = `No command \`${text}\``;
   }
-  res.end(response);
+
+  send(res, 200, response_data);
 };

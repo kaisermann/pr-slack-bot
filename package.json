@@ -27,6 +27,7 @@
   "dependencies": {
     "@octokit/app": "^4.1.0",
     "@octokit/request": "^5.0.2",
+    "@polka/send-type": "^0.5.2",
     "@slack/client": "^5.0.1",
     "@slack/rtm-api": "^5.0.1",
     "@slack/web-api": "^5.0.1",
@@ -35,6 +36,7 @@
     "dotenv": "^8.0.0",
     "fast-deep-equal": "^2.0.1",
     "forever": "^1.0.0",
+    "immer": "^3.2.0",
     "lowdb": "^1.0.0",
     "node-cron": "^2.0.3",
     "polka": "^0.5.2",
