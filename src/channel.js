@@ -60,7 +60,12 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   function update() {
     Logger.info(`# ${channel_name} ${channel_id} - Initializing PRs`);
     return Promise.all(
-      get_active_prs().map(async pr => pr.update().then(on_pr_updated)),
+      get_active_prs().map(async pr =>
+        pr
+          .update()
+          .then(on_pr_updated)
+          .catch(e => Logger.error(e, `PR: ${pr.slug}`)),
+      ),
     );
   }
 
