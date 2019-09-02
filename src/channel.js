@@ -149,29 +149,35 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       Logger.info(`- Updating forgotten PR message: ${pr.slug}`);
     }
 
-    const pr_pattern = new RegExp(`^(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm');
     const state_emoji = pr.state.merged
       ? EMOJIS.merged
       : pr.state.closed
       ? EMOJIS.closed
       : EMOJIS.unknown;
 
+    const replace_pr_in_text = str =>
+      str.replace(
+        new RegExp(`^(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm'),
+        `:${state_emoji}: ~$1~`,
+      );
+
     for await (const message of forgotten_messages) {
       const updated_message = await Message.update(message, message => {
-        message.blocks = message.blocks.map(block => {
-          if (typeof block.text === 'string') {
-            block.text = block.text.replace(
-              pr_pattern,
-              `:${state_emoji}: ~$1~`,
-            );
-          } else if (block.text && block.text.type === 'mrkdwn') {
-            block.text.text = block.text.text.replace(
-              pr_pattern,
-              `:${state_emoji}: ~$1~`,
-            );
-          }
-          return block;
-        });
+        if (message.text) {
+          message.text = replace_pr_in_text(message.text);
+        }
+
+        if (message.blocks) {
+          message.blocks = message.blocks.map(block => {
+            if (typeof block.text === 'string') {
+              block.text = replace_pr_in_text(block.text);
+            } else if (block.text && block.text.type === 'mrkdwn') {
+              block.text.text = replace_pr_in_text(block.text.text);
+            }
+            return block;
+          });
+        }
+
         message.payload = message.payload.filter(slug => pr.slug !== slug);
       });
 
