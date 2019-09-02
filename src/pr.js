@@ -449,6 +449,10 @@ exports.create = ({
     });
   }
 
+  function has_comment() {
+    return state.actions.some(item => item.action === ACTIONS.commented);
+  }
+
   function has_changes_requested() {
     return state.actions.some(
       item => item.action === ACTIONS.changes_requested,
@@ -532,6 +536,10 @@ exports.create = ({
     changes.changes_requested = has_changes_requested()
       ? await add_reaction('changes_requested', EMOJIS.changes_requested)
       : await remove_reaction('changes_requested');
+
+    changes.comment = has_comment()
+      ? await add_reaction('has_comment', EMOJIS.commented)
+      : await remove_reaction('has_comment');
 
     changes.has_pending_review = has_pending_review()
       ? await add_reaction('pending_review', EMOJIS.pending_review)
@@ -669,6 +677,7 @@ exports.create = ({
     delete_reply,
     delete_replies,
     has_changes_requested,
+    has_comment,
     is_draft,
     is_ready_to_merge,
     is_dirty,
