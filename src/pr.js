@@ -578,9 +578,9 @@ exports.create = ({
       ? await add_reaction('pending_review', EMOJIS.pending_review)
       : await remove_reaction('pending_review');
 
-    changes.unstable_or_dirty = is_dirty()
-      ? await add_reaction('unstable_or_dirty', EMOJIS.unstable_or_dirty)
-      : await remove_reaction('unstable_or_dirty');
+    changes.dirty = is_dirty()
+      ? await add_reaction('dirty', EMOJIS.dirty)
+      : await remove_reaction('dirty');
 
     changes.merged = merged
       ? await add_reaction('merged', EMOJIS.merged)

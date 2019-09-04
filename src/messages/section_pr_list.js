@@ -18,8 +18,8 @@ module.exports = async prs => {
       let section;
       if (pr.is_ready_to_merge()) {
         section = acc.ready_to_merge;
-      } else if (pr.is_dirty() || pr.is_unstable()) {
-        section = acc.unstable_or_dirty;
+      } else if (pr.is_dirty()) {
+        section = acc.dirty;
       } else if (pr.has_changes_requested()) {
         section = acc.changes_requested;
       } else {
@@ -39,8 +39,8 @@ module.exports = async prs => {
         title: `:${EMOJIS.changes_requested}: Changes requested`,
         list: [],
       },
-      unstable_or_dirty: {
-        title: `:${EMOJIS.unstable_or_dirty}: Unstable or needs rebase`,
+      dirty: {
+        title: `:${EMOJIS.dirty}: Needs rebase`,
         list: [],
       },
       waiting_review: {

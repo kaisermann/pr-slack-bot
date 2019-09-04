@@ -7,7 +7,7 @@ exports.EMOJIS = {
   changes_requested: 'changes',
   needs_attention: 'alert',
   closed: 'closedpr',
-  unstable_or_dirty: 'warning',
+  dirty: 'warning',
   unknown: 'shrug',
   review_requested: 'clock3',
   waiting: 'sonic_waiting',
