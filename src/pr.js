@@ -14,6 +14,7 @@ const { EMOJIS, PR_SIZES, GITHUB_APP_URL } = require('./consts.js');
 
 const ACTIONS = Object.freeze({
   approved: 'APPROVED',
+  dismissed: 'DISMISSED',
   changes_requested: 'CHANGES_REQUESTED',
   pending_review: 'PENDING',
   review_requested: 'REVIEW_REQUESTED',
@@ -23,15 +24,22 @@ const ACTIONS = Object.freeze({
 });
 
 function get_action(action_list) {
-  if (
-    action_list.lastIndexOf(ACTIONS.changes_requested) >
-    action_list.lastIndexOf(ACTIONS.approved)
-  ) {
+  const last_approved_idx = action_list.lastIndexOf(ACTIONS.approved);
+  const last_change_request_idx = action_list.lastIndexOf(
+    ACTIONS.changes_requested,
+  );
+
+  if (last_change_request_idx > last_approved_idx) {
     return ACTIONS.changes_requested;
   }
 
-  if (action_list.includes(ACTIONS.approved)) {
+  const last_dismissed_idx = action_list.lastIndexOf(ACTIONS.dismissed);
+  if (last_dismissed_idx < last_approved_idx) {
     return ACTIONS.approved;
+  }
+
+  if (last_dismissed_idx >= 0) {
+    return ACTIONS.dismissed;
   }
 
   if (action_list.includes(ACTIONS.pending_review)) {
@@ -45,18 +53,34 @@ function get_action(action_list) {
 }
 
 function get_action_label(action) {
-  if (action === ACTIONS.approved)
+  if (action === ACTIONS.approved) {
     return { label: 'Approved', emoji: EMOJIS.approved };
-  if (action === ACTIONS.changes_requested)
+  }
+
+  if (action === ACTIONS.changes_requested) {
     return { label: 'Changes requested', emoji: EMOJIS.changes_requested };
-  if (action === ACTIONS.pending_review)
+  }
+
+  if (action === ACTIONS.pending_review) {
     return { label: 'Is reviewing', emoji: EMOJIS.pending_review };
-  if (action === ACTIONS.review_requested)
-    return { label: 'Waiting review', emoji: EMOJIS.review_requested };
-  if (action === ACTIONS.commented)
+  }
+
+  if (action === ACTIONS.review_requested) {
+    return { label: 'Waiting review', emoji: EMOJIS.waiting };
+  }
+
+  if (action === ACTIONS.dismissed) {
+    return { label: 'Outdated review', emoji: EMOJIS.waiting };
+  }
+
+  if (action === ACTIONS.commented) {
     return { label: 'Commented', emoji: EMOJIS.commented };
-  if (action === ACTIONS.merged)
+  }
+
+  if (action === ACTIONS.merged) {
     return { label: 'Merged by', emoji: EMOJIS.merged };
+  }
+
   return { label: 'Unknown action', emoji: EMOJIS.unknown };
 }
 
@@ -85,10 +109,7 @@ function get_pr_size({ additions, deletions, files }) {
 function get_action_lists(pr_data, review_data) {
   return R.pipe(
     R.filter(
-      ({ user, state: action }) =>
-        action !== 'DISMISSED' ||
-        pr_data.assignee == null ||
-        user !== pr_data.assignee.login,
+      ({ user }) => pr_data.assignee == null || user !== pr_data.assignee.login,
     ),
     R.groupBy(R.path(['user', 'login'])),
     R.toPairs,
