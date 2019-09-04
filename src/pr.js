@@ -525,7 +525,7 @@ exports.create = ({
         size.n_changes
       } changes_)\n\n`,
       actions.length === 0
-        ? `Waiting for reviewers :${EMOJIS.waiting}:`
+        ? `:${EMOJIS.waiting}: Waiting for reviewers`
         : () => {
             const header_text = Object.entries(
               actions.reduce((acc, { id, github_user, action }) => {
