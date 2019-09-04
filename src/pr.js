@@ -274,7 +274,7 @@ exports.create = ({
         if (e.data.error === 'already_reacted') {
           reactions[type] = name;
         }
-        Logger.error(e);
+        Logger.error(e, `${type} - ${name}`);
         return false;
       });
   }
@@ -480,10 +480,6 @@ exports.create = ({
     );
   }
 
-  function has_pending_review() {
-    return state.actions.some(item => item.action === ACTIONS.pending_review);
-  }
-
   function is_draft() {
     return state.mergeable_state === 'draft';
   }
@@ -506,6 +502,18 @@ exports.create = ({
 
   function is_active() {
     return !is_draft();
+  }
+
+  function is_waiting_review() {
+    return state.actions.some(
+      item =>
+        item.action === ACTIONS.dismissed ||
+        item.action === ACTIONS.review_requested,
+    );
+  }
+
+  function has_pending_review() {
+    return state.actions.some(item => item.action === ACTIONS.pending_review);
   }
 
   async function update_header_message() {
@@ -561,6 +569,10 @@ exports.create = ({
     changes.comment = has_comment()
       ? await add_reaction('has_comment', EMOJIS.commented)
       : await remove_reaction('has_comment');
+
+    changes.is_waiting_review = is_waiting_review()
+      ? await add_reaction('is_waiting_review', EMOJIS.waiting)
+      : await remove_reaction('is_waiting_review');
 
     changes.has_pending_review = has_pending_review()
       ? await add_reaction('pending_review', EMOJIS.pending_review)
