@@ -1,3 +1,8 @@
+exports.GITHUB_APP_URL = 'https://github.com/apps/paul-robotson-pr-bot';
+exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
+
+exports.BOT_NAME = 'Paul Robotson';
+
 exports.EMOJIS = {
   watching: 'robot_face',
   approved: 'white_check_mark',
@@ -20,15 +25,14 @@ exports.EMOJIS = {
   info: 'info',
 };
 
-exports.GITHUB_APP_URL = 'https://github.com/apps/paul-robotson-pr-bot';
-exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
-exports.FORGOTTEN_PR_HOUR_THRESHOLD = 24;
 exports.PR_SIZES = [
   ['small', 80],
   ['medium', 250],
   ['big', 800],
   ['gigantic', Infinity],
 ];
+
+exports.FORGOTTEN_PR_HOUR_THRESHOLD = 24;
 
 // dev
 exports.PRIVATE_TEST_CHANNELS = ['GKSCG1GRX', 'GLAM8UANR'];
