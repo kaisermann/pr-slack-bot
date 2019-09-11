@@ -54,7 +54,7 @@ module.exports = async prs => {
     .filter(section => section.list.length)
     .map(({ title, list }) =>
       Message.blocks.create_markdown_section(
-        `*${title}*:\n${list
+        `*${title} (${list.length})*:\n${list
           .map(
             pr => `${link_map[pr.slug]} _(${pr.hours_since_post} hours ago)_`,
           )
