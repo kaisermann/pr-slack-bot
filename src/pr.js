@@ -505,10 +505,13 @@ exports.create = ({
   }
 
   function is_waiting_review() {
-    return state.actions.some(
-      item =>
-        item.action === ACTIONS.dismissed ||
-        item.action === ACTIONS.review_requested,
+    return (
+      state.actions.length === 0 ||
+      state.actions.some(
+        item =>
+          item.action === ACTIONS.dismissed ||
+          item.action === ACTIONS.review_requested,
+      )
     );
   }
 
