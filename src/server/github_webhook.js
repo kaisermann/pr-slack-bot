@@ -68,6 +68,7 @@ async function on_pull_request_change({ event, req }) {
 
   if (!pull_request) {
     Logger.warn(`Couldn't find a Pull Request for "${event}/${action}"`);
+    return;
   }
 
   const pr_slug = `${repository.full_name}/${pull_request.number}`;
