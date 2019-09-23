@@ -190,16 +190,18 @@ exports.send_message = ({ text, blocks, channel, thread_ts }) => {
   return balancer.request(
     () => {
       Logger.add_call('slack.chat.postMessage');
-      return web_client.chat.postMessage({
-        text,
-        blocks,
-        channel,
-        thread_ts,
-        unfurl_links: false,
-        // send as paulo ricardo
-        as_user: true,
-        link_names: true,
-      });
+      return web_client.chat
+        .postMessage({
+          text,
+          blocks,
+          channel,
+          thread_ts,
+          unfurl_links: false,
+          // send as paulo ricardo
+          as_user: true,
+          link_names: true,
+        })
+        .catch(e => e);
     },
     channel + thread_ts,
     'send_message',
@@ -210,15 +212,17 @@ exports.update_message = ({ channel, ts, text, blocks }) => {
   return balancer.request(
     () => {
       Logger.add_call('slack.chat.update');
-      return web_client.chat.update({
-        text,
-        blocks,
-        channel,
-        ts,
-        unfurl_links: false,
-        as_user: true,
-        link_names: true,
-      });
+      return web_client.chat
+        .update({
+          text,
+          blocks,
+          channel,
+          ts,
+          unfurl_links: false,
+          as_user: true,
+          link_names: true,
+        })
+        .catch(e => e);
     },
     channel + ts,
     'update_message',
@@ -229,10 +233,12 @@ exports.delete_message = ({ channel, ts }) => {
   return balancer.request(
     () => {
       Logger.add_call('slack.chat.delete');
-      return web_client.chat.delete({
-        channel,
-        ts,
-      });
+      return web_client.chat
+        .delete({
+          channel,
+          ts,
+        })
+        .catch(e => e);
     },
     channel + ts,
     'delete_message',

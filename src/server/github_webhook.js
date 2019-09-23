@@ -3,15 +3,35 @@ const db = require('../api/db.js');
 const runtime = require('../runtime.js');
 const Logger = require('../includes/logger.js');
 
+const handle_channel_not_found = e => {
+  Logger.warn(`Deleting channel: ${e.channel_id} - ${e.channel_name}`);
+  runtime.delete_channel(e.channel_id);
+};
+
 const update_prs = async prs => {
   if (prs.length === 0) return;
 
-  return Promise.all(
+  let error;
+
+  const update_result = await Promise.all(
     prs.map(async pr => {
       const channel = runtime.get_channel(pr.channel);
-      return pr.update().then(channel.on_pr_updated);
+      return pr
+        .update()
+        .then(channel.on_pr_updated)
+        .catch(e => {
+          error = e;
+        });
     }),
   );
+
+  if (error) {
+    if (error.error === 'channel_not_found') {
+      return handle_channel_not_found(error);
+    }
+  }
+
+  return update_result;
 };
 
 function on_installation({ req }) {
@@ -47,7 +67,7 @@ async function on_pull_request_change({ event, req }) {
   }
 
   if (!pull_request) {
-    throw `Couldn't find a Pull Request for "${event}/${action}"`;
+    Logger.warn(`Couldn't find a Pull Request for "${event}/${action}"`);
   }
 
   const pr_slug = `${repository.full_name}/${pull_request.number}`;
@@ -56,10 +76,23 @@ async function on_pull_request_change({ event, req }) {
   const prs = runtime.prs.filter(pr => pr.slug === pr_slug);
   if (prs.length === 0) return;
 
+  let error;
+
   prs.forEach(pr => {
     const channel = runtime.get_channel(pr.channel);
-    return pr.update().then(channel.on_pr_updated);
+    return pr
+      .update()
+      .then(channel.on_pr_updated)
+      .catch(e => {
+        error = e;
+      });
   });
+
+  if (error) {
+    if (error.error === 'channel_not_found') {
+      return handle_channel_not_found(error);
+    }
+  }
 }
 
 async function on_push({ req }) {

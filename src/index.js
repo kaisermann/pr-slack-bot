@@ -14,7 +14,19 @@ const CRON_OPTS = { scheduled: true, timezone: 'America/Sao_Paulo' };
 async function boot() {
   const { channels } = runtime;
   // initialize all prs before starting server
-  await Promise.all(channels.map(channel => channel.update()));
+  const channel_updates = await Promise.all(
+    channels.map(channel => channel.update().catch(e => e)),
+  );
+
+  channel_updates.forEach(update_result => {
+    if (update_result.error) {
+      const e = update_result;
+      if (e.error === 'channel_not_found') {
+        Logger.warn(`Deleting channel: ${e.channel_id} - ${e.channel_name}`);
+        runtime.delete_channel(e.channel_id);
+      }
+    }
+  });
 
   // start the web server
   server.start();

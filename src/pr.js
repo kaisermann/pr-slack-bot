@@ -164,8 +164,10 @@ exports.create = ({
         if (e.data.error === 'message_not_found') {
           Logger.info(`- Tried to delete an already deleted message`);
           delete replies[id];
+          return false;
         }
-        return false;
+
+        throw e;
       });
   }
 
@@ -193,15 +195,12 @@ exports.create = ({
       return delete_reply(id);
     }
 
-    try {
-      Logger.info(`- Updating reply: ${text}`);
-      replies[id] = await Message.update(saved_reply, message => {
-        message.text = text;
-        message.payload = payload;
-      });
-    } catch (e) {
-      Logger.error(e);
-    }
+    Logger.info(`- Updating reply: ${text}`);
+    replies[id] = await Message.update(saved_reply, message => {
+      message.text = text;
+      message.payload = payload;
+    });
+
     return true;
   }
 
@@ -220,15 +219,10 @@ exports.create = ({
       channel,
       thread_ts: ts,
       payload,
-    })
-      .then(message => {
-        replies[id] = message;
-        return true;
-      })
-      .catch(e => {
-        Logger.error(e);
-        return false;
-      });
+    }).then(message => {
+      replies[id] = message;
+      return true;
+    });
   }
 
   async function remove_reaction(type) {
@@ -249,9 +243,9 @@ exports.create = ({
       .catch(e => {
         if (e.data.error === 'no_reaction') {
           delete reactions[type];
+          return false;
         }
-        Logger.error(e);
-        return false;
+        throw e;
       });
   }
 
@@ -273,9 +267,9 @@ exports.create = ({
       .catch(e => {
         if (e.data.error === 'already_reacted') {
           reactions[type] = name;
+          return false;
         }
-        Logger.error(e, `${type} - ${name}`);
-        return false;
+        throw e;
       });
   }
 
@@ -557,96 +551,87 @@ exports.create = ({
 
     if (error) return;
 
-    const changes = {};
+    await add_reaction('size', EMOJIS[`size_${size.label}`]);
 
-    changes.size = await add_reaction('size', EMOJIS[`size_${size.label}`]);
-
-    changes.ready_to_merge = is_ready_to_merge()
+    is_ready_to_merge()
       ? await add_reaction('approved', EMOJIS.approved)
       : await remove_reaction('approved');
 
-    changes.changes_requested = has_changes_requested()
+    has_changes_requested()
       ? await add_reaction('changes_requested', EMOJIS.changes_requested)
       : await remove_reaction('changes_requested');
 
-    changes.comment = has_comment()
+    has_comment()
       ? await add_reaction('has_comment', EMOJIS.commented)
       : await remove_reaction('has_comment');
 
-    changes.is_waiting_review = is_waiting_review()
+    is_waiting_review()
       ? await add_reaction('is_waiting_review', EMOJIS.waiting)
       : await remove_reaction('is_waiting_review');
 
-    changes.has_pending_review = has_pending_review()
+    has_pending_review()
       ? await add_reaction('pending_review', EMOJIS.pending_review)
       : await remove_reaction('pending_review');
 
-    changes.dirty = is_dirty()
+    is_dirty()
       ? await add_reaction('dirty', EMOJIS.dirty)
       : await remove_reaction('dirty');
 
-    changes.merged = merged
+    merged
       ? await add_reaction('merged', EMOJIS.merged)
       : await remove_reaction('merged');
 
-    changes.closed =
-      closed && !merged
-        ? await add_reaction('closed', EMOJIS.closed)
-        : await remove_reaction('closed');
-
-    return changes;
+    closed && !merged
+      ? await add_reaction('closed', EMOJIS.closed)
+      : await remove_reaction('closed');
   }
 
   async function update_replies() {
     const { error, head_branch, base_branch } = state;
 
-    const changes = {};
     if (error) {
       if (error.status === 404) {
-        changes.error = await reply(
+        await reply(
           'error',
           `Sorry, but I think my <${GITHUB_APP_URL}|Github App> is not installed on this repository :thinking_face:. I should be able to watch this PR after the app is installed •ᴥ•`,
         );
       } else if (error.status === 520) {
-        changes.error = await reply(
+        await reply(
           'error',
           `Sorry, but something awful happened :scream:. I can't see this PR status...`,
         );
       }
-      return changes;
+      return;
     } else {
-      changes.error = await delete_reply('error');
+      await delete_reply('error');
     }
 
-    changes.header_message = await update_header_message();
+    await update_header_message();
 
-    changes.dirty = is_dirty()
+    is_dirty()
       ? await reply(
           'is_dirty',
           `The branch \`${head_branch}\` is dirty. It may need a rebase with \`${base_branch}\`.`,
         )
       : await delete_reply('is_dirty');
 
-    changes.modified_changelog =
-      has_changelog() === false
-        ? await reply(
-            'modified_changelog',
-            `I couln't find an addition to the \`CHANGELOG.md\`.\n\nDid you forget to add it :notsure:?`,
-          )
-        : await delete_reply('modified_changelog');
+    has_changelog() === false
+      ? await reply(
+          'modified_changelog',
+          `I couln't find an addition to the \`CHANGELOG.md\`.\n\nDid you forget to add it :notsure:?`,
+        )
+      : await delete_reply('modified_changelog');
 
     if (is_ready_to_merge() === false) {
-      changes.ready_to_merge = await delete_reply('ready_to_merge');
+      await delete_reply('ready_to_merge');
     } else {
       const n_approvals = get_approvals();
       const text =
         n_approvals > 0
           ? 'PR is ready to be merged :doit:!'
           : `PR is ready to be merged, but I can't seem to find any reviews approving it :notsure-left:.\n\nIs there a merge protection rule configured for the \`${base_branch}\` branch?`;
-      changes.ready_to_merge = await reply('ready_to_merge', text);
+      await reply('ready_to_merge', text);
     }
-
-    return changes;
   }
 
   async function update() {
@@ -657,6 +642,7 @@ exports.create = ({
       await Promise.all([update_reactions(), update_replies()]);
     } catch (e) {
       Logger.error(e, `Something went wrong with "${slug}":`);
+      throw e;
     } finally {
       update_lock.release();
     }

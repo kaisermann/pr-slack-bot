@@ -61,16 +61,32 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     return prs.filter(pr => pr.state.error == null && pr.is_active());
   }
 
-  function update() {
+  async function update() {
     Logger.info(`# ${channel_name} ${channel_id} - Initializing PRs`);
-    return Promise.all(
+
+    let error;
+
+    const result = await Promise.all(
       prs.map(async pr =>
         pr
           .update()
           .then(on_pr_updated)
-          .catch(e => Logger.error(e, `PR: ${pr.slug}`)),
+          .catch(e => {
+            // Logger.error(e, `PR: ${pr.slug}`);
+            if (e.code === 'slack_webapi_platform_error') {
+              error = {
+                channel_id,
+                channel_name,
+                error: e.data.error,
+              };
+            }
+          }),
       ),
     );
+
+    if (error) throw error;
+
+    return result;
   }
 
   function has_pr(slug) {

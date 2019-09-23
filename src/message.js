@@ -9,10 +9,9 @@ exports.send = async ({ text, blocks, channel, thread_ts, ...rest }) => {
     thread_ts,
   });
 
-  if (!response.ok) throw new Error(response);
+  if (!response.ok) throw response;
 
   const { ts } = response;
-
   return {
     ...rest,
     thread_ts,

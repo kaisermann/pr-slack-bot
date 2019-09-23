@@ -29,6 +29,11 @@ module.exports = {
   async get_or_create_channel(id) {
     return this.get_channel(id) || this.create_channel(id);
   },
+  delete_channel(id) {
+    const index = channels.findIndex(channel => channel.channel_id === id);
+    channels.splice(index, 1);
+    return DB.channels.unset(id).write();
+  },
   get channels() {
     return channels;
   },
