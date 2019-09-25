@@ -67,6 +67,7 @@ async function on_pull_request_change({ event, req }) {
   }
 
   if (!pull_request) {
+    if(!pull_request) Logger.info(JSON.stringify(req.body));
     Logger.warn(
       `Couldn't find pull request "${pull_request}" for "${event}/${action}"`,
     );
