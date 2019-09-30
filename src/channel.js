@@ -178,7 +178,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     const replace_pr_in_text = str =>
       str.replace(
         new RegExp(`^(?::.*?:)\\s*(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm'),
-        `:${state_emoji}: ~$1~`,
+        `:${state_emoji}:  ~$1~`,
       );
 
     for await (const message of forgotten_messages) {
