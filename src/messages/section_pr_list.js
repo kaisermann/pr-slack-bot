@@ -54,10 +54,19 @@ module.exports = async prs => {
     .filter(section => section.list.length)
     .map(({ title, list }) =>
       Message.blocks.create_markdown_section(
-        `*${title} (${list.length})*:\n${list
-          .map(
-            pr => `${link_map[pr.slug]} _(${pr.hours_since_post} hours ago)_`,
-          )
+        `*${title}  (${list.length})*:\n${list
+          .map(pr => {
+            const {
+              hours_since_post,
+              state: { size },
+            } = pr;
+
+            return (
+              `:${EMOJIS[`size_${size.label}`]}:  ` +
+              `${link_map[pr.slug]} ` +
+              `_(${hours_since_post} hours ago)_`
+            );
+          })
           .join('\n')}`,
       ),
     );

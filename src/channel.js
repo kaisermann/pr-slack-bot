@@ -177,7 +177,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     const replace_pr_in_text = str =>
       str.replace(
-        new RegExp(`^(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm'),
+        new RegExp(`^(?::.*?:)\\s*(<.*${pr.repo}/${pr.pr_id}>.*$)`, 'm'),
         `:${state_emoji}: ~$1~`,
       );
 
