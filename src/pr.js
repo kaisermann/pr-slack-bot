@@ -142,6 +142,14 @@ exports.create = ({
   async function get_message_url() {
     if (_cached_url == null) {
       _cached_url = await Slack.get_message_url(channel, ts);
+
+      if (has_reply('header_message')) {
+        const { thread_ts, ts } = replies.header_message;
+        _cached_url = _cached_url.replace(
+          /\/p\d*?$/,
+          `/p${ts * 1000000}?thread_ts=${thread_ts}`,
+        );
+      }
     }
     return _cached_url;
   }
