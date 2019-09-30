@@ -52,6 +52,12 @@ module.exports = async prs => {
 
   return Object.values(sections)
     .filter(section => section.list.length)
+    .map(section => ({
+      ...section,
+      list: section.list.sort(
+        (pr_a, pr_b) => pr_b.hours_since_post - pr_a.hours_since_post,
+      ),
+    }))
     .map(({ title, list }) =>
       Message.blocks.create_markdown_section(
         `*${title}  (${list.length})*:\n${list
