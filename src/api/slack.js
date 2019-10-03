@@ -1,6 +1,7 @@
 const { RTMClient } = require('@slack/rtm-api');
 const { WebClient, retryPolicies } = require('@slack/web-api');
 const Queue = require('smart-request-balancer');
+const memoize = require('memoizee');
 
 const Logger = require('../includes/logger.js');
 const DB = require('./db.js');
@@ -13,7 +14,17 @@ const balancer = new Queue({
       limit: 60,
       priority: 5,
     },
+    send_message: {
+      rate: 2,
+      limit: 1,
+      priority: 2,
+    },
     get_user_info: {
+      rate: 500,
+      limit: 60,
+      priority: 10,
+    },
+    conversations_members: {
       rate: 500,
       limit: 60,
       priority: 10,
@@ -31,6 +42,24 @@ const PR_REGEX_GLOBAL = new RegExp(PR_REGEX.source, `${PR_REGEX.flags}g`);
 const web_client = new WebClient(TOKEN, {
   retryConfig: retryPolicies.rapidRetryPolicy,
 });
+
+const memo_fetch_channel_members = memoize(
+  (channel_id, cursor) => {
+    return balancer.request(
+      () => {
+        Logger.add_call('slack.conversations.members');
+        return web_client.conversations
+          .members({ channel: channel_id, cursor })
+          .catch(error => {
+            Logger.error(error);
+          });
+      },
+      channel_id + cursor,
+      'conversations_members',
+    );
+  },
+  { maxAge: 1000 * 60 * 60, preFetch: true },
+);
 
 exports.web_client = web_client;
 
@@ -64,6 +93,25 @@ exports.get_user_info = id => {
     id,
     'get_user_info',
   );
+};
+
+exports.get_channel_members = async channel_id => {
+  let cursor;
+  let channel_members = [];
+  do {
+    const response = await memo_fetch_channel_members(channel_id, cursor);
+    if (!response || !response.ok) break;
+
+    const {
+      members,
+      response_metadata: { next_cursor },
+    } = response;
+
+    cursor = next_cursor;
+    channel_members.push(...members);
+  } while (cursor !== '');
+
+  return channel_members;
 };
 
 exports.on_pr_message = async (on_new_message, on_message_deleted) => {
