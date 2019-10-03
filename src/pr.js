@@ -650,7 +650,7 @@ exports.create = ({
       await Promise.all([update_reactions(), update_replies()]);
     } catch (e) {
       Logger.error(e, `Something went wrong with "${slug}":`);
-      throw e;
+      // throw e;
     } finally {
       update_lock.release();
     }
