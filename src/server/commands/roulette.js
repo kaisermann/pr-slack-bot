@@ -46,6 +46,7 @@ module.exports = async ({ channel, ts, thread_ts }) => {
 
   const text = `:${get_random_item(possible_emojis)}: <@${chosen_member.id}>`;
   if (pr) {
-    pr.reply(`roulette_${ts}`, text, chosen_member);
+    await pr.reply(`roulette_${ts}`, text, chosen_member);
+    channel.save_pr(pr);
   }
 };
