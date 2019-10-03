@@ -25,13 +25,13 @@ const possible_emojis = [
 
 module.exports = async ({ channel, ts, thread_ts }) => {
   const pr = channel.prs.find(pr => pr.ts === thread_ts);
-  pr.reply(`roulette_${ts}`, `:think-360:`);
+  await pr.reply(`roulette_${ts}`, `:think-360:`);
 
   const members = await Slack.get_channel_members(channel.id);
   let chosen_member;
   let retry_count = -1;
 
-  pr.reply(`roulette_${ts}`, `:thinking-face-fast:`);
+  await pr.reply(`roulette_${ts}`, `:thinking-face-fast:`);
 
   do {
     if (retry_count++ >= 20) {
