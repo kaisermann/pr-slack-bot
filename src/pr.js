@@ -331,23 +331,13 @@ exports.create = ({
       Github.get_files_data(params),
     ]);
 
-    if (responses.some(response => response.status === 520)) {
-      return {
-        error: { status: 520 },
-      };
-    }
+    const has_status = status => responses.some(r => r.status === status);
+
+    if (has_status(520)) return { error: { status: 520 } };
+    if (has_status(403)) return { error: { status: 403 } };
+    if (has_status(404)) return { error: { status: 404 } };
 
     const [pr_response, review_response, files_response] = responses;
-
-    if (
-      pr_response.status === 404 ||
-      review_response.status === 404 ||
-      files_response.status === 404
-    ) {
-      return {
-        error: { status: 404 },
-      };
-    }
 
     let pr_data = pr_response.data;
     let review_data = review_response.data;
@@ -395,11 +385,7 @@ exports.create = ({
       files_data,
     } = await fetch_remote_state();
 
-    if (error) {
-      return {
-        error,
-      };
-    }
+    if (error) return { error };
 
     // review data mantains a list of reviews
     const action_lists = get_action_lists(pr_data, review_data);
@@ -598,10 +584,10 @@ exports.create = ({
     const { error, head_branch, base_branch } = state;
 
     if (error) {
-      if (error.status === 404) {
+      if (error.status === 404 || error.status === 403) {
         await reply(
           'error',
-          `Sorry, but I think my <${GITHUB_APP_URL}|Github App> is not installed on this repository :thinking_face:. I should be able to watch this PR after the app is installed •ᴥ•`,
+          `Sorry, but I think my <${GITHUB_APP_URL}|Github App> is not installed on this repository :thinking_face:. Please post this pull request again after installing the app (•ᴥ•)`,
         );
       } else if (error.status === 520) {
         await reply(
@@ -642,12 +628,26 @@ exports.create = ({
     }
   }
 
+  function is_unreachable() {
+    return (
+      state.error &&
+      (state.error.status === 403 ||
+        state.error.status === 404 ||
+        state.error.status === 520)
+    );
+  }
+
   async function update() {
     try {
       await update_lock.acquire();
       state = await get_consolidated_state();
-      Logger.info(`Updated state: ${slug}`);
-      await Promise.all([update_reactions(), update_replies()]);
+
+      if (is_unreachable()) {
+        Logger.info(`Can't update: ${slug}. Forbidden or not found.`);
+      } else {
+        Logger.info(`Updated state: ${slug}`);
+        await Promise.all([update_reactions(), update_replies()]);
+      }
     } catch (e) {
       Logger.error(e, `Something went wrong with "${slug}":`);
       // throw e;
@@ -714,6 +714,7 @@ exports.create = ({
     is_unstable,
     is_resolved,
     is_active,
+    is_unreachable,
     needs_attention(hours) {
       return is_active() && this.minutes_since_post >= 60 * hours;
     },

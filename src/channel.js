@@ -148,14 +148,11 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
   async function on_pr_updated(pr) {
     if (!pr.is_active()) return;
+    if (pr.is_unreachable()) return remove_pr(pr);
+    if (!pr.is_resolved()) return save_pr(pr);
 
-    const is_resolved = pr.is_resolved();
-    if (is_resolved) {
-      await on_pr_resolved(pr);
-      remove_pr(pr);
-    } else {
-      save_pr(pr);
-    }
+    await on_pr_resolved(pr);
+    return remove_pr(pr);
   }
 
   async function on_pr_resolved(pr) {
