@@ -473,7 +473,10 @@ exports.create = ({
   }
 
   function is_ready_to_merge() {
-    return !state.closed && state.mergeable_state === 'clean';
+    if (state.closed) return false;
+    if (state.mergeable_state === 'clean') return true;
+    // if the app doesn't have permission to push, use `mergeable` prop
+    return state.mergeable_state === 'blocked' && state.mergeable;
   }
 
   function is_dirty() {
