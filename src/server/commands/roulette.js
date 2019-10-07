@@ -23,11 +23,19 @@ const possible_emojis = [
   'call_me_hand',
 ];
 
-module.exports = async ({ channel, ts, thread_ts }) => {
+module.exports = async ({ channel, ts, thread_ts, poster_id }) => {
   const pr = channel.prs.find(pr => pr.ts === thread_ts);
+
+  if (pr == null) return;
+
   await pr.reply(`roulette_${ts}`, `:think-360:`);
 
-  const members = await Slack.get_channel_members(channel.id);
+  const members = new Set(await Slack.get_channel_members(channel.id));
+
+  // delete ids of who asked for a roulette and who posted the PR
+  members.delete(poster_id);
+  members.delete(pr.poster_id);
+
   let chosen_member;
   let retry_count = -1;
 
@@ -39,14 +47,17 @@ module.exports = async ({ channel, ts, thread_ts }) => {
         { channel, ts, thread_ts },
         'Max members shuffling attempts reached',
       );
+      chosen_member = null;
       break;
     }
+
     chosen_member = DB.users.get(get_random_item(members)).value();
   } while (!chosen_member);
 
-  const text = `:${get_random_item(possible_emojis)}: <@${chosen_member.id}>`;
-  if (pr) {
-    await pr.reply(`roulette_${ts}`, text, chosen_member);
-    channel.save_pr(pr);
-  }
+  const text = chosen_member
+    ? `:${get_random_item(possible_emojis)}: <@${chosen_member.id}>`
+    : `For some reason I couldn't choose a random channel member... :sob:`;
+
+  await pr.reply(`roulette_${ts}`, text, chosen_member);
+  channel.save_pr(pr);
 };
