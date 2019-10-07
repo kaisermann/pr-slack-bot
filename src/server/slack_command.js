@@ -8,6 +8,7 @@ exports.parse_slack_command = async (req, res) => {
     res.end(
       [
         '*Available commands*:',
+        '`/pr help` - list all emojis meaning',
         '`/pr list` - list all open prs on the channel',
         '`/pr list mine` - list all of your PRs on the channel',
         '`/pr list @user` - list all of a users PRs on the channel',
