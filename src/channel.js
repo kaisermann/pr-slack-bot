@@ -1,11 +1,7 @@
 const R = require('ramda');
 
 const DB = require('./api/db.js');
-const {
-  EMOJIS,
-  FORGOTTEN_PR_HOUR_THRESHOLD,
-  BOT_NAME,
-} = require('./consts.js');
+const { EMOJIS, FORGOTTEN_PR_HOUR_THRESHOLD } = require('./consts.js');
 const Message = require('./message.js');
 const PR = require('./pr.js');
 const get_sectioned_pr_blocks = require('./messages/section_pr_list.js');
@@ -228,7 +224,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     const blocks = [
       Message.blocks.create_markdown_section(
-        `Good ${time_of_day}! :wave: ${BOT_NAME} here!\nThere are some PRs posted more than 24 hours ago in need of some love and attention:`,
+        `Good ${time_of_day}! There are some PRs in need of some love and attention:`,
       ),
     ].concat(await get_sectioned_pr_blocks(forgotten_prs));
 

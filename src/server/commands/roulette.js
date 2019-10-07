@@ -23,7 +23,7 @@ const possible_emojis = [
   'call_me_hand',
 ];
 
-module.exports = async ({ channel, ts, thread_ts, poster_id }) => {
+module.exports = async ({ channel, ts, thread_ts, user_id }) => {
   const pr = channel.prs.find(pr => pr.ts === thread_ts);
 
   if (pr == null) return;
@@ -33,7 +33,7 @@ module.exports = async ({ channel, ts, thread_ts, poster_id }) => {
   const members = new Set(await Slack.get_channel_members(channel.id));
 
   // delete ids of who asked for a roulette and who posted the PR
-  members.delete(poster_id);
+  members.delete(user_id);
   members.delete(pr.poster_id);
 
   let chosen_member;

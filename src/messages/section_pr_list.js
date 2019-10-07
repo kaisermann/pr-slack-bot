@@ -3,6 +3,20 @@ const R = require('ramda');
 const Message = require('../message.js');
 const { EMOJIS } = require('../consts.js');
 
+function pluralize(str, n) {
+  return `${n} ${str}${n > 1 ? 's' : ''}`;
+}
+
+function format_time(n) {
+  if (n <= 72) return `${n} hours old`;
+
+  n = Math.floor(n / 24);
+  if (n <= 30) return `${pluralize('day', n)} old`;
+
+  n = Math.floor(n / 30);
+  return `${pluralize('month', n)} old`;
+}
+
 module.exports = async prs => {
   const link_map = R.fromPairs(
     await Promise.all(
@@ -70,7 +84,7 @@ module.exports = async prs => {
             return (
               `:${EMOJIS[`size_${size.label}`]}:  ` +
               `${link_map[pr.slug]} ` +
-              `_(${hours_since_post} hours ago)_`
+              `_(${format_time(hours_since_post)})_`
             );
           })
           .join('\n')}`,
