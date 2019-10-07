@@ -30,11 +30,9 @@ module.exports = async ({ channel, ts, thread_ts, user_id }) => {
 
   await pr.reply(`roulette_${ts}`, `:think-360:`);
 
-  const members = new Set(await Slack.get_channel_members(channel.id));
-
-  // delete ids of who asked for a roulette and who posted the PR
-  members.delete(user_id);
-  members.delete(pr.poster_id);
+  const members = (await Slack.get_channel_members(channel.id)).filter(
+    id => id !== user_id && id !== pr.poster_id,
+  );
 
   let chosen_member;
   let retry_count = -1;
