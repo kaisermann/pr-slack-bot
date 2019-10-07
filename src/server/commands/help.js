@@ -40,7 +40,7 @@ module.exports = async () => {
   ];
 
   return [
-    `*Here's the meaning of each emoji*:`,
+    `Here's the meaning of each emoji:`,
     format_section(sizes, 'Sizes'),
     format_section(reviews, 'Review related'),
     format_section(pr_states, 'Pull request states'),

@@ -22,7 +22,7 @@ exports.parse_slack_event = async (req, res) => {
         ts,
         thread_ts,
         channel: channel_id,
-        user: poster_id,
+        user: user_id,
         text,
       } = event;
       const channel = runtime.get_channel(channel_id);
@@ -30,7 +30,7 @@ exports.parse_slack_event = async (req, res) => {
       if (!channel || !thread_ts) return;
 
       if (text.match(/roulette|playstation/)) {
-        roulette({ channel, ts, thread_ts, poster_id });
+        roulette({ channel, ts, thread_ts, user_id });
       }
     }
   }
