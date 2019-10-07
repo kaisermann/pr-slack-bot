@@ -550,9 +550,15 @@ exports.create = ({
 
     await add_reaction('size', EMOJIS[`size_${size.label}`]);
 
-    is_ready_to_merge()
-      ? await add_reaction('approved', EMOJIS.approved)
-      : await remove_reaction('approved');
+    if (is_ready_to_merge()) {
+      const n_approvals = get_approvals();
+      await add_reaction(
+        'approved',
+        n_approvals > 0 ? EMOJIS.approved : EMOJIS.ready_to_merge,
+      );
+    } else {
+      await remove_reaction('approved');
+    }
 
     has_changes_requested()
       ? await add_reaction('changes_requested', EMOJIS.changes_requested)

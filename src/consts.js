@@ -6,7 +6,7 @@ exports.BOT_NAME = 'Paul Robotson';
 exports.EMOJIS = {
   watching: 'robot_face',
   approved: 'white_check_mark',
-  ready_to_merge: 'white_check_mark',
+  ready_to_merge: 'ready-to-merge',
   commented: 'speech_balloon',
   merged: 'merged',
   changes_requested: 'changes',
