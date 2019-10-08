@@ -418,7 +418,7 @@ exports.create = ({
         return { github_user, action };
       });
 
-    const { title, additions, deletions, mergeable } = pr_data;
+    const { title, body, additions, deletions, mergeable } = pr_data;
     const files = files_data.map(
       ({ filename, status, additions, deletions }) => {
         return { filename, status, additions, deletions };
@@ -427,6 +427,7 @@ exports.create = ({
 
     return {
       title,
+      description: body,
       actions,
       additions,
       deletions,
@@ -464,6 +465,10 @@ exports.create = ({
     return state.actions.some(
       item => item.action === ACTIONS.changes_requested,
     );
+  }
+
+  function is_trivial() {
+    return (state.title + state.description).includes('#trivial');
   }
 
   function is_draft() {
@@ -544,9 +549,17 @@ exports.create = ({
 
     if (error) return;
 
+    const changes_requested = has_changes_requested();
+
     await add_reaction('size', EMOJIS[`size_${size.label}`]);
 
-    if (is_ready_to_merge()) {
+    if (changes_requested) {
+      await add_reaction('changes_requested', EMOJIS.changes_requested);
+    } else {
+      await remove_reaction('changes_requested');
+    }
+
+    if (is_ready_to_merge() && changes_requested === false) {
       const n_approvals = get_approvals();
       await add_reaction(
         'approved',
@@ -556,33 +569,41 @@ exports.create = ({
       await remove_reaction('approved');
     }
 
-    has_changes_requested()
-      ? await add_reaction('changes_requested', EMOJIS.changes_requested)
-      : await remove_reaction('changes_requested');
+    if (has_comment()) {
+      await add_reaction('has_comment', EMOJIS.commented);
+    } else {
+      await remove_reaction('has_comment');
+    }
 
-    has_comment()
-      ? await add_reaction('has_comment', EMOJIS.commented)
-      : await remove_reaction('has_comment');
+    if (is_waiting_review()) {
+      await add_reaction('is_waiting_review', EMOJIS.waiting);
+    } else {
+      await remove_reaction('is_waiting_review');
+    }
 
-    is_waiting_review()
-      ? await add_reaction('is_waiting_review', EMOJIS.waiting)
-      : await remove_reaction('is_waiting_review');
+    if (has_pending_review()) {
+      await add_reaction('pending_review', EMOJIS.pending_review);
+    } else {
+      await remove_reaction('pending_review');
+    }
 
-    has_pending_review()
-      ? await add_reaction('pending_review', EMOJIS.pending_review)
-      : await remove_reaction('pending_review');
+    if (is_dirty()) {
+      await add_reaction('dirty', EMOJIS.dirty);
+    } else {
+      await remove_reaction('dirty');
+    }
 
-    is_dirty()
-      ? await add_reaction('dirty', EMOJIS.dirty)
-      : await remove_reaction('dirty');
+    if (merged) {
+      await add_reaction('merged', EMOJIS.merged);
+    } else {
+      await remove_reaction('merged');
+    }
 
-    merged
-      ? await add_reaction('merged', EMOJIS.merged)
-      : await remove_reaction('merged');
-
-    closed && !merged
-      ? await add_reaction('closed', EMOJIS.closed)
-      : await remove_reaction('closed');
+    if (closed && !merged) {
+      await add_reaction('closed', EMOJIS.closed);
+    } else {
+      await remove_reaction('closed');
+    }
   }
 
   async function update_replies() {
@@ -607,19 +628,23 @@ exports.create = ({
 
     await update_header_message();
 
-    is_dirty()
-      ? await reply(
-          'is_dirty',
-          `The branch \`${head_branch}\` is dirty. It may need a rebase with \`${base_branch}\`.`,
-        )
-      : await delete_reply('is_dirty');
+    if (is_dirty()) {
+      await reply(
+        'is_dirty',
+        `The branch \`${head_branch}\` is dirty. It may need a rebase with \`${base_branch}\`.`,
+      );
+    } else {
+      await delete_reply('is_dirty');
+    }
 
-    has_changelog() === false
-      ? await reply(
-          'modified_changelog',
-          `I couln't find an addition to the \`CHANGELOG.md\`.\n\nDid you forget to add it :notsure:?`,
-        )
-      : await delete_reply('modified_changelog');
+    if (is_trivial() === false && has_changelog() === false) {
+      await reply(
+        'modified_changelog',
+        `I couln't find an addition to the \`CHANGELOG.md\`.\n\nDid you forget to add it :notsure:?`,
+      );
+    } else {
+      await delete_reply('modified_changelog');
+    }
 
     if (is_ready_to_merge() === false) {
       await delete_reply('ready_to_merge');
@@ -713,6 +738,7 @@ exports.create = ({
     delete_replies,
     has_changes_requested,
     has_comment,
+    is_trivial,
     is_draft,
     is_ready_to_merge,
     is_dirty,
