@@ -242,8 +242,7 @@ exports.create = ({
     Logger.info(`- Removing reaction of type: ${type} (${reactions[type]})`);
     Logger.add_call('slack.reactions.remove');
 
-    return Slack.web_client.reactions
-      .remove({ name, timestamp: ts, channel })
+    return Slack.remove_reaction(name, channel, ts)
       .then(() => {
         delete reactions[type];
         return true;
@@ -266,8 +265,7 @@ exports.create = ({
     Logger.info(`- Adding reaction of type: ${type} (${name})`);
     Logger.add_call('slack.reactions.add');
 
-    return Slack.web_client.reactions
-      .add({ name, timestamp: ts, channel })
+    return Slack.add_reaction(name, channel, ts)
       .then(() => {
         reactions[type] = name;
         return true;
