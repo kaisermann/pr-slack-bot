@@ -49,7 +49,7 @@ function on_installation({ req }) {
     added.forEach(repo =>
       db.installations.set_id(repo.full_name, installation.id),
     );
-    const added_map = R.groupBy(R.prop('full_name'), added);
+    const added_map = R.groupBy(({ full_name }) => full_name, added);
     const related_prs = runtime.prs.filter(
       pr => `${pr.owner}/${pr.repo}` in added_map,
     );
