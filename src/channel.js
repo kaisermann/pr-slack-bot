@@ -224,7 +224,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     const blocks = [
       Message.blocks.create_markdown_section(
-        `Good ${time_of_day}! There are some PRs in need of some love and attention:`,
+        `Good ${time_of_day}! There are *${forgotten_prs.length}* PRs in need of some love and attention`,
       ),
     ].concat(await get_sectioned_pr_blocks(forgotten_prs));
 
