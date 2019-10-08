@@ -7,6 +7,19 @@ const Logger = require('../includes/logger.js');
 const DB = require('./db.js');
 const { PRIVATE_TEST_CHANNELS } = require('../consts.js');
 
+const { SLACK_BOT_TOKEN, SLACK_USER_TOKEN } = process.env;
+const RTM = new RTMClient(SLACK_BOT_TOKEN);
+
+const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i;
+const PR_REGEX_GLOBAL = new RegExp(PR_REGEX.source, `${PR_REGEX.flags}g`);
+
+const user_client = new WebClient(SLACK_USER_TOKEN, {
+  retryConfig: retryPolicies.rapidRetryPolicy,
+});
+const bot_client = new WebClient(SLACK_BOT_TOKEN, {
+  retryConfig: retryPolicies.rapidRetryPolicy,
+});
+
 const balancer = new Queue({
   rules: {
     common: {
@@ -19,7 +32,7 @@ const balancer = new Queue({
       limit: 1,
       priority: 2,
     },
-    get_user_info: {
+    get_profile_info: {
       rate: 500,
       limit: 60,
       priority: 10,
@@ -33,22 +46,12 @@ const balancer = new Queue({
   retryTime: 300,
 });
 
-const TOKEN = process.env.SLACK_TOKEN;
-const RTM = new RTMClient(TOKEN);
-
-const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i;
-const PR_REGEX_GLOBAL = new RegExp(PR_REGEX.source, `${PR_REGEX.flags}g`);
-
-const web_client = new WebClient(TOKEN, {
-  retryConfig: retryPolicies.rapidRetryPolicy,
-});
-
 const memo_fetch_channel_members = memoize(
   (channel_id, cursor) => {
     return balancer.request(
       () => {
         Logger.add_call('slack.conversations.members');
-        return web_client.conversations
+        return bot_client.conversations
           .members({ channel: channel_id, cursor })
           .catch(error => {
             Logger.error(error);
@@ -61,13 +64,14 @@ const memo_fetch_channel_members = memoize(
   { maxAge: 1000 * 60 * 60, preFetch: true },
 );
 
-exports.web_client = web_client;
+exports.bot_client = bot_client;
+exports.user_client = user_client;
 
 exports.get_channel_info = channel_id => {
   return balancer.request(
     () => {
       Logger.add_call('slack.conversations.info');
-      return web_client.conversations
+      return bot_client.conversations
         .info({ channel: channel_id })
         .then(response => response.ok && response.channel)
         .catch(error => {
@@ -79,20 +83,34 @@ exports.get_channel_info = channel_id => {
   );
 };
 
-exports.get_user_info = id => {
+exports.get_profile_info = id => {
   return balancer.request(
     () => {
-      Logger.add_call('slack.users.info');
-      return web_client.users
-        .info({ user: id })
-        .then(response => response.ok && response.user)
+      return user_client.users.profile
+        .get({ user: id })
+        .then(response => response.ok && response.profile)
         .catch(error => {
           Logger.error(error);
         });
     },
     id,
-    'get_user_info',
+    'get_profile_info',
   );
+};
+
+exports.get_users = async function*() {
+  const list_response = await bot_client.users.list();
+  if (!list_response.ok) return;
+
+  const active_users = list_response.members.filter(
+    user => user.deleted !== true,
+  );
+
+  for await (let user of active_users) {
+    const full_profile = await exports.get_profile_info(user.id);
+    Object.assign(user.profile, full_profile);
+    yield user;
+  }
 };
 
 exports.get_channel_members = async channel_id => {
@@ -238,7 +256,7 @@ exports.send_message = ({ text, blocks, channel, thread_ts }) => {
   return balancer.request(
     () => {
       Logger.add_call('slack.chat.postMessage');
-      return web_client.chat
+      return bot_client.chat
         .postMessage({
           text,
           blocks,
@@ -260,7 +278,7 @@ exports.update_message = ({ channel, ts, text, blocks }) => {
   return balancer.request(
     () => {
       Logger.add_call('slack.chat.update');
-      return web_client.chat
+      return bot_client.chat
         .update({
           text,
           blocks,
@@ -281,7 +299,7 @@ exports.delete_message = ({ channel, ts }) => {
   return balancer.request(
     () => {
       Logger.add_call('slack.chat.delete');
-      return web_client.chat
+      return bot_client.chat
         .delete({
           channel,
           ts,
@@ -309,10 +327,16 @@ exports.delete_message_by_url = url => {
 
 exports.get_message_url = async (channel, ts) => {
   Logger.add_call('slack.chat.getPermalink');
-  const response = await web_client.chat.getPermalink({
+  const response = await bot_client.chat.getPermalink({
     channel,
     message_ts: ts,
   });
 
   return response.permalink.replace(/\?.*$/, '');
 };
+
+exports.remove_reaction = (name, channel, ts) =>
+  bot_client.reactions.remove({ name, timestamp: ts, channel });
+
+exports.add_reaction = (name, channel, ts) =>
+  bot_client.reactions.add({ name, timestamp: ts, channel });
