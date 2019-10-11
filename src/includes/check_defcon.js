@@ -8,7 +8,12 @@ const DEFCON_ENDPOINT = `http://monitoring.vtex.com/api/pvt/defcon`;
 module.exports = memoize(
   async () => {
     try {
-      const response = await fetch(DEFCON_ENDPOINT);
+      const response = await fetch(DEFCON_ENDPOINT, {
+        headers: {
+          'x-vtex-api-appkey': process.env.VTEX_APP_KEY,
+          'x-vtex-api-apptoken': process.env.VTEX_APP_TOKEN,
+        },
+      });
       const { level, message } = await response.json();
       const [, id, msg] = message.match(/DEFCON (\d)\s*-\s*(.*)/i);
       return {
