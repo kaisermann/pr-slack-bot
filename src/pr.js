@@ -9,6 +9,7 @@ const DB = require('./api/db.js');
 const Message = require('./message.js');
 const Lock = require('./includes/lock.js');
 const debounce = require('./includes/debounce.js');
+const check_defcon = require('./includes/check_defcon.js');
 
 const { EMOJIS, PR_SIZES, GITHUB_APP_URL } = require('./consts.js');
 
@@ -475,7 +476,7 @@ exports.create = ({
     return state.mergeable_state === 'draft';
   }
 
-  function is_ready_to_merge() {
+  function is_mergeable() {
     if (state.closed) return false;
     return state.mergeable_state === 'clean';
   }
@@ -505,6 +506,22 @@ exports.create = ({
           item.action === ACTIONS.review_requested,
       )
     );
+  }
+
+  async function can_be_merged() {
+    const { base_branch } = state;
+    if (base_branch !== 'master' && base_branch.match(/\d\.x/i) == null) {
+      return { can_merge: true };
+    }
+
+    const defcon_status = await check_defcon();
+    if (defcon_status == null) return { can_merge: true };
+
+    return {
+      can_merge:
+        defcon_status.level !== 'critical' && defcon_status.level !== 'warning',
+      defcon: defcon_status,
+    };
   }
 
   function has_pending_review() {
@@ -559,7 +576,7 @@ exports.create = ({
       await remove_reaction('changes_requested');
     }
 
-    if (is_ready_to_merge() && changes_requested === false) {
+    if (is_mergeable() && changes_requested === false) {
       const n_approvals = get_approvals();
       await add_reaction(
         'approved',
@@ -646,14 +663,22 @@ exports.create = ({
       await delete_reply('modified_changelog');
     }
 
-    if (is_ready_to_merge() === false) {
+    if (is_mergeable() === false) {
       await delete_reply('ready_to_merge');
     } else {
-      const n_approvals = get_approvals();
-      const text =
-        n_approvals > 0
-          ? 'PR is ready to be merged :doit:!'
-          : `PR is ready to be merged, but I can't seem to find any reviews approving it :notsure-left:.\n\nIs there a merge protection rule configured for the \`${base_branch}\` branch?`;
+      let text;
+      const { can_merge, defcon } = await can_be_merged();
+      if (can_merge === false) {
+        text = `This PR would be ready to be merged, but we're at *DEFCON ${defcon.id}* :harold-pain:. ${defcon.message}.`;
+      } else {
+        const n_approvals = get_approvals();
+        if (n_approvals > 0) {
+          text = 'PR is ready to be merged :doit:!';
+        } else {
+          text = `PR is ready to be merged, but I can't seem to find any reviews approving it :notsure-left:.\n\nIs there a merge protection rule configured for the \`${base_branch}\` branch?`;
+        }
+      }
+
       await reply('ready_to_merge', text);
     }
   }
@@ -740,7 +765,7 @@ exports.create = ({
     has_comment,
     is_trivial,
     is_draft,
-    is_ready_to_merge,
+    is_mergeable,
     is_dirty,
     is_unstable,
     is_resolved,
