@@ -30,7 +30,7 @@ module.exports = async prs => {
   const sections = prs.reduce(
     (acc, pr) => {
       let section;
-      if (pr.is_ready_to_merge()) {
+      if (pr.is_mergeable()) {
         section = acc.ready_to_merge;
       } else if (pr.is_dirty()) {
         section = acc.dirty;
