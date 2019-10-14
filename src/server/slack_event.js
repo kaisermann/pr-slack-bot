@@ -23,7 +23,7 @@ exports.parse_slack_event = async (req, res) => {
 
       if (!channel || !thread_ts) return;
 
-      const match = text.match(/(?:roulette|random)\s+(.*)/);
+      const match = text.match(/(?:roulette|random)(?: +(.*)$)?/);
       if (match) {
         roulette({
           channel,
