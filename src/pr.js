@@ -677,6 +677,10 @@ exports.create = ({
         } else {
           text = `PR is ready to be merged, but I can't seem to find any reviews approving it :notsure-left:.\n\nIs there a merge protection rule configured for the \`${base_branch}\` branch?`;
         }
+
+        if (defcon && defcon.level === 'info') {
+          text += `\n\nRemember that we're at *DEFCON ${defcon.id}* :apruved:. ${defcon.message}.`;
+        }
       }
 
       await reply('ready_to_merge', text);
