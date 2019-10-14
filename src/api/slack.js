@@ -20,6 +20,9 @@ const bot_client = new WebClient(SLACK_BOT_TOKEN, {
   retryConfig: retryPolicies.rapidRetryPolicy,
 });
 
+exports.bot_client = bot_client;
+exports.user_client = user_client;
+
 const balancer = new Queue({
   rules: {
     common: {
@@ -56,6 +59,24 @@ const balancer = new Queue({
   retryTime: 300,
 });
 
+const fetch_all = async fn => {
+  let results = [];
+  let cursor;
+  do {
+    const response = await fn(cursor);
+    if (!response.ok) throw response.error;
+
+    const {
+      members,
+      response_metadata: { next_cursor },
+    } = response;
+
+    cursor = next_cursor;
+    results.push(...members);
+  } while (cursor !== '');
+  return results;
+};
+
 const memo_fetch_channel_members = memoize(
   (channel_id, cursor) => {
     return balancer.request(
@@ -73,9 +94,6 @@ const memo_fetch_channel_members = memoize(
   },
   { maxAge: 1000 * 60 * 60, preFetch: true },
 );
-
-exports.bot_client = bot_client;
-exports.user_client = user_client;
 
 exports.get_channel_info = channel_id => {
   return balancer.request(
@@ -109,12 +127,11 @@ exports.get_profile_info = id => {
 };
 
 exports.get_users = async function*() {
-  const list_response = await bot_client.users.list();
-  if (!list_response.ok) return;
-
-  const active_users = list_response.members.filter(
-    user => user.deleted !== true,
+  const slack_users = await fetch_all(cursor =>
+    bot_client.users.list({ limit: 0, cursor }),
   );
+
+  const active_users = slack_users.filter(user => user.deleted !== true);
 
   for await (let user of active_users) {
     const full_profile = await exports.get_profile_info(user.id);
@@ -166,24 +183,8 @@ exports.get_user_group_members = memoize(
   { maxAge: 1000 * 60 * 60, preFetch: true },
 );
 
-exports.get_channel_members = async channel_id => {
-  let cursor;
-  let channel_members = [];
-  do {
-    const response = await memo_fetch_channel_members(channel_id, cursor);
-    if (!response || !response.ok) break;
-
-    const {
-      members,
-      response_metadata: { next_cursor },
-    } = response;
-
-    cursor = next_cursor;
-    channel_members.push(...members);
-  } while (cursor !== '');
-
-  return channel_members;
-};
+exports.get_channel_members = channel_id =>
+  fetch_all(cursor => memo_fetch_channel_members(channel_id, cursor));
 
 exports.on_pr_message = async (on_new_message, on_message_deleted) => {
   RTM.on('message', e => {
