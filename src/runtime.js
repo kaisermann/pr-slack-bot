@@ -6,7 +6,6 @@ const channels = DB.channels
   .values()
   .value()
   .map(Channel.create);
-const users = DB.users.value();
 
 module.exports = {
   get_channel(id) {
@@ -36,9 +35,6 @@ module.exports = {
   },
   get channels() {
     return channels;
-  },
-  get users() {
-    return users;
   },
   get prs() {
     return channels.flatMap(channel => channel.prs);

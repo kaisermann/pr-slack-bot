@@ -23,16 +23,27 @@ const possible_emojis = [
   'call_me_hand',
 ];
 
-module.exports = async ({ channel, ts, thread_ts, user_id }) => {
+module.exports = async ({
+  channel,
+  ts,
+  thread_ts,
+  user_id,
+  params: group_id,
+}) => {
   const pr = channel.prs.find(pr => pr.ts === thread_ts);
 
   if (pr == null) return;
 
   await pr.reply(`roulette_${ts}`, `:think-360:`);
 
-  const members = (await Slack.get_channel_members(channel.id)).filter(
-    id => id !== user_id && id !== pr.poster_id,
-  );
+  let members;
+  if (group_id) {
+    members = await Slack.get_user_group_members(group_id);
+  } else {
+    members = await Slack.get_channel_members(channel.id);
+  }
+
+  members = members.filter(id => id !== user_id && id !== pr.poster_id);
 
   let chosen_member;
   let retry_count = -1;

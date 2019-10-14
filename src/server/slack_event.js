@@ -18,19 +18,15 @@ exports.parse_slack_event = async (req, res) => {
     } = req.body;
 
     if (event.type === 'app_mention') {
-      const {
-        ts,
-        thread_ts,
-        channel: channel_id,
-        user: user_id,
-        text,
-      } = event;
+      const { ts, thread_ts, channel: channel_id, user: user_id, text } = event;
       const channel = runtime.get_channel(channel_id);
 
       if (!channel || !thread_ts) return;
 
-      if (text.match(/roulette|playstation/)) {
-        roulette({ channel, ts, thread_ts, user_id });
+      if (text.match(/roulette|playstation|random/)) {
+        let params = text.match(/<!subteam\^(.*?)\|.*?>/i);
+        params = (params && params[1]) || null;
+        roulette({ channel, ts, thread_ts, user_id, params });
       }
     }
   }
