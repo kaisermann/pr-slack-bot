@@ -13,10 +13,13 @@ installations.unset_id = name => installations.unset([name]).write();
 const users = low(new FileSyncAdapter('./db/users.json'));
 users.get_by_github_user = github_user => {
   return users
+    .get('members')
     .values()
     .find({ github_user })
     .value();
 };
+
+users.defaults({ groups: {}, members: {} }).write();
 
 exports.channels = channels;
 exports.users = users;

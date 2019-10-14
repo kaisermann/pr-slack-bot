@@ -23,13 +23,7 @@ const possible_emojis = [
   'call_me_hand',
 ];
 
-module.exports = async ({
-  channel,
-  ts,
-  thread_ts,
-  user_id,
-  params: group_id,
-}) => {
+module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
   const pr = channel.prs.find(pr => pr.ts === thread_ts);
 
   if (pr == null) return;
@@ -37,8 +31,18 @@ module.exports = async ({
   await pr.reply(`roulette_${ts}`, `:think-360:`);
 
   let members;
-  if (group_id) {
-    members = await Slack.get_user_group_members(group_id);
+  if (params) {
+    const mentioned_group_match = params.match(/<!subteam\^(.*?)\|.*?>/i);
+    if (mentioned_group_match) {
+      members = await Slack.get_user_group_members(mentioned_group_match[1]);
+    } else {
+      const group_name = params;
+      members = DB.users
+        .get('groups')
+        .find({ handle: group_name })
+        .get('users', [])
+        .value();
+    }
   } else {
     members = await Slack.get_channel_members(channel.id);
   }
@@ -60,7 +64,7 @@ module.exports = async ({
       break;
     }
 
-    chosen_member = DB.users.get(get_random_item(members)).value();
+    chosen_member = DB.users.get(['members', get_random_item(members)]).value();
   } while (!chosen_member);
 
   const text = chosen_member
