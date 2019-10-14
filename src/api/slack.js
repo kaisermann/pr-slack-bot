@@ -47,6 +47,11 @@ const balancer = new Queue({
       limit: 60,
       priority: 10,
     },
+    get_user_groups: {
+      rate: 20,
+      limit: 60,
+      priority: 10,
+    },
   },
   retryTime: 300,
 });
@@ -118,6 +123,28 @@ exports.get_users = async function*() {
   }
 };
 
+exports.get_user_groups = memoize(
+  () => {
+    return balancer.request(
+      () => {
+        return user_client.usergroups
+          .list({
+            include_disabled: false,
+            include_count: false,
+            include_users: true,
+          })
+          .then(response => response.ok && response.usergroups)
+          .catch(error => {
+            Logger.error(error);
+          });
+      },
+      new Date().getTime(),
+      'get_user_groups',
+    );
+  },
+  { maxAge: 1000 * 60 * 60, preFetch: true },
+);
+
 exports.get_user_group_members = memoize(
   group_id => {
     return balancer.request(
@@ -136,7 +163,7 @@ exports.get_user_group_members = memoize(
       'get_user_group_members',
     );
   },
-  { maxAge: 1000 * 60 * 60 * 6, preFetch: true },
+  { maxAge: 1000 * 60 * 60, preFetch: true },
 );
 
 exports.get_channel_members = async channel_id => {

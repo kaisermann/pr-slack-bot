@@ -23,10 +23,15 @@ exports.parse_slack_event = async (req, res) => {
 
       if (!channel || !thread_ts) return;
 
-      if (text.match(/roulette|playstation|random/)) {
-        let params = text.match(/<!subteam\^(.*?)\|.*?>/i);
-        params = (params && params[1]) || null;
-        roulette({ channel, ts, thread_ts, user_id, params });
+      const match = text.match(/(?:roulette|random)\s+(.*)/);
+      if (match) {
+        roulette({
+          channel,
+          ts,
+          thread_ts,
+          user_id,
+          params: match && match[1],
+        });
       }
     }
   }
