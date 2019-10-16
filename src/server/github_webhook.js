@@ -1,5 +1,4 @@
-const R = require('ramda');
-const db = require('../api/db.js');
+const DB = require('../api/db.js');
 const runtime = require('../runtime.js');
 const Logger = require('../includes/logger.js');
 
@@ -42,16 +41,16 @@ function on_installation({ req }) {
   } = req.body;
 
   if (removed) {
-    removed.forEach(repo => db.installations.unset_id(repo.full_name));
+    removed.forEach(repo => DB.installations.unset_id(repo.full_name));
   }
 
   if (added) {
     added.forEach(repo =>
-      db.installations.set_id(repo.full_name, installation.id),
+      DB.installations.set_id(repo.full_name, installation.id),
     );
-    const added_map = R.groupBy(({ full_name }) => full_name, added);
-    const related_prs = runtime.prs.filter(
-      pr => `${pr.owner}/${pr.repo}` in added_map,
+    const added_set = new Set(added.map(repo => repo.full_name));
+    const related_prs = runtime.prs.filter(pr =>
+      added_set.has(`${pr.owner}/${pr.repo}`),
     );
 
     return update_prs(related_prs);
