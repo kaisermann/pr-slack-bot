@@ -154,8 +154,8 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   async function on_pr_resolved(pr) {
     await stale_message_lock.acquire();
 
-    const stale_messages = get_messages('forgotten_prs').filter(
-      ({ payload }) => payload.some(slug => pr.slug === slug),
+    const stale_messages = get_messages('forgotten_prs').filter(({ payload }) =>
+      payload.some(slug => pr.slug === slug),
     );
 
     if (stale_messages.length) {
@@ -210,7 +210,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     if (stale_prs.length === 0) return;
 
-    const link_map = R.fromPairs(
+    const link_map = Object.fromEntries(
       await Promise.all(
         stale_prs.map(async pr => [
           pr.slug,

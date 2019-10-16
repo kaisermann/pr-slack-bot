@@ -1,5 +1,3 @@
-const R = require('ramda');
-
 const Message = require('../message.js');
 const { EMOJIS } = require('../consts.js');
 
@@ -18,7 +16,7 @@ function format_time(n) {
 }
 
 module.exports = async prs => {
-  const link_map = R.fromPairs(
+  const link_map = Object.fromEntries(
     await Promise.all(
       prs.map(async pr => [
         pr.slug,

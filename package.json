@@ -2,6 +2,9 @@
   "name": "slack-bot",
   "version": "1.0.0",
   "author": "Christian Kaisermann <christian@kaisermann.me>",
+  "engines": {
+    "node": ">=12.0.0"
+  },
   "scripts": {
     "dev": "cross-env node daemon.js",
     "start": "cross-env NODE_ENV=production node daemon.js",
@@ -28,7 +31,6 @@
     "@octokit/app": "^4.1.0",
     "@octokit/request": "^5.0.2",
     "@polka/send-type": "^0.5.2",
-    "@slack/client": "^5.0.1",
     "@slack/rtm-api": "^5.0.1",
     "@slack/web-api": "^5.0.1",
     "body-parser": "^1.19.0",
