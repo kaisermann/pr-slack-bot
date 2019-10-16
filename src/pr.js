@@ -170,7 +170,7 @@ exports.create = ({
         return true;
       })
       .catch(e => {
-        if (e.data.error === 'message_not_found') {
+        if (e.data && e.data.error === 'message_not_found') {
           Logger.info(`- Tried to delete an already deleted message`);
           delete replies[id];
           return false;
@@ -249,7 +249,7 @@ exports.create = ({
         return true;
       })
       .catch(e => {
-        if (e.data.error === 'no_reaction') {
+        if (e.data && e.data.error === 'no_reaction') {
           delete reactions[type];
           return false;
         }
@@ -272,7 +272,7 @@ exports.create = ({
         return true;
       })
       .catch(e => {
-        if (e.data.error === 'already_reacted') {
+        if (e.data && e.data.error === 'already_reacted') {
           reactions[type] = name;
           return false;
         }

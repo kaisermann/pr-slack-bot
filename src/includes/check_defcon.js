@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 const memoize = require('memoizee');
 
-const Logger = require('./logger.js');
+// const Logger = require('./logger.js');
 
 const DEFCON_ENDPOINT = `http://monitoring.vtex.com/api/pvt/defcon`;
 
@@ -22,7 +22,7 @@ module.exports = memoize(
         id,
       };
     } catch (e) {
-      Logger.error(e, 'DEFCON request');
+      // Logger.error(e, 'DEFCON request');
       return null;
     }
   },
