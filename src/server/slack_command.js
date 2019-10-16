@@ -1,19 +1,11 @@
 const send = require('@polka/send-type');
 
-const COMMANDS_HELP = [
-  '*Available commands*:',
-  '`/pr help` - list all emojis meaning',
-  '`/pr list` - list all open prs on the channel',
-  '`/pr list mine` - list all of your PRs on the channel',
-  '`/pr list @user` - list all of a users PRs on the channel',
-].join('\n');
-
 exports.parse_slack_command = async (req, res) => {
   const { text, channel_id, response_url, user_id } = req.body;
   const [command, ...params] = text.split(' ');
 
   if (!command) {
-    res.end(COMMANDS_HELP);
+    res.end('Please type `/pr help` to see available commands');
     return;
   }
 
@@ -35,7 +27,7 @@ exports.parse_slack_command = async (req, res) => {
       };
     }
   } catch (e) {
-    response_data = `No command \`${text}\`.\n\n${COMMANDS_HELP}`;
+    response_data = `No command \`${text}\`.\n\nPlease type \`/pr help\` to see available commands`;
   }
 
   send(res, 200, response_data);
