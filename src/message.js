@@ -51,6 +51,9 @@ exports.build_text = parts => {
 exports.blocks = {
   create_markdown_section: text => ({
     type: 'section',
-    text: { type: 'mrkdwn', text },
+    text: {
+      type: 'mrkdwn',
+      text: exports.build_text(text),
+    },
   }),
 };

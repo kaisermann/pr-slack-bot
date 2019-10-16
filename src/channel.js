@@ -9,7 +9,7 @@ const Lock = require('./includes/lock.js');
 const Logger = require('./includes/logger.js');
 
 exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
-  const forgotten_message_lock = new Lock();
+  const stale_message_lock = new Lock();
   const DB_PR_PATH = [channel_id, 'prs'];
   const DB_MSG_PATH = [channel_id, 'messages'];
   const get_db_message_path = type => [...DB_MSG_PATH, type].filter(Boolean);
@@ -152,14 +152,14 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
   }
 
   async function on_pr_resolved(pr) {
-    await forgotten_message_lock.acquire();
+    await stale_message_lock.acquire();
 
-    const forgotten_messages = get_messages('forgotten_prs').filter(
+    const stale_messages = get_messages('forgotten_prs').filter(
       ({ payload }) => payload.some(slug => pr.slug === slug),
     );
 
-    if (forgotten_messages.length) {
-      Logger.info(`- Updating forgotten PR message: ${pr.slug}`);
+    if (stale_messages.length) {
+      Logger.info(`- Updating stale PRs message: ${pr.slug}`);
     }
 
     const state_emoji = pr.state.merged
@@ -174,7 +174,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
         `:${state_emoji}:  ~$1~`,
       );
 
-    for await (const message of forgotten_messages) {
+    for await (const message of stale_messages) {
       const updated_message = await Message.update(message, message => {
         if (message.text) {
           message.text = replace_pr_in_text(message.text);
@@ -200,19 +200,19 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
         update_message(updated_message);
       }
     }
-    await forgotten_message_lock.release();
+    await stale_message_lock.release();
   }
 
   async function check_forgotten_prs() {
-    const forgotten_prs = get_active_prs().filter(pr =>
+    const stale_prs = get_active_prs().filter(pr =>
       pr.needs_attention(FORGOTTEN_PR_HOUR_THRESHOLD),
     );
 
-    if (forgotten_prs.length === 0) return;
+    if (stale_prs.length === 0) return;
 
     const link_map = R.fromPairs(
       await Promise.all(
-        forgotten_prs.map(async pr => [
+        stale_prs.map(async pr => [
           pr.slug,
           await pr.get_message_link(pr => `${pr.repo}/${pr.pr_id}`),
         ]),
@@ -221,18 +221,23 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
 
     const now_date = new Date(Date.now());
     const time_of_day = now_date.getHours() < 12 ? 'morning' : 'afternoon';
+    const n_prs = stale_prs.length;
 
     const blocks = [
-      Message.blocks.create_markdown_section(
-        `Good ${time_of_day}! There are *${forgotten_prs.length}* PRs in need of some love and attention`,
-      ),
-    ].concat(await get_sectioned_pr_blocks(forgotten_prs));
+      Message.blocks.create_markdown_section([
+        `Good ${time_of_day}! `,
+        `There ${n_prs === 1 ? 'is' : 'are'} *${n_prs}* PR${
+          n_prs > 1 ? 's' : ''
+        }`,
+        ` in need of some love and attention :worry-big:`,
+      ]),
+    ].concat(await get_sectioned_pr_blocks(stale_prs));
 
     const message = await Message.send({
       type: 'forgotten_prs',
       channel: channel_id,
       blocks,
-      payload: forgotten_prs.map(pr => pr.slug),
+      payload: stale_prs.map(pr => pr.slug),
       replies: {},
     });
 
@@ -246,7 +251,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
           `${list.map(pr => link_map[pr.slug]).join(', ')}`,
       ),
       R.join('\n\n'),
-    )(forgotten_prs)}`;
+    )(stale_prs)}`;
 
     message.replies.mentions = await Message.send({
       channel: channel_id,

@@ -5,7 +5,9 @@ const get_sectioned_pr_blocks = require('../../messages/section_pr_list.js');
 module.exports = async ({ channel_id, user_id, params }) => {
   const channel = runtime.get_channel(channel_id);
 
-  if (!channel) return;
+  if (!channel) {
+    return `Sorry, but it seems I'm not tracking any PR from this channel.`;
+  }
 
   if (params.length === 0) {
     return [
