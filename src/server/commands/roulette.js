@@ -1,8 +1,10 @@
+const random = require('../../includes/getRandom.js');
+
 const Logger = require('../../includes/logger.js');
 const Slack = require('../../api/slack.js');
 const DB = require('../../api/db.js');
 
-const get_random_item = arr => arr[Math.floor(Math.random() * arr.length)];
+const get_random_item = arr => arr[random(0, arr.length - 1)];
 
 const possible_emojis = [
   'awthanks',
@@ -21,6 +23,7 @@ const possible_emojis = [
   'mini-hangloose',
   'pokebola',
   'call_me_hand',
+  'bushes_uncertain',
 ];
 
 module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
