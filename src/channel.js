@@ -132,7 +132,9 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
     if (index < 0) return;
 
     prs[index].invalidate_etag_signature();
-    await prs[index].delete_replies();
+    await prs[index].delete_replies().catch(e => {
+      Logger.error(e, `Error deleting replies from thread`);
+    });
 
     prs.splice(index, 1);
 
