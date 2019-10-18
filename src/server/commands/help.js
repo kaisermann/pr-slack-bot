@@ -15,6 +15,12 @@ const commands = [
   ],
 ];
 
+const utils = [
+  [
+    'add a `#trivial` to your PR title or body to prevent checking for a CHANGELOG update',
+  ],
+];
+
 const emojis = [
   ...PR_SIZES.map(([label, max], i) => [
     EMOJIS[`size_${label}`],
@@ -43,12 +49,13 @@ const emojis = [
 
 function format_help_section(items, title) {
   return `*${title}*:\n${items
-    .map(([cmd, str]) => `${cmd} - ${str}`)
+    .map(([cmd, str]) => (str ? `${cmd} - ${str}` : `- ${cmd}`))
     .join(';\n')}.`;
 }
 
 module.exports = () =>
   [
     format_help_section(commands, 'Available commands'),
+    format_help_section(utils, 'Utilities'),
     format_help_section(emojis, 'Emojis'),
-  ].join('\n\n');
+  ].join('\n\n\n');
