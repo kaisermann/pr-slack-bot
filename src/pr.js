@@ -672,10 +672,13 @@ exports.create = ({
         text = `This PR would be ready to be merged, but we're at *DEFCON ${defcon.id}* :harold-pain:. ${defcon.message}.`;
       } else {
         const n_approvals = get_approvals();
-        if (n_approvals > 0) {
-          text = 'PR is ready to be merged :doit:!';
-        } else {
+        const is_release_branch = !!base_branch.match(
+          /^(?:master|release[\/-]?|(?:\d\.)+x)/i,
+        );
+        if (n_approvals === 0 && is_release_branch) {
           text = `PR is ready to be merged, but I can't seem to find any reviews approving it :notsure-left:.\n\nIs there a merge protection rule configured for the \`${base_branch}\` branch?`;
+        } else {
+          text = 'PR is ready to be merged :doit:!';
         }
 
         if (defcon && defcon.level === 'info') {
