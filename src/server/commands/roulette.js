@@ -1,10 +1,7 @@
-const random = require('../../includes/getRandom.js');
-
+const get_random_item = require('../../includes/get_random_item.js');
 const Logger = require('../../includes/logger.js');
 const Slack = require('../../api/slack.js');
 const DB = require('../../api/db.js');
-
-const get_random_item = arr => arr[random(0, arr.length - 1)];
 
 const possible_emojis = [
   'awthanks',
@@ -35,9 +32,9 @@ module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
 
   let members;
   if (params) {
-    const mentioned_group_match = params.match(/<!subteam\^(.*?)\|.*?>/i);
-    if (mentioned_group_match) {
-      members = await Slack.get_user_group_members(mentioned_group_match[1]);
+    const group_match = params.match(/<!subteam\^(.*?)\|.*?>/i);
+    if (group_match) {
+      members = await Slack.get_user_group_members(group_match[1]);
     } else {
       const group_name = params;
       members = DB.users
