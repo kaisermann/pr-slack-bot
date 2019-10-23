@@ -57,3 +57,9 @@ exports.blocks = {
     },
   }),
 };
+
+exports.match_user_mention = str => str.match(/^<@(\w*?)\|[\w.-_]*?>$/i);
+exports.get_user_mention = id => `<@${id}>`;
+
+exports.match_group_mention = str => str.match(/<!subteam\^(.*?)\|.*?>/i);
+exports.get_group_mention = id => `<!subteam^${id}>`;

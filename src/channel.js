@@ -249,7 +249,7 @@ exports.create = ({ channel_id, name: channel_name, prs, messages }) => {
       R.filter(([, list]) => list.length),
       R.map(
         ([user_id, list]) =>
-          `*<@${user_id}>*:\n` +
+          `*${Message.get_user_mention(user_id)}*:\n` +
           `${list.map(pr => link_map[pr.slug]).join(', ')}`,
       ),
       R.join('\n\n'),
