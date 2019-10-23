@@ -6,6 +6,10 @@ const commands = [
   ['`/pr list mine`', 'list all of your PRs on the channel'],
   ['`/pr list @user`', 'list all PRs on the channel from a specific user'],
   [
+    '`/pr list @userGroup`',
+    'list all PRs on the channel from a specific user group',
+  ],
+  [
     '`@Paul Robotson roulette|random`',
     'on a PR Thread, mention a random person from the channel',
   ],

@@ -1,5 +1,7 @@
 const send = require('@polka/send-type');
 
+const Logger = require('../includes/logger.js');
+
 exports.parse_slack_command = async (req, res) => {
   const { text, channel_id, response_url, user_id } = req.body;
   const [command, ...params] = text.split(' ');
@@ -27,7 +29,8 @@ exports.parse_slack_command = async (req, res) => {
       };
     }
   } catch (e) {
-    response_data = `No command \`${text}\`.\n\nPlease type \`/pr help\` to see available commands`;
+    response_data = `No command \`${text}\`.\n\nPlease type \`/pr help\` to see available commands.`;
+    Logger.error(e, 'Slack command response');
   }
 
   send(res, 200, response_data);

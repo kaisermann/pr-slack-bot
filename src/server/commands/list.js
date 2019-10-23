@@ -1,3 +1,4 @@
+const DB = require('../../api/db.js');
 const runtime = require('../../runtime.js');
 const Message = require('../../message.js');
 const get_sectioned_pr_blocks = require('../../messages/section_pr_list.js');
@@ -29,21 +30,40 @@ module.exports = async ({ channel_id, user_id, params }) => {
     ].concat(await get_sectioned_pr_blocks(prs));
   }
 
-  const match = params.match(/^<@(\w*?)\|[\w.-_]*?>$/im);
-  if (match) {
-    const mentioned_user = match[1];
-    const prs = channel.prs.filter(pr => pr.poster_id === mentioned_user);
+  const group_match = params.match(/<!subteam\^(.*?)\|.*?>/i);
+  if (group_match) {
+    const matched_group_id = group_match[1];
+    const members = new Set(
+      DB.users.get(['groups', matched_group_id, 'users'], []).value(),
+    );
+    const prs = channel.prs.filter(pr => members.has(pr.poster_id));
 
     if (prs.length === 0) {
-      return `<@${mentioned_user}> don't have any pull requests listed on this channel`;
+      return `<!subteam^${matched_group_id}> don't have any pull requests listed on this channel`;
     }
 
     return [
       Message.blocks.create_markdown_section(
-        `Here's all PRs owned by <@${mentioned_user}>:`,
+        `Here's all PRs owned by <!subteam^${matched_group_id}>:`,
       ),
     ].concat(await get_sectioned_pr_blocks(prs));
   }
 
-  return 'Invalid command parameters: `/pr list [ |mine|@user]`';
+  const user_match = params.match(/^<@(\w*?)\|[\w.-_]*?>$/im);
+  if (user_match) {
+    const matched_user_id = user_match[1];
+    const prs = channel.prs.filter(pr => pr.poster_id === matched_user_id);
+
+    if (prs.length === 0) {
+      return `<@${matched_user_id}> don't have any pull requests listed on this channel`;
+    }
+
+    return [
+      Message.blocks.create_markdown_section(
+        `Here's all PRs owned by <@${matched_user_id}>:`,
+      ),
+    ].concat(await get_sectioned_pr_blocks(prs));
+  }
+
+  return 'Invalid command parameters: `/pr list [ |mine|@user|@userGroup]`';
 };
