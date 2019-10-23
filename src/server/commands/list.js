@@ -30,7 +30,7 @@ module.exports = async ({ channel_id, user_id, params }) => {
     ].concat(await get_sectioned_pr_blocks(prs));
   }
 
-  const group_match = params.match(/<!subteam\^(.*?)\|.*?>/i);
+  const group_match = Message.match_group_mention(params);
   if (group_match) {
     const matched_group_id = group_match[1];
     const members = new Set(
@@ -39,28 +39,34 @@ module.exports = async ({ channel_id, user_id, params }) => {
     const prs = channel.prs.filter(pr => members.has(pr.poster_id));
 
     if (prs.length === 0) {
-      return `<!subteam^${matched_group_id}> don't have any pull requests listed on this channel`;
+      return `${Message.get_group_mention(
+        matched_group_id,
+      )} don't have any pull requests listed on this channel`;
     }
 
     return [
       Message.blocks.create_markdown_section(
-        `Here's all PRs owned by <!subteam^${matched_group_id}>:`,
+        `Here's all PRs owned by ${Message.get_group_mention(
+          matched_group_id,
+        )}:`,
       ),
     ].concat(await get_sectioned_pr_blocks(prs));
   }
 
-  const user_match = params.match(/^<@(\w*?)\|[\w.-_]*?>$/im);
+  const user_match = Message.match_user_mention(params);
   if (user_match) {
     const matched_user_id = user_match[1];
     const prs = channel.prs.filter(pr => pr.poster_id === matched_user_id);
 
     if (prs.length === 0) {
-      return `<@${matched_user_id}> don't have any pull requests listed on this channel`;
+      return `${Message.get_user_mention(
+        matched_user_id,
+      )} don't have any pull requests listed on this channel`;
     }
 
     return [
       Message.blocks.create_markdown_section(
-        `Here's all PRs owned by <@${matched_user_id}>:`,
+        `Here's all PRs owned by ${Message.get_user_mention(matched_user_id)}:`,
       ),
     ].concat(await get_sectioned_pr_blocks(prs));
   }

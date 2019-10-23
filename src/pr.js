@@ -543,7 +543,7 @@ exports.create = ({
               actions.reduce((acc, { id, github_user, action }) => {
                 if (!(action in acc)) acc[action] = [];
 
-                const mention = id ? `<@${id}>` : github_user;
+                const mention = id ? Message.get_user_mention(id) : github_user;
                 acc[action].push(mention);
                 return acc;
               }, {}),

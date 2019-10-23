@@ -1,4 +1,5 @@
 const get_random_item = require('../../includes/get_random_item.js');
+const Message = require('../../message.js');
 const Logger = require('../../includes/logger.js');
 const Slack = require('../../api/slack.js');
 const DB = require('../../api/db.js');
@@ -32,7 +33,7 @@ module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
 
   let members;
   if (params) {
-    const group_match = params.match(/<!subteam\^(.*?)\|.*?>/i);
+    const group_match = Message.match_group_mention(params);
     if (group_match) {
       members = await Slack.get_user_group_members(group_match[1]);
     } else {
@@ -68,7 +69,9 @@ module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
   } while (!chosen_member);
 
   const text = chosen_member
-    ? `:${get_random_item(possible_emojis)}: <@${chosen_member.id}>`
+    ? `:${get_random_item(possible_emojis)}: ${Message.get_user_mention(
+        chosen_member.id,
+      )}`
     : `For some reason I couldn't choose a random channel member... :sob:`;
 
   await pr.reply(`roulette_${ts}`, text, chosen_member);
