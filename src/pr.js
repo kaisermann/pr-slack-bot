@@ -754,13 +754,13 @@ exports.create = ({
       return ~~(this.minutes_since_post / 60);
     },
     // methods
-    // we debounce the update method so many consecutive updates fire just once
     change_thread_ts(new_channel, new_ts) {
       channel = new_channel;
       ts = new_ts;
       replies = {};
       reactions = {};
     },
+    // we debounce the update method so many consecutive updates fire just once
     update: debounce(update, 400),
     get_message_url,
     get_message_link: async fn => `<${[await get_message_url()]}|${fn(self)}>`,
