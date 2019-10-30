@@ -1,5 +1,5 @@
 const get_random_item = require('../../includes/get_random_item.js');
-const Message = require('../../message.js');
+const Message = require('../../includes/message.js');
 const Logger = require('../../includes/logger.js');
 const Slack = require('../../api/slack.js');
 const DB = require('../../api/db.js');

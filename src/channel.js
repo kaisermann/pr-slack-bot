@@ -2,7 +2,7 @@ const R = require('ramda');
 
 const DB = require('./api/db.js');
 const { EMOJIS, FORGOTTEN_PR_HOUR_THRESHOLD } = require('./consts.js');
-const Message = require('./message.js');
+const Message = require('./includes/message.js');
 const PR = require('./pr.js');
 const get_sectioned_pr_blocks = require('./messages/section_pr_list.js');
 const Lock = require('./includes/lock.js');

@@ -1,5 +1,6 @@
 const { produce } = require('immer');
-const Slack = require('./api/slack.js');
+
+const Slack = require('../api/slack.js');
 
 exports.send = async ({ text, blocks, channel, thread_ts, ...rest }) => {
   const response = await Slack.send_message({

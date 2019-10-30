@@ -1,4 +1,4 @@
-const Message = require('../message.js');
+const Message = require('../includes/message.js');
 const { EMOJIS } = require('../consts.js');
 
 function pluralize(str, n) {
