@@ -1,6 +1,6 @@
 const DB = require('../../api/db.js');
 const runtime = require('../../runtime.js');
-const Message = require('../../message.js');
+const Message = require('../../includes/message.js');
 const get_sectioned_pr_blocks = require('../../messages/section_pr_list.js');
 
 module.exports = async ({ channel_id, user_id, params }) => {
