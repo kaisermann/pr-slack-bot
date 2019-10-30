@@ -1,4 +1,4 @@
-// Kudos for http:// dimitri.xyz/random-ints-from-random-bits/
+// Kudos for http://dimitri.xyz/random-ints-from-random-bits/
 const crypto = require('crypto');
 
 // 32 bit maximum

@@ -16,7 +16,7 @@ exports.EMOJIS = {
   pending_review: 'eyes',
   size_small: 'pr-small',
   size_medium: 'pr-medium',
-  size_big: 'pr-large',
+  size_large: 'pr-large',
   size_gigantic: 'pr-xlarge',
   info: 'info',
 };
@@ -24,7 +24,7 @@ exports.EMOJIS = {
 exports.PR_SIZES = [
   ['small', 80],
   ['medium', 250],
-  ['big', 800],
+  ['large', 800],
   ['gigantic', Infinity],
 ];
 
