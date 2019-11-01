@@ -12,12 +12,12 @@ const update_prs = async prs => {
 
   let error;
 
-  const update_result = await Promise.all(
-    prs.map(async pr => {
+  await Promise.all(
+    prs.map(pr => {
       const channel = runtime.get_channel(pr.channel);
       return pr
         .update()
-        .then(channel.on_pr_updated)
+        .then(pr => channel && channel.on_pr_updated(pr))
         .catch(e => {
           error = e;
         });
@@ -29,8 +29,6 @@ const update_prs = async prs => {
       return handle_channel_not_found(error);
     }
   }
-
-  return update_result;
 };
 
 function on_installation({ req }) {
@@ -76,23 +74,7 @@ async function on_pull_request_change({ event, req }) {
   const prs = runtime.prs.filter(pr => pr.slug === pr_slug);
   if (prs.length === 0) return;
 
-  let error;
-
-  prs.forEach(pr => {
-    const channel = runtime.get_channel(pr.channel);
-    return pr
-      .update()
-      .then(channel.on_pr_updated)
-      .catch(e => {
-        error = e;
-      });
-  });
-
-  if (error) {
-    if (error.error === 'channel_not_found') {
-      return handle_channel_not_found(error);
-    }
-  }
+  return update_prs(prs);
 }
 
 async function on_push({ req }) {
@@ -114,8 +96,7 @@ async function on_push({ req }) {
     );
   }
 
-  // intentional delay to try to wait for github background mergeability calculation
-  setTimeout(() => update_prs(related_prs), 800);
+  update_prs(related_prs);
 }
 
 exports.parse_github_webhook = async (req, res) => {
