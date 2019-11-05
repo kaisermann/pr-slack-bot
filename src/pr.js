@@ -677,7 +677,7 @@ exports.create = ({
       } else {
         const n_approvals = get_approvals();
         const is_release_branch = !!base_branch.match(
-          /^(?:master|release[\/-]?|(?:\d\.)+x)/i,
+          /^(?:master|release[/-]?|(?:\d\.)+x)/i,
         );
         if (n_approvals === 0 && is_release_branch) {
           text = `PR is ready to be merged, but I can't seem to find any reviews approving it :notsure-left:.\n\nIs there a merge protection rule configured for the \`${base_branch}\` branch?`;
