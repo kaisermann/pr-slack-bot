@@ -27,7 +27,7 @@ module.exports = async () => {
   for await (const user of Slack.get_users()) {
     const {
       id,
-      profile: { display_name, fields },
+      profile: { status_text, display_name, fields },
     } = user;
     if (!fields || !fields[GITHUB_FIELD_ID]) continue;
 
@@ -40,6 +40,7 @@ module.exports = async () => {
       id,
       slack_user: display_name,
       github_user,
+      status_text,
     });
   }
 

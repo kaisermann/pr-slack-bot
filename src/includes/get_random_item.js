@@ -1,3 +1,6 @@
 const random = require('./get_random.js');
 
-module.exports = arr => arr[random(0, arr.length - 1)];
+module.exports = iterable => {
+  const array = Array.from(iterable);
+  return array[random(0, array.length - 1)];
+};
