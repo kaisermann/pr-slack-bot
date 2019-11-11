@@ -31,24 +31,26 @@ module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
 
   await pr.reply(`roulette_${ts}`, `:think-360:`);
 
-  let members;
+  let member_list;
   if (params) {
     const group_match = Message.match_group_mention(params);
     if (group_match) {
-      members = await Slack.get_user_group_members(group_match[1]);
+      member_list = await Slack.get_user_group_members(group_match[1]);
     } else {
       const group_name = params;
-      members = DB.users
+      member_list = DB.users
         .get('groups')
         .find({ handle: group_name })
         .get('users', [])
         .value();
     }
   } else {
-    members = await Slack.get_channel_members(channel.id);
+    member_list = await Slack.get_channel_members(channel.id);
   }
 
-  members = members.filter(id => id !== user_id && id !== pr.poster_id);
+  const member_set = new Set(member_list);
+  member_set.delete(user_id);
+  member_set.delete(pr.poster_id);
 
   let chosen_member;
   let retry_count = -1;
@@ -65,7 +67,15 @@ module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
       break;
     }
 
-    chosen_member = DB.users.get(['members', get_random_item(members)]).value();
+    chosen_member = DB.users
+      .get(['members', get_random_item(member_set)])
+      .value();
+
+    // do not mention people on vacation
+    if (chosen_member.status_text.match(/vacation|f[ée]rias/gi)) {
+      member_list.delete(chosen_member.id);
+      chosen_member = null;
+    }
   } while (!chosen_member);
 
   const text = chosen_member
