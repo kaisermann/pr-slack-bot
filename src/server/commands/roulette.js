@@ -71,8 +71,13 @@ module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
       .get(['members', get_random_item(member_set)])
       .value();
 
+    Logger.log(`Roulette: ${JSON.stringify(chosen_member)}`);
+
     // do not mention people on vacation
-    if (chosen_member.status_text.match(/vacation|f[ée]rias/gi)) {
+    if (
+      chosen_member &&
+      chosen_member.status_text.match(/vacation|f[ée]rias/gi)
+    ) {
       member_list.delete(chosen_member.id);
       chosen_member = null;
     }
