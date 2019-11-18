@@ -58,7 +58,7 @@ module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
   await pr.reply(`roulette_${ts}`, `:thinking-face-fast:`);
 
   do {
-    if (retry_count++ >= 20) {
+    if (retry_count++ >= 20 || member_set.size === 0) {
       Logger.error(
         { channel, ts, thread_ts },
         'Max members shuffling attempts reached',
@@ -78,7 +78,7 @@ module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
       chosen_member &&
       chosen_member.status_text.match(/vacation|f[ée]rias/gi)
     ) {
-      member_list.delete(chosen_member.id);
+      member_set.delete(chosen_member.id);
       chosen_member = null;
     }
   } while (!chosen_member);
