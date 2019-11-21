@@ -1,5 +1,4 @@
 const { basename } = require('path');
-const R = require('ramda');
 const is_equal = require('fast-deep-equal');
 
 const Github = require('./api/github.js');
@@ -41,6 +40,10 @@ function get_action(action_list) {
 
   if (last_dismissed_idx >= 0) {
     return ACTIONS.dismissed;
+  }
+
+  if (action_list.includes(ACTIONS.review_requested)) {
+    return ACTIONS.review_requested;
   }
 
   if (action_list.includes(ACTIONS.pending_review)) {
@@ -108,14 +111,22 @@ function get_pr_size({ additions, deletions, files }) {
 }
 
 function get_action_lists(pr_data, review_data) {
-  return R.pipe(
-    R.filter(
+  let actions = {};
+
+  pr_data.requested_reviewers.forEach(({ login }) => {
+    actions[login] = [ACTIONS.review_requested];
+  });
+
+  review_data
+    .filter(
       ({ user }) => pr_data.assignee == null || user !== pr_data.assignee.login,
-    ),
-    R.groupBy(R.path(['user', 'login'])),
-    R.toPairs,
-    R.map(([user, actions]) => [user, actions.map(action => action.state)]),
-  )(review_data);
+    )
+    .forEach(({ user: { login }, state }) => {
+      if (!(login in actions)) actions[login] = [];
+      actions[login].push(state);
+    });
+
+  return Object.entries(actions);
 }
 
 exports.create = ({
@@ -394,14 +405,6 @@ exports.create = ({
     const action_lists = get_action_lists(pr_data, review_data);
 
     const actions = []
-      .concat(
-        pr_data.requested_reviewers.map(({ login }) => {
-          return {
-            github_user: login,
-            action: ACTIONS.review_requested,
-          };
-        }),
-      )
       .concat(
         action_lists.map(([github_user, action_list]) => {
           return {
