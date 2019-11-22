@@ -1,6 +1,11 @@
 # Pull Request Slack Bot
 
-> TODO: an actual readme
+##### TODO
+
+- [ ] An actual readme
+- [ ] Check for git conflict artifacts on changed files
+- [ ] Check for `.only` on test files
+- [ ] Rewrite eeeeeverything, the current code base is too coupled.
 
 ## Features
 
