@@ -29,6 +29,7 @@ exports.PR_SIZES = [
 ];
 
 exports.FORGOTTEN_PR_HOUR_THRESHOLD = 24;
+exports.BLOCK_MAX_LEN = 3000;
 
 // dev
 exports.PRIVATE_TEST_CHANNELS = ['GKSCG1GRX', 'GLAM8UANR'];
