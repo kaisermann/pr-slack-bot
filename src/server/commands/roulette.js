@@ -5,48 +5,61 @@ const Slack = require('../../api/slack.js');
 const DB = require('../../api/db.js');
 
 const possible_emojis = [
+  'worry-pls',
+  'eyesright',
+  'call_me_hand',
+  'mini-hangloose',
   'awthanks',
   'gun',
-  'eyes',
   'pray',
   'eyes-inside',
+  'pokebola',
   'drake-yes',
-  'doge2',
+  'worry-mad',
+  'mutley_laugh',
+  'flushed-cross-eye-transparent',
+  'eyes',
+  'developers',
+  'bushes_uncertain',
+  'worry-glasses',
   'harold-pain',
   'this-is-fine-fire',
-  'flushed-cross-eye-transparent',
-  'developers',
-  'eyesright',
-  'mutley_laugh',
-  'mini-hangloose',
-  'pokebola',
-  'call_me_hand',
-  'bushes_uncertain',
+  'doge2',
+  'worry-anime',
 ];
+
+const wait = delay => new Promise(res => setTimeout(res, delay));
+
+const get_member_list = async (channel, params) => {
+  if (!params) {
+    return Slack.get_channel_members(channel.id);
+  }
+
+  const group_match = Message.match_group_mention(params);
+  if (group_match) {
+    return Slack.get_user_group_members(group_match[1]);
+  }
+
+  const group_name = params;
+  return DB.users
+    .get('groups')
+    .find({ handle: group_name })
+    .get('users', [])
+    .value();
+};
 
 module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
   const pr = channel.prs.find(pr => pr.ts === thread_ts);
 
   if (pr == null) return;
 
-  await pr.reply(`roulette_${ts}`, `:think-360:`);
+  // await pr.reply(`roulette_${ts}`, `:think-360:`);
+  await pr.reply(`roulette_${ts}`, `:kuchiyose:`);
 
-  let member_list;
-  if (params) {
-    const group_match = Message.match_group_mention(params);
-    if (group_match) {
-      member_list = await Slack.get_user_group_members(group_match[1]);
-    } else {
-      const group_name = params;
-      member_list = DB.users
-        .get('groups')
-        .find({ handle: group_name })
-        .get('users', [])
-        .value();
-    }
-  } else {
-    member_list = await Slack.get_channel_members(channel.id);
-  }
+  const [member_list] = await Promise.all([
+    get_member_list(channel, params),
+    wait(1900),
+  ]);
 
   const member_set = new Set(member_list);
   member_set.delete(user_id);
@@ -55,7 +68,7 @@ module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
   let chosen_member;
   let retry_count = -1;
 
-  await pr.reply(`roulette_${ts}`, `:thinking-face-fast:`);
+  // await pr.reply(`roulette_${ts}`, `:thinking-face-fast:`);
 
   do {
     if (retry_count++ >= 20 || member_set.size === 0) {
@@ -82,6 +95,9 @@ module.exports = async ({ channel, ts, thread_ts, user_id, params }) => {
       chosen_member = null;
     }
   } while (!chosen_member);
+
+  await pr.reply(`roulette_${ts}`, `:kuchiyose_smoke:`);
+  await wait(250);
 
   const text = chosen_member
     ? `:${get_random_item(possible_emojis)}: ${Message.get_user_mention(
