@@ -719,7 +719,7 @@ exports.create = ({
       }
     } catch (e) {
       Logger.error(e, `Something went wrong with "${slug}":`);
-      // throw e;
+      throw e;
     } finally {
       update_lock.release();
     }
