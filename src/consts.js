@@ -4,7 +4,7 @@ exports.GITHUB_FIELD_ID = 'XfCCUXUDPH';
 exports.BOT_NAME = 'Paul Robotson';
 
 exports.EMOJIS = {
-  approved: 'white_check_mark',
+  approved: 'github-check-done',
   ready_to_merge: 'ready-to-merge',
   commented: 'speech_balloon',
   merged: 'merged',
