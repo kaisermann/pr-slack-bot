@@ -28,7 +28,7 @@ exports.update = async (message, fn) => {
 
   const response = await Slack.update_message(updated_message);
 
-  if (!response.ok) throw new Error(response);
+  if (!response.ok) throw response;
 
   return updated_message;
 };
@@ -36,7 +36,7 @@ exports.update = async (message, fn) => {
 exports.delete = async message => {
   const response = await Slack.delete_message(message);
 
-  if (!response.ok) throw new Error(response);
+  if (!response.ok) throw response;
 
   return true;
 };
