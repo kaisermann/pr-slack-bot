@@ -185,6 +185,8 @@ exports.create = ({
         return true;
       })
       .catch(e => {
+        console.log(e.data);
+        console.log(e.data.error);
         if (e.data && e.data.error === 'message_not_found') {
           Logger.info(`- Tried to delete an already deleted message`);
           delete replies[id];
@@ -670,7 +672,7 @@ exports.create = ({
       await delete_reply('modified_changelog');
     }
 
-    if (is_mergeable() === false) {
+    if (is_mergeable() === false || has_changes_requested()) {
       await delete_reply('ready_to_merge');
     } else {
       let text;
