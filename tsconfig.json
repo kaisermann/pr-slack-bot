@@ -1,0 +1,17 @@
+{
+  "extends": "@vtex/tsconfig",
+  "compilerOptions": {
+    "sourceMap": false,
+    "noEmitOnError": false,
+    "types": ["node"],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitAny": false,
+    "target": "es5",
+    "module": "CommonJS",
+    "resolveJsonModule": true,
+    "downlevelIteration": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules/**/*", "**/*.test.ts"]
+}
