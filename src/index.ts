@@ -8,10 +8,12 @@ import { updateUser, updateUserGroup } from './modules/users'
 import {
   isPullRequestMessage,
   addPullRequestFromEventMessage,
-} from './modules/pr'
+} from './modules/pr/pr'
 
 async function handleEvent(req: any, res: any) {
   const { type } = req.body
+
+  console.log(`Slack event "${type}"`)
 
   if (type === 'url_verification') {
     const { challenge } = req.body
@@ -21,32 +23,36 @@ async function handleEvent(req: any, res: any) {
 
   const { type: eventType } = req.body.event
 
+  console.log(`Slack event type ${eventType}`)
+
   if (eventType === 'user_change') {
     const { user } = req.body.event
 
+    send(res, 200)
     await updateUser(user.id, user)
 
-    return send(res, 200)
+    return
   }
 
   if (eventType === 'subteam_updated') {
     const { subteam: group } = req.body.event
 
+    send(res, 200)
     await updateUserGroup(group.id, group)
 
-    return send(res, 200)
+    return
   }
 
-  if (eventType === 'link_shared') {
+  if (eventType === 'message') {
     const { event: message } = req.body
-
-    console.log(isPullRequestMessage(message))
 
     if (isPullRequestMessage(message)) {
       await addPullRequestFromEventMessage(message)
     }
 
-    return send(res, 200)
+    send(res, 200)
+
+    return
   }
 
   console.log(JSON.stringify(req.body, null, 2))

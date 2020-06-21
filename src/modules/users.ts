@@ -61,3 +61,14 @@ export async function updateUsers() {
     await updateUser(user.id, user)
   }
 }
+
+export async function githubUserToSlackID(ghUser: string) {
+  const userQuery = await db
+    .collection('users')
+    .where('github_user', '==', ghUser)
+    .get()
+
+  if (userQuery.empty) throw new Error('User not found')
+
+  return userQuery.docs[0].id
+}
