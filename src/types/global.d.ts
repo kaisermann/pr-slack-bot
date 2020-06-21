@@ -15,17 +15,58 @@ interface SlackGroup {
   users: string[]
 }
 
-interface SlackMessageEvent {
+interface SlackMessage {
   user: string
   channel: string
-  message_ts: string
+  ts: string
+  text: string
+  blocks?: any[]
   thread_ts?: string
   event_ts?: string
 }
 
-interface LinkSharedMessageEvent extends SlackMessageEvent {
-  links: Array<{
-    url: string
-    domain: string
+interface PullRequestReply extends SlackMessage {
+  payload: any
+}
+
+interface PullRequestDocument {
+  owner: string
+  repo: string
+  number: number | string
+  thread: {
+    channel: string
+    ts: string
+    poster_id: string
+    reactions: Record<string, string>
+  }
+  base_branch: string
+  head_branch: string
+  mergeable: boolean
+  mergeable_state: string
+  merged: boolean
+  closed: boolean
+  description: string
+  title: string
+  files: Array<{
+    additions: number
+    deletions: number
+    filename: string
   }>
+  actions: Record<string, string[]>
+  size: {
+    label: string
+    limit: number
+    changes: number
+    additions: number
+    deletions: number
+  }
+}
+
+interface PullRequestActions {
+  [user: string]: string[]
+}
+
+interface PullRequestAction {
+  githubUser: string
+  action: string
 }
