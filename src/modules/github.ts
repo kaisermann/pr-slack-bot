@@ -26,8 +26,8 @@ setInterval(() => {
   jwtToken = githubApp.getSignedJsonWebToken()
 }, 1000 * (60 * 10 - 30))
 
-const getInstallationId = async repoFullName => {
-  const { data } = await request(`GET /repos/${repoFullName}/installation`, {
+const getInstallationId = async ({ owner, repo }) => {
+  const { data } = await request(`GET /repos/${owner}/${repo}/installation`, {
     headers: {
       authorization: `Bearer ${jwtToken}`,
       accept: 'application/vnd.github.machine-man-preview+json',
@@ -38,23 +38,23 @@ const getInstallationId = async repoFullName => {
 }
 
 const ghFetch = async (url, options) => {
-  const fullName = `${options.owner}/${options.repo}`
+  const { owner, repo } = options
   const requestHeaders = { ...options.headers }
+  const repoID = `${owner}@${repo}`
   const installationDoc = await db
     .collection('github_installations')
-    .doc(fullName)
+    .doc(repoID)
     .get()
 
   let installationId: number
 
   if (!installationDoc.exists) {
-    installationId = await getInstallationId(fullName)
+    installationId = await getInstallationId({ owner, repo })
     await db
       .collection('github_installations')
-      .doc(fullName)
+      .doc(repoID)
       .set({ installationId })
   } else {
-    console.log(installationDoc.data())
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     installationId = installationDoc.data()!.installationId
   }
@@ -87,7 +87,12 @@ export function getReviewData({ owner, repo, number }) {
     .then(({ status, data }) => {
       return { status, data }
     })
-    .catch(({ status }) => ({ status, data: {} }))
+    .catch(e => {
+      console.error(e)
+      const { status } = e
+
+      return { status, data: {} }
+    })
 }
 
 export function getFilesData({ owner, repo, number }) {
@@ -100,7 +105,12 @@ export function getFilesData({ owner, repo, number }) {
     .then(({ status, data }) => {
       return { status, data }
     })
-    .catch(({ status }) => ({ status, data: {} }))
+    .catch(e => {
+      console.error(e)
+      const { status } = e
+
+      return { status, data: {} }
+    })
 }
 
 function getPullRequestDataInternal({ owner, repo, number }) {
@@ -112,10 +122,15 @@ function getPullRequestDataInternal({ owner, repo, number }) {
     .then(({ status, data }) => {
       return { status, data }
     })
-    .catch(({ status }) => ({ status, data: {} }))
+    .catch(e => {
+      console.error(e)
+      const { status } = e
+
+      return { status, data: {} }
+    })
 }
 
-export async function getPullRequestData({ owner, repo, number }) {
+export async function getPullRequestMetaData({ owner, repo, number }) {
   const slug = `${owner}/${repo}/${number}`
 
   // we make a promise that only resolves when a PR mergeability is known
