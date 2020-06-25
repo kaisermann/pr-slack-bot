@@ -30,9 +30,13 @@ interface PullRequestReply extends SlackMessage {
 }
 
 interface PullRequestDocument {
+  error: {
+    status: number
+    message?: string
+  }
   owner: string
   repo: string
-  number: number | string
+  number: number
   thread: {
     channel: string
     ts: string
@@ -51,6 +55,7 @@ interface PullRequestDocument {
     additions: number
     deletions: number
     filename: string
+    status: 'modified' | 'added' | 'deleted'
   }>
   actions: Record<string, string[]>
   size: {
