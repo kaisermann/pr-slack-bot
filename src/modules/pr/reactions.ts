@@ -1,4 +1,4 @@
-import * as Slack from '../slack'
+import * as Slack from '../slack/api'
 import {
   getPullRequestDocument,
   getPullRequestRef,

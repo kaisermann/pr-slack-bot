@@ -1,12 +1,7 @@
+import { memoize } from 'memoizee'
 // import { createHash } from 'crypto'
 
 import { WebClient, retryPolicies } from '@slack/web-api'
-
-// function md5(data: string) {
-//   return createHash('md5')
-//     .update(data)
-//     .digest('hex')
-// }
 
 const { SLACK_BOT_TOKEN, SLACK_USER_TOKEN } = process.env
 
@@ -64,7 +59,7 @@ export async function* getFullUsers(): AsyncGenerator<SlackUser, any, void> {
   }
 }
 
-export async function getUserGroups(): Promise<any> {
+export async function getUserGroups() {
   return botClient.usergroups
     .list({
       include_disabled: false,
@@ -72,6 +67,33 @@ export async function getUserGroups(): Promise<any> {
       include_users: true,
     })
     .then((response) => response.ok && response.usergroups)
+}
+
+export async function getUserGroupMembers(groupId: string) {
+  return userClient.usergroups.users
+    .list({
+      usergroup: groupId,
+      include_disabled: false,
+    })
+    .then((response) => response.ok && response.users)
+    .catch((error) => {
+      console.error(error)
+    })
+}
+
+const memoFetchChannelMembers = memoize(
+  (channelId, cursor) => {
+    return botClient.conversations
+      .members({ channel: channelId, cursor })
+      .catch((error) => {
+        console.error(error)
+      })
+  },
+  { maxAge: 1000 * 60 * 60, preFetch: true }
+)
+
+export function getChannelMembers(channelId: string) {
+  return fetchAll((cursor) => memoFetchChannelMembers(channelId, cursor))
 }
 
 export async function sendMessage({

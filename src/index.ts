@@ -10,7 +10,7 @@ import {
   addPullRequestFromEventMessage,
 } from './modules/pr/pr'
 
-async function handleEvent(req: any, res: any) {
+async function handleSlackEvent(req: any, res: any) {
   const { type } = req.body
 
   console.log(`Slack event "${type}"`)
@@ -63,11 +63,53 @@ async function handleEvent(req: any, res: any) {
   return send(res, 200, { ok: true })
 }
 
+async function handleSlackCommand(req: any, res: any) {
+  const { text, channel_id, response_url, user_id } = req.body
+  const [command, ...params] = text.split(' ')
+
+  if (!command) {
+    res.end('Please type `/pr help` to see available commands')
+
+    return
+  }
+
+  const commandObj = {
+    text,
+    channel_id,
+    response_url,
+    user_id,
+    command,
+    params: params.join(' '),
+  }
+
+  let responseData
+
+  try {
+    responseData = (
+      await import(`./modules/slack/commands/${command}`)
+    ).default(commandObj)
+    if (typeof responseData !== 'string') {
+      responseData = {
+        blocks: responseData,
+      }
+    }
+  } catch (e) {
+    responseData = `No command \`${text}\`.\n\nPlease type \`/pr help\` to see available commands.`
+    console.error(e, 'Slack command response')
+  }
+
+  send(res, 200, responseData)
+}
+
+async function handleGithubEvent() {}
+
 const server = polka()
 
 server.use(urlencoded({ extended: true }))
 server.use(json())
-server.post('/slack/events', handleEvent)
+server.post('/slack/events', handleSlackEvent)
+server.post('/slack/command', handleSlackCommand)
+server.post('/github/webhooks', handleGithubEvent)
 
 server.listen(6006, (err) => {
   if (err) throw err
