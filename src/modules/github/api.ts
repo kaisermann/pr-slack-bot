@@ -1,7 +1,7 @@
 import { App } from '@octokit/app'
 import { request } from '@octokit/request'
 
-import { db } from '../firebase'
+import { db } from '../../firebase'
 
 const APP_ID =
   process.env.NODE_ENV === 'production'
@@ -169,4 +169,16 @@ export async function getPullRequestMetaData({ owner, repo, number }) {
   } catch (e) {
     return { status: 520 }
   }
+}
+
+export function getPullRequestState(params: {
+  owner: string
+  repo: string
+  number: number
+}) {
+  return Promise.all([
+    getPullRequestMetaData(params),
+    getReviewData(params),
+    getFilesData(params),
+  ])
 }

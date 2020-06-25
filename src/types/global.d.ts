@@ -25,15 +25,23 @@ interface SlackMessage {
   event_ts?: string
 }
 
-interface PullRequestReply extends SlackMessage {
-  payload: any
+type SlackMessagePayload = Omit<SlackMessage, 'user' | 'ts'> & { payload?: any }
+
+interface MessageDocument extends Omit<SlackMessage, 'user'> {
+  payload?: any
 }
 
 interface UserDocument {
-  github_user: string
   id: string
+  github_user: string
   slack_user: string
   status_text: string
+}
+
+interface PullRequestIdentifier {
+  owner: string
+  repo: string
+  number: number
 }
 
 interface PullRequestDocument {

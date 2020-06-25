@@ -86,7 +86,13 @@ export async function addReaction(pr, { type, emoji }) {
 }
 
 export async function reevaluateReactions(pr: PullRequestDocument) {
-  const { size, merged, closed } = pr
+  const { size, merged, closed, error } = pr
+
+  if (error) {
+    console.warn(`Skipping reaction evaluation due to error: ${error.status}`)
+
+    return
+  }
 
   const changesRequested = hasChangesRequested(pr)
 

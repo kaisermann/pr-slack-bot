@@ -51,20 +51,18 @@ export async function updateErrorMessage(pr: PullRequestDocument) {
   const { error } = pr
 
   if (error?.status === 404 || error?.status === 403) {
-    return PR.reply(pr, {
+    await PR.reply(pr, {
       replyId: 'error',
       text: `Sorry, but I think my <${GITHUB_APP_URL}|Github App> is not installed on this repository :thinking_face:. Please post this pull request again after installing the app (•ᴥ•)`,
     })
   }
 
   if (error?.status === 520) {
-    return PR.reply(pr, {
+    await PR.reply(pr, {
       replyId: 'error',
       text: `Sorry, but something awful happened :scream:. I can't see this PR status...`,
     })
   }
-
-  return false
 }
 
 export async function updateDirtyMessage(pr: PullRequestDocument) {
@@ -120,7 +118,9 @@ export async function updateMergeabilityMessage(pr: PullRequestDocument) {
 }
 
 export async function reevaluateReplies(pr: PullRequestDocument) {
-  await updateErrorMessage(pr)
+  if (pr.error) {
+    return updateErrorMessage(pr)
+  }
 
   await PR.deleteReply(pr, { replyId: 'error' })
 
