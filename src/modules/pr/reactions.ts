@@ -37,7 +37,7 @@ export async function removeReaction(pr, { type }) {
 
       return true
     })
-    .catch(e => {
+    .catch((e) => {
       if (e.data && e.data.error === 'already_reacted') {
         prRef.update({
           reactions: { ...reactions, [type]: emoji },
@@ -72,7 +72,7 @@ export async function addReaction(pr, { type, emoji }) {
 
       return true
     })
-    .catch(e => {
+    .catch((e) => {
       if (e.data && e.data.error === 'already_reacted') {
         prRef.update({
           reactions: { ...reactions, [type]: emoji },
