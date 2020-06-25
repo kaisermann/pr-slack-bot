@@ -23,12 +23,15 @@ async function handleEvent(req: any, res: any) {
 
   const { type: eventType } = req.body.event
 
-  console.log(`Slack event type ${eventType}`)
+  console.log(`Slack event type "${eventType}"`)
+
+  console.log(req.headers)
+  console.log(req.body.event)
 
   if (eventType === 'user_change') {
     const { user } = req.body.event
 
-    send(res, 200)
+    send(res, 200, { ok: true })
     await updateUser(user.id, user)
 
     return
@@ -37,7 +40,7 @@ async function handleEvent(req: any, res: any) {
   if (eventType === 'subteam_updated') {
     const { subteam: group } = req.body.event
 
-    send(res, 200)
+    send(res, 200, { ok: true })
     await updateUserGroup(group.id, group)
 
     return
@@ -50,14 +53,14 @@ async function handleEvent(req: any, res: any) {
       await addPullRequestFromEventMessage(message)
     }
 
-    send(res, 200)
+    send(res, 200, { ok: true })
 
     return
   }
 
   console.log(JSON.stringify(req.body, null, 2))
 
-  return send(res, 200)
+  return send(res, 200, { ok: true })
 }
 
 const server = polka()
@@ -66,6 +69,6 @@ server.use(urlencoded({ extended: true }))
 server.use(json())
 server.post('/slack/events', handleEvent)
 
-server.listen(6006, err => {
+server.listen(6006, (err) => {
   if (err) throw err
 })

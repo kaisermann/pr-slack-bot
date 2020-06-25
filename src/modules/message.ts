@@ -25,7 +25,7 @@ export async function sendMessage({
       as_user: true,
       link_names: true,
     })
-    .catch(e => e)
+    .catch((e) => e)
 
   if (!response.ok) throw response
 
@@ -54,7 +54,7 @@ export const updateMessage = async (message: SlackMessage, fn) => {
       as_user: true,
       link_names: true,
     })
-    .catch(e => e)
+    .catch((e) => e)
 
   if (!response.ok) throw response
 
@@ -77,24 +77,24 @@ export const deleteMessage = async ({
       as_user: true,
       link_names: true,
     })
-    .catch(e => e)
+    .catch((e) => e)
 
   if (!response.ok) throw response
 
   return true
 }
 
-export const buildText = parts => {
+export const buildText = (parts) => {
   parts = Array.isArray(parts) ? parts : [parts]
 
   return parts
     .filter(Boolean)
-    .map(part => (typeof part === 'function' ? part() : part))
+    .map((part) => (typeof part === 'function' ? part() : part))
     .join('')
 }
 
 export const blocks = {
-  create_markdown_section: text => ({
+  create_markdown_section: (text) => ({
     type: 'section',
     text: {
       type: 'mrkdwn',
