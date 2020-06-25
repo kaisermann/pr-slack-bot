@@ -21,7 +21,7 @@ export const EMOJIS = {
   info: 'info',
 }
 
-export const PR_SIZES = [
+export const PR_SIZES: Array<[string, number]> = [
   ['small', 80],
   ['medium', 250],
   ['large', 800],

@@ -1,4 +1,4 @@
-import { getFullUsers, getUserGroups } from './slack'
+import { getFullUsers, getUserGroups } from './slack/api'
 import { db } from '../firebase'
 import { GITHUB_FIELD_ID } from '../consts'
 
@@ -43,7 +43,7 @@ export async function updateUserGroup(id: string, group: SlackGroup) {
 }
 
 export async function updateUserGroups() {
-  for await (const group of await getUserGroups()) {
+  for await (const group of getUserGroups()) {
     await updateUserGroup(group.id, group)
   }
 }
