@@ -7,8 +7,8 @@ export async function sendMessage({
   blocks,
   channel,
   thread_ts,
-  ...rest
-}: Partial<SlackMessage> & { payload: any }) {
+  payload,
+}: SlackMessagePayload): Promise<MessageDocument> {
   if (channel == null) {
     throw new Error()
   }
@@ -31,7 +31,7 @@ export async function sendMessage({
   const { ts } = response
 
   return {
-    ...rest,
+    payload,
     thread_ts,
     ts,
     channel,
@@ -40,8 +40,11 @@ export async function sendMessage({
   }
 }
 
-export const updateMessage = async (message: SlackMessage, fn) => {
-  const updatedMessage = produce<SlackMessage>(message, fn)
+export async function updateMessage(
+  message: MessageDocument,
+  fn
+): Promise<MessageDocument> {
+  const updatedMessage = produce<MessageDocument>(message, fn)
 
   const response = await Slack.botClient.chat
     .update({
@@ -60,22 +63,9 @@ export const updateMessage = async (message: SlackMessage, fn) => {
   return updatedMessage
 }
 
-export const deleteMessage = async ({
-  text,
-  blocks,
-  channel,
-  ts,
-}: SlackMessage) => {
+export const deleteMessage = async ({ channel, ts }: SlackMessage) => {
   const response = await Slack.botClient.chat
-    .update({
-      text,
-      blocks,
-      channel,
-      ts,
-      unfurl_links: false,
-      as_user: true,
-      link_names: true,
-    })
+    .delete({ channel, ts })
     .catch((e) => e)
 
   if (!response.ok) throw response
