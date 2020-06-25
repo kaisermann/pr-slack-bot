@@ -51,7 +51,7 @@ export function getRandomBetween(low: number, hi: number) {
   return l + getRandIntLessThan(h - l + 1)
 }
 
-export function getRandomItem(iterable: Iterable<unknown>) {
+export function getRandomItem<T>(iterable: Iterable<T>) {
   const array = Array.from(iterable)
 
   return array[getRandomBetween(0, array.length - 1)]

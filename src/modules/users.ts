@@ -2,9 +2,8 @@ import { getFullUsers, getUserGroups } from './slack/api'
 import { db } from '../firebase'
 import { GITHUB_FIELD_ID } from '../consts'
 
+// todo: prevent writing to db if nothing relevant changed
 export async function updateUser(id, user: SlackUser) {
-  console.log(`Updating user: ${id}`)
-
   const {
     profile: { status_text, display_name, fields },
   } = user
@@ -20,6 +19,7 @@ export async function updateUser(id, user: SlackUser) {
     '$1'
   )
 
+  console.log(`Updating slack user with github user: ${id} / ${githubUser}`)
   await db.collection('users').doc(id).set({
     id,
     slack_user: display_name,
@@ -28,6 +28,7 @@ export async function updateUser(id, user: SlackUser) {
   })
 }
 
+// todo: prevent writing to db if nothing relevant changed
 export async function updateUserGroup(id: string, group: SlackGroup) {
   console.log(`Updating user group: ${id}`)
   if (group.deleted_by || group.users == null || group.users.length === 0) {
@@ -43,7 +44,7 @@ export async function updateUserGroup(id: string, group: SlackGroup) {
 }
 
 export async function updateUserGroups() {
-  for await (const group of getUserGroups()) {
+  for await (const group of await getUserGroups()) {
     await updateUserGroup(group.id, group)
   }
 }
@@ -60,7 +61,9 @@ export async function githubUserToSlackID(ghUser: string) {
     .where('github_user', '==', ghUser)
     .get()
 
-  if (userQuery.empty) throw new Error('User not found')
+  if (userQuery.empty) {
+    throw new Error('User not found')
+  }
 
   return userQuery.docs[0].id
 }
