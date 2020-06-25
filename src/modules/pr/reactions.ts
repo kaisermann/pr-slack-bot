@@ -1,16 +1,29 @@
 import * as Slack from '../slack'
-import { getPullRequestData, getPullRequestRef } from './pr'
+import {
+  getPullRequestDocument,
+  getPullRequestRef,
+  isDirty,
+  isMergeable,
+} from './pr'
 import { EMOJIS } from '../../consts'
+import {
+  getApprovalCount,
+  hasChangesRequested,
+  hasComment,
+  isWaitingReview,
+  hasPendingReview,
+} from './actions'
 
-export async function removeReaction({ pr, type }) {
+export async function removeReaction(pr, { type }) {
   const prRef = getPullRequestRef(pr)
   const {
     thread: { channel, ts, reactions },
-  } = await getPullRequestData(prRef)
+  } = await getPullRequestDocument(prRef)
 
   if (!(type in reactions)) {
     return false
   }
+
   const emoji = reactions[type]
 
   console.info(`- Removing reaction of type: ${type} (${reactions[type]})`)
@@ -32,19 +45,20 @@ export async function removeReaction({ pr, type }) {
 
         return false
       }
+
       throw e
     })
 }
 
-export async function addReaction({ pr, type, name: emoji }) {
+export async function addReaction(pr, { type, emoji }) {
   const prRef = getPullRequestRef(pr)
   const {
     thread: { channel, ts, reactions },
-  } = await getPullRequestData(prRef)
+  } = await getPullRequestDocument(prRef)
 
   if (type in reactions) {
     if (reactions[type] === emoji) return false
-    await removeReaction(type)
+    await removeReaction(pr, type)
   }
 
   console.info(`- Adding reaction of type: ${type} (${emoji})`)
@@ -66,71 +80,77 @@ export async function addReaction({ pr, type, name: emoji }) {
 
         return false
       }
+
       throw e
     })
 }
 
-export async function reevaluateReactions({ owner, repo, number }) {
-  const { size, merged, closed } = await getPullRequestData({
-    owner,
-    repo,
-    number,
+export async function reevaluateReactions(pr: PullRequestDocument) {
+  const { size, merged, closed } = pr
+
+  const changesRequested = hasChangesRequested(pr)
+
+  await addReaction(pr, {
+    type: 'size',
+    emoji: EMOJIS[`size_${size.label}`],
   })
 
-  const changesRequested = has_changes_requested()
-
-  await addReaction('size', EMOJIS[`size_${size.label}`] as any)
-
   if (changesRequested) {
-    await addReaction('changes_requested', EMOJIS.changes_requested)
+    await addReaction(pr, {
+      type: 'changes_requested',
+      emoji: EMOJIS.changes_requested,
+    })
   } else {
-    await removeReaction('changes_requested')
+    await removeReaction(pr, { type: 'changes_requested' })
   }
 
-  if (is_mergeable() && changesRequested === false) {
-    const n_approvals = get_approvals()
+  if (isMergeable(pr) && changesRequested === false) {
+    const nApprovals = getApprovalCount(pr)
 
-    await addReaction(
-      'approved',
-      n_approvals > 0 ? EMOJIS.approved : EMOJIS.ready_to_merge
-    )
+    await addReaction(pr, {
+      type: 'approved',
+      emoji: nApprovals > 0 ? EMOJIS.approved : EMOJIS.ready_to_merge,
+    })
   } else {
-    await removeReaction('approved')
+    await removeReaction(pr, { type: 'approved' })
   }
 
-  if (has_comment()) {
-    await addReaction('has_comment', EMOJIS.commented)
+  if (hasComment(pr)) {
+    await addReaction(pr, { type: 'has_comment', emoji: EMOJIS.commented })
   } else {
-    await removeReaction('has_comment')
+    await removeReaction(pr, { type: 'has_comment' })
   }
 
-  if (is_waiting_review()) {
-    await addReaction('is_waiting_review', EMOJIS.waiting)
+  if (isWaitingReview(pr)) {
+    await addReaction(pr, { type: 'is_waiting_review', emoji: EMOJIS.waiting })
   } else {
-    await removeReaction('is_waiting_review')
+    await removeReaction(pr, { type: 'is_waiting_review' })
   }
 
-  if (has_pending_review()) {
-    await addReaction('pending_review', EMOJIS.pending_review)
+  if (hasPendingReview(pr)) {
+    await addReaction(pr, {
+      type: 'pending_review',
+      emoji: EMOJIS.pending_review,
+    })
   } else {
-    await removeReaction('pending_review')
+    await removeReaction(pr, { type: 'pending_review' })
   }
 
-  if (is_dirty()) {
-    await addReaction('dirty', EMOJIS.dirty)
+  if (isDirty(pr)) {
+    await addReaction(pr, { type: 'dirty', emoji: EMOJIS.dirty })
   } else {
-    await removeReaction('dirty')
+    await removeReaction(pr, { type: 'dirty' })
   }
 
   if (merged) {
-    await addReaction('merged', EMOJIS.merged)
+    await addReaction(pr, { type: 'merged', emoji: EMOJIS.merged })
   } else {
-    await removeReaction('merged')
+    await removeReaction(pr, { type: 'merged' })
   }
 
   if (closed && !merged) {
-    await addReaction('closed', EMOJIS.closed)
+    await addReaction(pr, { type: 'closed', emoji: EMOJIS.closed })
   } else {
-    await removeReaction('closed')
+    await removeReaction(pr, { type: 'closed' })
   }
 }

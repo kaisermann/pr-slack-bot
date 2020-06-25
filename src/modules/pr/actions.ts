@@ -1,4 +1,3 @@
-import { getPullRequestData } from './pr'
 import { EMOJIS } from '../../consts'
 
 const ACTIONS = Object.freeze({
@@ -114,7 +113,7 @@ export function getActionMap({ metaData, reviewData }) {
   return actions
 }
 
-export function reduceActions(actions) {
+export function reduceActions(actions: Record<string, string[]>) {
   return Object.entries(actions).map(([githubUser, actionList]) => {
     return {
       githubUser,
@@ -135,4 +134,40 @@ export function groupByAction(reducedActions: PullRequestAction[]) {
   }
 
   return Object.entries(grouped)
+}
+
+export function getApprovalCount(pr: PullRequestDocument) {
+  return reduceActions(pr.actions).filter((a) => a.action === ACTIONS.approved)
+    .length
+}
+
+export function hasComment(pr: PullRequestDocument) {
+  return reduceActions(pr.actions).some(
+    (item) => item.action === ACTIONS.commented
+  )
+}
+
+export function hasChangesRequested(pr: PullRequestDocument) {
+  return reduceActions(pr.actions).some(
+    (item) => item.action === ACTIONS.changes_requested
+  )
+}
+
+export function isWaitingReview(pr: PullRequestDocument) {
+  const reducedActions = reduceActions(pr.actions)
+
+  return (
+    reducedActions.length === 0 ||
+    reducedActions.some(
+      (item) =>
+        item.action === ACTIONS.dismissed ||
+        item.action === ACTIONS.review_requested
+    )
+  )
+}
+
+export function hasPendingReview(pr: PullRequestDocument) {
+  return reduceActions(pr.actions).some(
+    (item) => item.action === ACTIONS.pending_review
+  )
 }

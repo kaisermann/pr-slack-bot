@@ -7,6 +7,7 @@ const APP_ID =
   process.env.NODE_ENV === 'production'
     ? process.env.APP_ID
     : process.env.DEV_APP_ID
+
 const PRIVATE_KEY =
   process.env.NODE_ENV === 'production'
     ? process.env.APP_PRIVATE_KEY
@@ -37,7 +38,7 @@ const getInstallationId = async ({ owner, repo }) => {
   return data.id
 }
 
-const ghFetch = async (url, options) => {
+const ghFetch = async (url: string, options) => {
   const { owner, repo } = options
   const requestHeaders = { ...options.headers }
   const repoID = `${owner}@${repo}`
@@ -87,7 +88,7 @@ export function getReviewData({ owner, repo, number }) {
     .then(({ status, data }) => {
       return { status, data }
     })
-    .catch(e => {
+    .catch((e) => {
       console.error(e)
       const { status } = e
 
@@ -105,7 +106,7 @@ export function getFilesData({ owner, repo, number }) {
     .then(({ status, data }) => {
       return { status, data }
     })
-    .catch(e => {
+    .catch((e) => {
       console.error(e)
       const { status } = e
 
@@ -122,7 +123,7 @@ function getPullRequestDataInternal({ owner, repo, number }) {
     .then(({ status, data }) => {
       return { status, data }
     })
-    .catch(e => {
+    .catch((e) => {
       console.error(e)
       const { status } = e
 
@@ -160,7 +161,7 @@ export async function getPullRequestMetaData({ owner, repo, number }) {
           `[${status}] Unknown mergeable state for ${slug}. Retrying...`
         )
         // eslint-disable-next-line no-await-in-loop
-        await new Promise(r => setTimeout(r, 800))
+        await new Promise((r) => setTimeout(r, 800))
       }
     } while (knownMergeableState === false)
 

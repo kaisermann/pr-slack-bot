@@ -2,28 +2,35 @@ import { basename } from 'path'
 
 import isDeepEqual from 'fast-deep-equal'
 
+import { getDefconStatus } from '../defcon'
 import { db } from '../../firebase'
 import { getPullRequestMetaData, getReviewData, getFilesData } from '../github'
 import * as Message from '../message'
 import { reevaluateReplies } from './replies'
 import { getActionMap } from './actions'
 import { PR_SIZES } from '../../consts'
+import { reevaluateReactions } from './reactions'
+import { AsyncLock } from '../lock'
 
 const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i
+
+export function isPullRequestMessage(message) {
+  return Boolean(message.thread_ts == null && message.text?.match(PR_REGEX))
+}
 
 export function getPullRequestID(pr) {
   return `${pr.owner}@${pr.repo}@${pr.number}`
 }
 
 export function getPullRequestRef(
-  pr: string | { owner: string; repo: string; number: string }
+  pr: string | Pick<PullRequestDocument, 'owner' | 'repo' | 'number'>
 ) {
   const id = typeof pr === 'string' ? pr : getPullRequestID(pr)
 
   return db.collection('prs').doc(id)
 }
 
-export async function getPullRequestData(pr) {
+export async function getPullRequestDocument(pr) {
   let ref
 
   if (typeof pr.get === 'function') {
@@ -36,13 +43,7 @@ export async function getPullRequestData(pr) {
 }
 
 function getReplyRef(pr, replyId) {
-  return getPullRequestRef(pr)
-    .collection('replies')
-    .doc(replyId)
-}
-
-export function isPullRequestMessage(message) {
-  return Boolean(message.thread_ts == null && message.text?.match(PR_REGEX))
+  return getPullRequestRef(pr).collection('replies').doc(replyId)
 }
 
 export async function addPullRequestFromEventMessage(message: SlackMessage) {
@@ -62,27 +63,52 @@ export async function addPullRequestFromEventMessage(message: SlackMessage) {
   const pr: Partial<PullRequestDocument> = {
     owner,
     repo,
-    number,
+    number: parseInt(number, 10),
     thread: {
+      reactions: {},
       channel: message.channel,
       ts: message.ts,
       poster_id: message.user,
     },
-
     ...(await getPullRequestConsolidatedState({ owner, repo, number })),
   }
 
   await prRef.set(pr)
 
-  return reevaluatePullRequest({ owner, repo, number })
+  return reevaluatePullRequest(pr)
 }
 
-async function reevaluatePullRequest({ owner, repo, number }) {
-  await reevaluateReplies({ owner, repo, number })
+const prLocks: Map<string, AsyncLock> = new Map()
+
+async function reevaluatePullRequest(pr) {
+  const id = getPullRequestID(pr)
+  const lock = prLocks.get(id)
+
+  try {
+    if (lock) {
+      await lock.acquire()
+    }
+
+    await Promise.all([reevaluateReplies(pr), reevaluateReactions(pr)])
+  } catch (e) {
+    console.error(e)
+    throw e
+  } finally {
+    if (lock) {
+      await lock.release()
+
+      if (lock.acquired) {
+        prLocks.delete(id)
+      }
+    }
+  }
 }
 
-async function fetchPullRequestRemoteState(pr) {
+async function fetchPullRequestRemoteState(
+  pr: Pick<PullRequestDocument, 'owner' | 'repo' | 'number' | 'thread'>
+) {
   const { owner, repo, number } = pr
+
   const params = { owner, repo, number }
 
   const responses = await Promise.all([
@@ -91,7 +117,7 @@ async function fetchPullRequestRemoteState(pr) {
     getFilesData(params),
   ])
 
-  const hasStatus = status => responses.some(r => r.status === status)
+  const hasStatus = (status) => responses.some((r) => r.status === status)
 
   if (hasStatus(520)) return { error: { status: 520 } }
   if (hasStatus(403)) return { error: { status: 403 } }
@@ -122,10 +148,17 @@ async function getPullRequestConsolidatedState(pr) {
 
   if (error) return { error }
 
-  const { title, body, additions, deletions, mergeable } = metaData
+  const {
+    title,
+    body,
+    additions: totalAdditions,
+    deletions: totalDeletions,
+    mergeable,
+  } = metaData
+
   const mappedFiles = filesData.map(
-    ({ filename, additions: add, deletions: del }) => {
-      return { filename, additions: add, deletions: del }
+    ({ filename, additions, deletions, status }) => {
+      return { filename, additions, deletions, status }
     }
   )
 
@@ -144,14 +177,14 @@ async function getPullRequestConsolidatedState(pr) {
     base_branch: metaData.base.ref,
     size: calculatePullRequestSize({
       files: mappedFiles,
-      additions,
-      deletions,
+      additions: totalAdditions,
+      deletions: totalDeletions,
     }),
   }
 }
 
-async function deletePullRequestReply(pr, id) {
-  const replyRef = getReplyRef(pr, id)
+export async function deleteReply(pr, { replyId }: { replyId: string }) {
+  const replyRef = getReplyRef(pr, replyId)
   const replySnapshot = await replyRef.get()
 
   if (!replySnapshot.exists) {
@@ -164,7 +197,7 @@ async function deletePullRequestReply(pr, id) {
     .then(() => {
       return replyRef.delete().then(() => true)
     })
-    .catch(e => {
+    .catch((e) => {
       console.log(e.data)
       console.log(e.data.error)
       if (e.data && e.data.error === 'message_not_found') {
@@ -177,21 +210,33 @@ async function deletePullRequestReply(pr, id) {
     })
 }
 
-async function deleteReplies(pr, replyIds: string[] = []) {
+async function deleteReplies(
+  pr: string | PullRequestDocument,
+  replyIds: string[] = []
+) {
   if (replyIds.length === 0) {
     const repliesSnapshot = await getPullRequestRef(pr)
       .collection('replies')
       .get()
 
-    replyIds = repliesSnapshot.docs.map(doc => doc.id)
+    replyIds = repliesSnapshot.docs.map((doc) => doc.id)
   }
 
-  return Promise.all(
-    replyIds.map(replyId => deletePullRequestReply(pr, replyId))
-  )
+  return Promise.all(replyIds.map((replyId) => deleteReply(pr, { replyId })))
 }
 
-async function updateReply({ pr, replyId, update, payload }) {
+async function updateReply(
+  pr: PullRequestDocument,
+  {
+    replyId,
+    update,
+    payload,
+  }: {
+    replyId: string
+    update: (...args: any[]) => any
+    payload: any
+  }
+) {
   const replyRef = getReplyRef(pr, replyId)
   const replySnapshot = await replyRef.get()
 
@@ -216,12 +261,12 @@ async function updateReply({ pr, replyId, update, payload }) {
   }
 
   if (text === '') {
-    return deletePullRequestReply(pr, replyId)
+    return deleteReply(pr, { replyId })
   }
 
   console.info(`- Updating reply: ${text}`)
 
-  const updatedMessage = await Message.updateMessage(replyData, message => {
+  const updatedMessage = await Message.updateMessage(replyData, (message) => {
     message.text = text
     message.payload = payload
   })
@@ -231,37 +276,42 @@ async function updateReply({ pr, replyId, update, payload }) {
   return true
 }
 
-export async function reply({ pr, replyId, textParts, payload }) {
+export async function reply(
+  pr,
+  {
+    replyId,
+    text,
+    payload,
+  }: {
+    replyId: string
+    text: any | any[]
+    payload?: any
+  }
+) {
   const replyRef = getReplyRef(pr, replyId)
   const replySnapshot = await replyRef.get()
 
   if (replySnapshot.exists) {
-    return updateReply({ pr, replyId, update: () => textParts, payload })
+    return updateReply(pr, { replyId, update: () => text, payload })
   }
 
-  const prSnapshot = await getPullRequestData(pr)
+  const builtText = Message.buildText(text)
 
-  if (prSnapshot == null) {
-    return false
-  }
+  if (builtText === '') return false
 
-  const text = Message.buildText(textParts)
-
-  if (text === '') return false
-
-  console.info(`- Sending reply: ${text}`)
+  console.info(`- Sending reply: ${builtText}`)
 
   const {
     thread: { channel, ts },
-  } = prSnapshot
+  } = pr
 
   return Message.sendMessage({
-    text,
+    text: builtText,
     channel,
     thread_ts: ts,
     payload,
   })
-    .then(msg => getReplyRef(pr, replyId).set(msg))
+    .then((msg) => getReplyRef(pr, replyId).set(msg))
     .then(() => true)
 }
 
@@ -275,7 +325,7 @@ function calculatePullRequestSize({
   deletions: number
 }) {
   const lockFileChanges = files
-    .filter(f => {
+    .filter((f) => {
       const filename = basename(f.filename)
 
       return filename === 'package-lock.json' || filename === 'yarn.lock'
@@ -297,85 +347,63 @@ function calculatePullRequestSize({
   }
 }
 
-// function get_approvals() {
-//   return state.actions.filter(a => a.action === ACTIONS.approved).length
-// }
+export function hasChangelog(pr: PullRequestDocument) {
+  const { files } = pr
 
-// function has_changelog() {
-//   return state.files.some(f => {
-//     const filename = basename(f.filename).toLowerCase()
+  return files.some((f) => {
+    const filename = basename(f.filename).toLowerCase()
 
-//     return (
-//       filename === 'changelog.md' &&
-//       (f.status === 'modified' || f.status === 'added')
-//     )
-//   })
-// }
+    return (
+      filename === 'changelog.md' &&
+      (f.status === 'modified' || f.status === 'added')
+    )
+  })
+}
 
-// function has_comment() {
-//   return state.actions.some(item => item.action === ACTIONS.commented)
-// }
+export function isTrivial(pr: PullRequestDocument) {
+  return (pr.title + pr.description).includes('#trivial')
+}
 
-// function has_changes_requested() {
-//   return state.actions.some(item => item.action === ACTIONS.changes_requested)
-// }
+export function isDraft(pr: PullRequestDocument) {
+  return pr.mergeable_state === 'draft'
+}
 
-// function is_trivial() {
-//   return (state.title + state.description).includes('#trivial')
-// }
+export function isMergeable(pr: PullRequestDocument) {
+  if (pr.closed) return false
 
-// function is_draft() {
-//   return state.mergeable_state === 'draft'
-// }
+  return pr.mergeable_state === 'clean'
+}
 
-// function is_mergeable() {
-//   if (state.closed) return false
-//   return state.mergeable_state === 'clean'
-// }
+export function isDirty(pr: PullRequestDocument) {
+  return pr.mergeable_state === 'dirty'
+}
 
-// function is_dirty() {
-//   return state.mergeable_state === 'dirty'
-// }
+export function isUnstable(pr: PullRequestDocument) {
+  return pr.mergeable_state === 'unstable'
+}
 
-// function is_unstable() {
-//   return state.mergeable_state === 'unstable'
-// }
+export function isResolved(pr: PullRequestDocument) {
+  return pr.closed || pr.merged
+}
 
-// function is_resolved() {
-//   return state.closed || state.merged
-// }
+export function isActive(pr: PullRequestDocument) {
+  return !isDraft(pr)
+}
 
-// function is_active() {
-//   return !is_draft()
-// }
+export async function canBeMerged(pr: PullRequestDocument) {
+  if (pr.base_branch !== 'master' && pr.base_branch.match(/\d\.x/i) == null) {
+    return { canMerge: true, defcon: null }
+  }
 
-// function is_waiting_review() {
-//   return (
-//     state.actions.length === 0 ||
-//     state.actions.some(
-//       item =>
-//         item.action === ACTIONS.dismissed ||
-//         item.action === ACTIONS.review_requested
-//     )
-//   )
-// }
+  const defconStatus = await getDefconStatus()
 
-// async function can_be_merged() {
-//   const { base_branch } = state
-//   if (base_branch !== 'master' && base_branch.match(/\d\.x/i) == null) {
-//     return { can_merge: true }
-//   }
+  if (defconStatus == null) {
+    return { canMerge: true, defcon: null }
+  }
 
-//   const defcon_status = await check_defcon()
-//   if (defcon_status == null) return { can_merge: true }
-
-//   return {
-//     can_merge:
-//       defcon_status.level !== 'critical' && defcon_status.level !== 'warning',
-//     defcon: defcon_status,
-//   }
-// }
-
-// function has_pending_review() {
-//   return state.actions.some(item => item.action === ACTIONS.pending_review)
-// }
+  return {
+    canMerge:
+      defconStatus.level !== 'critical' && defconStatus.level !== 'warning',
+    defcon: defconStatus,
+  }
+}
