@@ -1,6 +1,6 @@
+import * as Messages from '../messages'
 import * as Slack from './api'
 import { db } from '../../firebase'
-import * as PR from '../pr/pr'
 import { getRandomItem } from '../random'
 
 const possibleEmojis = [
@@ -75,8 +75,9 @@ export async function sendRoulette({
 
   if (pr == null) return
 
-  await PR.reply(pr, {
-    replyId: `roulette_${ts}`,
+  let rouletteMessage = await Messages.sendMessage({
+    thread_ts: threadTs,
+    channel: channelId,
     text: `:kuchiyose:`,
   })
 
@@ -121,18 +122,19 @@ export async function sendRoulette({
     }
   } while (!chosenMember)
 
-  await PR.reply(pr, {
-    replyId: `roulette_${ts}`,
-    text: `:kuchiyose_smoke:`,
+  rouletteMessage = await Messages.updateMessage(rouletteMessage, (draft) => {
+    draft.text = `:kuchiyose_smoke:`
   })
 
   await wait(250)
 
-  const text = chosenMember
-    ? `:${getRandomItem(possibleEmojis)}: ${Slack.formatUserMention(
-        chosenMember.id
-      )}`
-    : `For some reason I couldn't choose a random channel member... :sob:`
+  await Messages.updateMessage(rouletteMessage, (draft) => {
+    if (chosenMember) {
+      const emoji = getRandomItem(possibleEmojis)
 
-  await PR.reply(pr, { replyId: `roulette_${ts}`, text, payload: chosenMember })
+      draft.text = `:${emoji}: ${Slack.formatUserMention(chosenMember.id)}`
+    } else {
+      draft.text = `For some reason I couldn't choose a random channel member... :sob:`
+    }
+  })
 }

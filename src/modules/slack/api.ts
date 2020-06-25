@@ -151,7 +151,12 @@ export function updateMessage({ channel, ts, text, blocks }) {
 }
 
 export function deleteMessage({ channel, ts }) {
-  return botClient.chat.delete({ channel, ts }).catch((e) => e)
+  console.log('deleting', channel, ts)
+
+  return botClient.chat
+    .delete({ channel, ts })
+    .catch((e) => e)
+    .then((e) => console.log(e))
 }
 
 export function deleteMessageByURL(url) {

@@ -1,11 +1,12 @@
 import { basename } from 'path'
 
 import isDeepEqual from 'fast-deep-equal'
+import { response } from 'express'
 
 import { getDefconStatus } from '../defcon'
 import { db } from '../../firebase'
-import { getPullRequestMetaData, getReviewData, getFilesData } from '../github'
-import * as Message from '../message'
+import * as Github from '../github/api'
+import * as Messages from '../messages'
 import { reevaluateReplies } from './replies'
 import { getActionMap } from './actions'
 import { PR_SIZES } from '../../consts'
@@ -14,11 +15,15 @@ import { AsyncLock } from '../lock'
 
 const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i
 
-export function isPullRequestMessage(message) {
+const PR_LOCKS: Map<string, AsyncLock> = new Map()
+
+export function isPullRequestMessage(message: SlackMessage) {
   return Boolean(message.thread_ts == null && message.text?.match(PR_REGEX))
 }
 
-export function getPullRequestID(pr) {
+export function getPullRequestID(
+  pr: Pick<PullRequestDocument, 'owner' | 'repo' | 'number'>
+) {
   return `${pr.owner}@${pr.repo}@${pr.number}`
 }
 
@@ -39,7 +44,9 @@ export async function getPullRequestDocument(pr) {
     ref = getPullRequestRef(pr)
   }
 
-  return (await ref.get()).data() as PullRequestDocument
+  const prSnap = await ref.get()
+
+  return prSnap.data() as PullRequestDocument
 }
 
 function getReplyRef(pr, replyId) {
@@ -60,29 +67,30 @@ export async function addPullRequestFromEventMessage(message: SlackMessage) {
     await deleteReplies(id)
   }
 
-  const pr: Partial<PullRequestDocument> = {
+  const prNumber = parseInt(number, 10)
+
+  const pr = {
     owner,
     repo,
-    number: parseInt(number, 10),
+    number: prNumber,
     thread: {
       reactions: {},
       channel: message.channel,
       ts: message.ts,
       poster_id: message.user,
     },
-    ...(await getPullRequestConsolidatedState({ owner, repo, number })),
-  }
+  } as PullRequestDocument
+
+  Object.assign(pr, await getPullRequestConsolidatedState(pr))
 
   await prRef.set(pr)
 
-  return reevaluatePullRequest(pr)
+  return evaluatePullRequest(pr)
 }
 
-const prLocks: Map<string, AsyncLock> = new Map()
-
-async function reevaluatePullRequest(pr) {
+export async function evaluatePullRequest(pr: PullRequestDocument) {
   const id = getPullRequestID(pr)
-  const lock = prLocks.get(id)
+  const lock = PR_LOCKS.get(id)
 
   try {
     if (lock) {
@@ -98,24 +106,24 @@ async function reevaluatePullRequest(pr) {
       await lock.release()
 
       if (lock.acquired) {
-        prLocks.delete(id)
+        PR_LOCKS.delete(id)
       }
     }
   }
 }
 
-async function fetchPullRequestRemoteState(
-  pr: Pick<PullRequestDocument, 'owner' | 'repo' | 'number' | 'thread'>
-) {
+export async function evaluatePullRequests(prs: PullRequestDocument[]) {
+  for (const prDoc of prs) {
+    evaluatePullRequest(prDoc)
+  }
+}
+
+async function fetchPullRequestRemoteState(pr: PullRequestIdentifier) {
   const { owner, repo, number } = pr
 
   const params = { owner, repo, number }
 
-  const responses = await Promise.all([
-    getPullRequestMetaData(params),
-    getReviewData(params),
-    getFilesData(params),
-  ])
+  const responses = await Github.getPullRequestState(params)
 
   const hasStatus = (status) => responses.some((r) => r.status === status)
 
@@ -138,7 +146,7 @@ async function fetchPullRequestRemoteState(
   return { metaData, reviewData, filesData }
 }
 
-async function getPullRequestConsolidatedState(pr) {
+async function getPullRequestConsolidatedState(pr: PullRequestIdentifier) {
   const {
     error,
     metaData,
@@ -187,13 +195,17 @@ export async function deleteReply(pr, { replyId }: { replyId: string }) {
   const replyRef = getReplyRef(pr, replyId)
   const replySnapshot = await replyRef.get()
 
+  console.log('dleting reply', pr, replyId, replySnapshot.exists)
+
   if (!replySnapshot.exists) {
     return false
   }
 
   const replyData = replySnapshot.data() as any
 
-  return Message.deleteMessage(replyData)
+  console.log(replyData)
+
+  return Messages.deleteMessage(replyData)
     .then(() => {
       return replyRef.delete().then(() => true)
     })
@@ -244,7 +256,7 @@ async function updateReply(
     return false
   }
 
-  const replyData = replySnapshot.data() as PullRequestReply
+  const replyData = replySnapshot.data() as MessageDocument
 
   if (
     replyData.payload != null &&
@@ -254,7 +266,7 @@ async function updateReply(
     return false
   }
 
-  const text = Message.buildText(update(replyData))
+  const text = Messages.buildText(update(replyData))
 
   if (replyData.text === text) {
     return false
@@ -266,7 +278,7 @@ async function updateReply(
 
   console.info(`- Updating reply: ${text}`)
 
-  const updatedMessage = await Message.updateMessage(replyData, (message) => {
+  const updatedMessage = await Messages.updateMessage(replyData, (message) => {
     message.text = text
     message.payload = payload
   })
@@ -295,7 +307,7 @@ export async function reply(
     return updateReply(pr, { replyId, update: () => text, payload })
   }
 
-  const builtText = Message.buildText(text)
+  const builtText = Messages.buildText(text)
 
   if (builtText === '') return false
 
@@ -305,7 +317,7 @@ export async function reply(
     thread: { channel, ts },
   } = pr
 
-  return Message.sendMessage({
+  return Messages.sendMessage({
     text: builtText,
     channel,
     thread_ts: ts,

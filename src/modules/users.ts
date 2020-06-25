@@ -2,10 +2,9 @@ import { getFullUsers, getUserGroups } from './slack/api'
 import { db } from '../firebase'
 import { GITHUB_FIELD_ID } from '../consts'
 
-// todo: prevent writing to db if nothing relevant changed
 export async function updateUser(id, user: SlackUser) {
   const {
-    profile: { status_text, display_name, fields },
+    profile: { status_text: statusText, display_name: displayName, fields },
   } = user
 
   const githubField = fields?.[GITHUB_FIELD_ID]
@@ -19,18 +18,40 @@ export async function updateUser(id, user: SlackUser) {
     '$1'
   )
 
+  // todo: prevent reading/writing to the db. use some caching
+  const userRef = db.collection('users').doc(id)
+
+  console.log(`[read] users/${id}`)
+
+  const userSnap = await userRef.get()
+
+  if (userSnap.exists) {
+    const userData = userSnap.data() as UserDocument
+
+    // nothing relevant changed
+    if (
+      userData.github_user === githubUser &&
+      userData.slack_user === displayName &&
+      isVacationStatus(userData.status_text) === isVacationStatus(statusText)
+    ) {
+      return
+    }
+  }
+
   console.log(`Updating slack user with github user: ${id} / ${githubUser}`)
-  await db.collection('users').doc(id).set({
+
+  return userRef.set({
     id,
-    slack_user: display_name,
+    slack_user: displayName,
     github_user: githubUser,
-    status_text,
+    status_text: statusText,
   })
 }
 
-// todo: prevent writing to db if nothing relevant changed
+// todo: prevent writing to the db if nothing relevant changed
 export async function updateUserGroup(id: string, group: SlackGroup) {
   console.log(`Updating user group: ${id}`)
+
   if (group.deleted_by || group.users == null || group.users.length === 0) {
     return db.collection('user_groups').doc(id).delete()
   }
@@ -66,4 +87,8 @@ export async function githubUserToSlackID(ghUser: string) {
   }
 
   return userQuery.docs[0].id
+}
+
+export function isVacationStatus(status: string) {
+  return Boolean(status.match(/vacation|f[ée]rias/gi))
 }
