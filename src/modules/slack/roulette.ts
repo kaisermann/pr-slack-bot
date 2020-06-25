@@ -1,7 +1,7 @@
-import * as Slack from '../api'
-import { getRandomItem } from '../../random.js'
-import { db } from '../../../firebase'
-import * as PR from '../../pr/pr'
+import * as Slack from './api'
+import { db } from '../../firebase'
+import * as PR from '../pr/pr'
+import { getRandomItem } from '../random'
 
 const possibleEmojis = [
   'worry-pls',
@@ -58,60 +58,65 @@ const getMemberList = async (channelId: string, params) => {
   return group.data()?.users ?? []
 }
 
-module.exports = async ({
-  channel,
+export async function sendRoulette({
+  channel_id: channelId,
   ts,
   thread_ts: threadTs,
   user_id,
   params,
-}) => {
+}) {
   const querySnapshot = await db
     .collection('prs')
-    .where('thread.channel', '==', channel)
+    .where('thread.channel', '==', channelId)
+    .where('thread.ts', '==', threadTs)
     .get()
 
   const pr = querySnapshot.docs[0]?.data() as PullRequestDocument
 
   if (pr == null) return
 
-  // await pr.reply(`roulette_${ts}`, `:think-360:`);
   await PR.reply(pr, {
     replyId: `roulette_${ts}`,
     text: `:kuchiyose:`,
   })
 
   const [memberList] = await Promise.all([
-    getMemberList(channel, params),
+    getMemberList(channelId, params),
     wait(1900),
   ])
 
-  const memberSet = new Set(memberList)
+  const memberIds: Set<string> = new Set(memberList)
 
-  memberSet.delete(user_id)
-  memberSet.delete(pr.poster_id)
+  memberIds.delete(user_id)
+  memberIds.delete(pr.thread.poster_id)
 
-  let chosenMember
+  let chosenMember: UserDocument | null = null
   let retryCount = -1
 
-  // await pr.reply(`roulette_${ts}`, `:thinking-face-fast:`);
-
   do {
-    if (retryCount++ >= 20 || memberSet.size === 0) {
+    if (retryCount++ >= 20 || memberIds.size === 0) {
       console.error(
-        { channel, ts, thread_ts: threadTs },
+        { channel: channelId, ts, thread_ts: threadTs },
         'Max members shuffling attempts reached'
       )
       chosenMember = null
       break
     }
 
-    chosenMember = DB.users.get(['members', getRandomItem(memberSet)]).value()
+    // eslint-disable-next-line no-await-in-loop
+    const userSnap = await db
+      .collection('users')
+      .doc(getRandomItem(memberIds))
+      .get()
+
+    // eslint-disable-next-line no-await-in-loop
+    chosenMember = userSnap.data() as UserDocument
 
     console.log(`Roulette: ${JSON.stringify(chosenMember)}`)
 
     // do not mention people on vacation
     if (chosenMember?.status_text.match(/vacation|f[ée]rias/gi)) {
-      memberSet.delete(chosenMember.id)
+      memberIds.delete(chosenMember.id)
       chosenMember = null
     }
   } while (!chosenMember)
@@ -120,6 +125,7 @@ module.exports = async ({
     replyId: `roulette_${ts}`,
     text: `:kuchiyose_smoke:`,
   })
+
   await wait(250)
 
   const text = chosenMember
@@ -129,5 +135,4 @@ module.exports = async ({
     : `For some reason I couldn't choose a random channel member... :sob:`
 
   await PR.reply(pr, { replyId: `roulette_${ts}`, text, payload: chosenMember })
-  channel.save_pr(pr)
 }

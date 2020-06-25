@@ -29,6 +29,13 @@ interface PullRequestReply extends SlackMessage {
   payload: any
 }
 
+interface UserDocument {
+  github_user: string
+  id: string
+  slack_user: string
+  status_text: string
+}
+
 interface PullRequestDocument {
   error: {
     status: number
