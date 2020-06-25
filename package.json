@@ -15,6 +15,7 @@
     "dev": "tsc -w",
     "test": "vtex-test-tools test",
     "lint": "eslint --quiet --ext ts,tsx .",
+    "format": "prettier --write src/**/*",
     "go": "node -r ts-node/register/transpile-only src/index.ts"
   },
   "devDependencies": {

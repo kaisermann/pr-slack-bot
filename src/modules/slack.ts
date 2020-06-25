@@ -43,11 +43,11 @@ async function fetchAll(fn): Promise<any[]> {
 export function getProfileInfo({ id }) {
   return userClient.users.profile
     .get({ user: id })
-    .then(response => response.ok && response.profile) as Promise<SlackUser>
+    .then((response) => response.ok && response.profile) as Promise<SlackUser>
 }
 
 export async function* getFullUsers(): AsyncGenerator<SlackUser, any, void> {
-  const slackUsers = await fetchAll(cursor =>
+  const slackUsers = await fetchAll((cursor) =>
     botClient.users.list({ limit: 0, cursor })
   )
 
@@ -71,7 +71,7 @@ export async function getUserGroups(): Promise<any> {
       include_count: false,
       include_users: true,
     })
-    .then(response => response.ok && response.usergroups)
+    .then((response) => response.ok && response.usergroups)
 }
 
 export async function sendMessage({
@@ -95,7 +95,7 @@ export async function sendMessage({
       as_user: true,
       link_names: true,
     })
-    .catch(e => e)
+    .catch((e) => e)
 
   if (!response.ok) throw response
 
@@ -121,11 +121,11 @@ export function updateMessage({ channel, ts, text, blocks }) {
       as_user: true,
       link_names: true,
     })
-    .catch(e => e)
+    .catch((e) => e)
 }
 
 export function deleteMessage({ channel, ts }) {
-  return botClient.chat.delete({ channel, ts }).catch(e => e)
+  return botClient.chat.delete({ channel, ts }).catch((e) => e)
 }
 
 export function deleteMessageByURL(url) {
@@ -161,8 +161,8 @@ export function addReaction({ emoji, channel, ts }) {
   return botClient.reactions.add({ name: emoji, timestamp: ts, channel })
 }
 
-export const matchUserMention = str => str.match(/^<@(\w*?)\|[\w.-_]*?>$/i)
-export const formatUserMention = id => `<@${id}>`
+export const matchUserMention = (str) => str.match(/^<@(\w*?)\|[\w.-_]*?>$/i)
+export const formatUserMention = (id) => `<@${id}>`
 
-export const matchGroupMention = str => str.match(/<!subteam\^(.*?)\|.*?>/i)
-export const formatGroupMention = id => `<!subteam^${id}>`
+export const matchGroupMention = (str) => str.match(/<!subteam\^(.*?)\|.*?>/i)
+export const formatGroupMention = (id) => `<!subteam^${id}>`

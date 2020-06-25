@@ -8,6 +8,7 @@ export async function updateUser(id, user: SlackUser) {
   const {
     profile: { status_text, display_name, fields },
   } = user
+
   const githubField = fields?.[GITHUB_FIELD_ID]
 
   if (githubField == null) {
@@ -19,35 +20,26 @@ export async function updateUser(id, user: SlackUser) {
     '$1'
   )
 
-  await db
-    .collection('users')
-    .doc(id)
-    .set({
-      id,
-      slack_user: display_name,
-      github_user: githubUser,
-      status_text,
-    })
+  await db.collection('users').doc(id).set({
+    id,
+    slack_user: display_name,
+    github_user: githubUser,
+    status_text,
+  })
 }
 
 export async function updateUserGroup(id: string, group: SlackGroup) {
   console.log(`Updating user group: ${id}`)
   if (group.deleted_by || group.users == null || group.users.length === 0) {
-    return db
-      .collection('user_groups')
-      .doc(id)
-      .delete()
+    return db.collection('user_groups').doc(id).delete()
   }
 
-  return db
-    .collection('user_groups')
-    .doc(group.id)
-    .set({
-      id: group.id,
-      handle: group.handle,
-      name: group.name,
-      users: group.users,
-    })
+  return db.collection('user_groups').doc(group.id).set({
+    id: group.id,
+    handle: group.handle,
+    name: group.name,
+    users: group.users,
+  })
 }
 
 export async function updateUserGroups() {
