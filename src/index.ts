@@ -1,7 +1,6 @@
 import 'dotenv/config'
 
-import send from '@polka/send-type'
-import polka from 'polka'
+import express from 'express'
 import { urlencoded, json } from 'body-parser'
 
 import { updateUser, updateUserGroup } from './modules/users'
@@ -9,29 +8,25 @@ import {
   isPullRequestMessage,
   addPullRequestFromEventMessage,
 } from './modules/pr/pr'
+import * as Slack from './modules/slack/roulette'
 
-async function handleSlackEvent(req: any, res: any) {
+async function handleSlackEvent(req: express.Request, res: express.Response) {
   const { type } = req.body
-
-  console.log(`Slack event "${type}"`)
 
   if (type === 'url_verification') {
     const { challenge } = req.body
 
-    return send(res, 200, challenge)
+    return res.send(challenge)
   }
 
   const { type: eventType } = req.body.event
 
   console.log(`Slack event type "${eventType}"`)
 
-  console.log(req.headers)
-  console.log(req.body.event)
-
   if (eventType === 'user_change') {
     const { user } = req.body.event
 
-    send(res, 200, { ok: true })
+    res.json({ ok: true })
     await updateUser(user.id, user)
 
     return
@@ -40,30 +35,55 @@ async function handleSlackEvent(req: any, res: any) {
   if (eventType === 'subteam_updated') {
     const { subteam: group } = req.body.event
 
-    send(res, 200, { ok: true })
+    res.json({ ok: true })
     await updateUserGroup(group.id, group)
 
     return
   }
 
+  if (eventType === 'app_mention') {
+    const {
+      ts,
+      thread_ts: threadTs,
+      channel: channelId,
+      user: userId,
+      text,
+    } = req.body.event
+
+    if (!threadTs) return
+
+    const match = text.match(/(?:roulette|random)(?: +(.*)$)?/)
+
+    if (match) {
+      Slack.sendRoulette({
+        channel_id: channelId,
+        ts,
+        thread_ts: threadTs,
+        user_id: userId,
+        params: match?.[1],
+      })
+    }
+  }
+
   if (eventType === 'message') {
     const { event: message } = req.body
+
+    res.json({ ok: true })
 
     if (isPullRequestMessage(message)) {
       await addPullRequestFromEventMessage(message)
     }
 
-    send(res, 200, { ok: true })
-
     return
   }
 
-  console.log(JSON.stringify(req.body, null, 2))
+  console.log(req.headers)
+  console.log(req.body.event)
 
-  return send(res, 200, { ok: true })
+  return res.json({ ok: true })
 }
 
-async function handleSlackCommand(req: any, res: any) {
+async function handleSlackCommand(req: express.Request, res: express.Response) {
   const { text, channel_id, response_url, user_id } = req.body
   const [command, ...params] = text.split(' ')
 
@@ -98,12 +118,12 @@ async function handleSlackCommand(req: any, res: any) {
     console.error(e, 'Slack command response')
   }
 
-  send(res, 200, responseData)
+  res.json(responseData)
 }
 
 async function handleGithubEvent() {}
 
-const server = polka()
+const server = express()
 
 server.use(urlencoded({ extended: true }))
 server.use(json())

@@ -1,6 +1,4 @@
-import { memoize } from 'memoizee'
-// import { createHash } from 'crypto'
-
+import memoize from 'memoizee'
 import { WebClient, retryPolicies } from '@slack/web-api'
 
 const { SLACK_BOT_TOKEN, SLACK_USER_TOKEN } = process.env
@@ -66,7 +64,13 @@ export async function getUserGroups() {
       include_count: false,
       include_users: true,
     })
-    .then((response) => response.ok && response.usergroups)
+    .then((response) => {
+      if (!response.ok) {
+        return []
+      }
+
+      return response.usergroups as SlackGroup[]
+    })
 }
 
 export async function getUserGroupMembers(groupId: string) {
