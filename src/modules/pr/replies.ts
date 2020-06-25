@@ -2,7 +2,7 @@ import * as PR from './pr'
 import { EMOJIS, GITHUB_APP_URL } from '../../consts'
 import * as Actions from './actions'
 import * as User from '../users'
-import * as Slack from '../slack'
+import * as Slack from '../slack/api'
 
 export async function updateHeaderMessage(pr: PullRequestDocument) {
   const { size, title, actions } = pr

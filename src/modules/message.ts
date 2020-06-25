@@ -1,7 +1,6 @@
 import { produce } from 'immer'
 
-import * as Slack from './slack'
-import { db } from '../firebase'
+import * as Slack from './slack/api'
 
 export async function sendMessage({
   text,
