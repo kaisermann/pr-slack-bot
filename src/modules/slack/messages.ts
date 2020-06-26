@@ -1,6 +1,6 @@
 import { produce } from 'immer'
 
-import * as Slack from './slack/api'
+import * as Slack from './api'
 
 export async function sendMessage({
   text,
@@ -8,7 +8,7 @@ export async function sendMessage({
   channel,
   thread_ts,
   payload,
-}: SlackMessagePayload): Promise<MessageDocument> {
+}: SlackMessagePayload): Promise<SlackReply> {
   if (channel == null) {
     throw new Error()
   }
@@ -41,10 +41,10 @@ export async function sendMessage({
 }
 
 export async function updateMessage(
-  message: MessageDocument,
+  message: SlackReply,
   fn
-): Promise<MessageDocument> {
-  const updatedMessage = produce<MessageDocument>(message, fn)
+): Promise<SlackReply> {
+  const updatedMessage = produce<SlackReply>(message, fn)
 
   const response = await Slack.botClient.chat
     .update({
@@ -63,7 +63,13 @@ export async function updateMessage(
   return updatedMessage
 }
 
-export const deleteMessage = async ({ channel, ts }: SlackMessage) => {
+export const deleteMessage = async ({
+  channel,
+  ts,
+}: {
+  channel: string
+  ts: string
+}) => {
   const response = await Slack.botClient.chat
     .delete({ channel, ts })
     .catch((e) => e)
@@ -73,21 +79,39 @@ export const deleteMessage = async ({ channel, ts }: SlackMessage) => {
   return true
 }
 
-export const buildText = (parts) => {
+export const buildText = (parts: TextBuilderArg) => {
   parts = Array.isArray(parts) ? parts : [parts]
 
-  return parts
-    .filter(Boolean)
-    .map((part) => (typeof part === 'function' ? part() : part))
-    .join('')
+  return parts.filter(Boolean).join('')
 }
 
 export const blocks = {
-  create_markdown_section: (text) => ({
+  createMarkdownSection: (text) => ({
     type: 'section',
     text: {
       type: 'mrkdwn',
       text: buildText(text),
     },
   }),
+}
+
+export function getMessageDate(msg: ChannelMessageDocument) {
+  return new Date(parseFloat(msg.ts) * 1000)
+}
+
+export function getTimeSincePost(
+  msg: ChannelMessageDocument,
+  {
+    dateRef = new Date(),
+    unit = 'hours',
+  }: { dateRef?: Date; unit?: 'hours' | 'minutes' } = {}
+) {
+  const diff = getMessageDate(msg).getTime() - dateRef.getTime()
+  const diffMins = Math.abs(diff) / (1000 * 60)
+
+  if (unit === 'hours') {
+    return ~~(diffMins / 60)
+  }
+
+  return diffMins
 }

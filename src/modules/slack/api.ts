@@ -1,6 +1,8 @@
 import memoize from 'memoizee'
 import { WebClient, retryPolicies } from '@slack/web-api'
 
+import { PR_MESSAGE_REGEX } from '../../consts'
+
 const { SLACK_BOT_TOKEN, SLACK_USER_TOKEN } = process.env
 
 export const userClient = new WebClient(SLACK_USER_TOKEN, {
@@ -173,7 +175,7 @@ export function deleteMessageByURL(url) {
   deleteMessage({ channel, ts })
 }
 
-export async function getMessageURL({ channel, ts }) {
+export const getMessageURL = memoize(async ({ channel, ts }) => {
   const response = await botClient.chat.getPermalink({
     channel,
     message_ts: ts,
@@ -182,7 +184,7 @@ export async function getMessageURL({ channel, ts }) {
   const url = response.permalink as string
 
   return url.replace(/\?.*$/, '')
-}
+})
 
 export function removeReaction({ emoji, channel, ts }) {
   return botClient.reactions.remove({ name: emoji, timestamp: ts, channel })
@@ -197,3 +199,15 @@ export const formatUserMention = (id) => `<@${id}>`
 
 export const matchGroupMention = (str) => str.match(/<!subteam\^(.*?)\|.*?>/i)
 export const formatGroupMention = (id) => `<!subteam^${id}>`
+
+export function matchPullRequestURL(url: string) {
+  return url?.match(PR_MESSAGE_REGEX)
+}
+
+export function isVacationStatus(status: string) {
+  return Boolean(status.match(/vacation|f[ée]rias/gi))
+}
+
+export function formatLink(url: string, text: string) {
+  return `<${url}|${text}>`
+}

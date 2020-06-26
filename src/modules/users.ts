@@ -1,4 +1,4 @@
-import { getFullUsers, getUserGroups } from './slack/api'
+import * as Slack from './slack/api'
 import { db } from '../firebase'
 import { GITHUB_FIELD_ID } from '../consts'
 
@@ -32,7 +32,8 @@ export async function updateUser(id, user: SlackUser) {
     if (
       userData.github_user === githubUser &&
       userData.slack_user === displayName &&
-      isVacationStatus(userData.status_text) === isVacationStatus(statusText)
+      Slack.isVacationStatus(userData.status_text) ===
+        Slack.isVacationStatus(statusText)
     ) {
       return
     }
@@ -65,13 +66,13 @@ export async function updateUserGroup(id: string, group: SlackGroup) {
 }
 
 export async function updateUserGroups() {
-  for await (const group of await getUserGroups()) {
+  for await (const group of await Slack.getUserGroups()) {
     await updateUserGroup(group.id, group)
   }
 }
 
 export async function updateUsers() {
-  for await (const user of getFullUsers()) {
+  for await (const user of Slack.getFullUsers()) {
     await updateUser(user.id, user)
   }
 }
@@ -89,6 +90,10 @@ export async function githubUserToSlackID(ghUser: string) {
   return userQuery.docs[0].id
 }
 
-export function isVacationStatus(status: string) {
-  return Boolean(status.match(/vacation|f[ée]rias/gi))
+export function getUserGroupRef(groupId: string) {
+  return db.collection('user_groups').doc(groupId)
+}
+
+export function getUserRef(userId: string) {
+  return db.collection('users').doc(userId)
 }

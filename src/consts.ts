@@ -3,6 +3,8 @@ export const GITHUB_FIELD_ID = 'XfCCUXUDPH'
 
 export const BOT_NAME = 'Paul Robotson'
 
+export const PR_MESSAGE_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i
+
 export const EMOJIS = {
   approved: 'github-check-done',
   ready_to_merge: 'ready-to-merge',

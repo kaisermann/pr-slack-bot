@@ -1,24 +1,21 @@
 import { basename } from 'path'
 
+import { produce } from 'immer'
 import isDeepEqual from 'fast-deep-equal'
+import { firestore } from 'firebase-admin'
 
 import { getDefconStatus } from '../defcon'
-import { db } from '../../firebase'
-import { reevaluateReplies } from './replies'
 import { getActionMap } from './actions'
 import { PR_SIZES } from '../../consts'
-import { reevaluateReactions } from './reactions'
 import { AsyncLock } from '../lock'
 import * as Github from '../github/api'
-import * as Messages from '../messages'
-
-const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i
+import * as Slack from '../slack/api'
+import * as Repos from '../repos'
+import * as Channels from '../channels'
+import { updateMessageReactions } from './reactions'
+import { updateMessageReplies } from './replies'
 
 const PR_LOCKS: Map<string, AsyncLock> = new Map()
-
-export function isPullRequestMessage(message: SlackMessage) {
-  return Boolean(message.thread_ts == null && message.text?.match(PR_REGEX))
-}
 
 export function getPullRequestID({
   owner,
@@ -32,14 +29,6 @@ export function getPullRequestID({
   return `${owner}@${repo}@${number}`
 }
 
-export function getRepoID({ owner, repo }: { owner: string; repo: string }) {
-  return `${owner}@${repo}`
-}
-
-export function getRepoRef({ owner, repo }: { owner: string; repo: string }) {
-  return db.collection('repos').doc(getRepoID({ owner, repo }))
-}
-
 export function getPullRequestRef({
   owner,
   repo,
@@ -49,29 +38,23 @@ export function getPullRequestRef({
   repo: string
   number: string
 }) {
-  return getRepoRef({ owner, repo }).collection('prs').doc(`${number}`)
+  return Repos.getRepoRef({ owner, repo }).collection('prs').doc(`${number}`)
 }
 
-export async function getPullRequestDocument(pr) {
-  let ref
-
-  if (typeof pr.get === 'function') {
-    ref = pr
-  } else {
-    ref = getPullRequestRef(pr)
-  }
+export async function getPullRequestDocument(pr: PullRequestIdentifier) {
+  const ref = getPullRequestRef(pr)
 
   const prSnap = await ref.get()
 
   return prSnap.data() as PullRequestDocument
 }
 
-function getReplyRef(pr, replyId) {
-  return getPullRequestRef(pr).collection('replies').doc(replyId)
-}
-
 export async function addPullRequestFromEventMessage(message: SlackMessage) {
-  const match = message.text?.match(PR_REGEX)
+  if (message.thread_ts != null) {
+    return
+  }
+
+  const match = Slack.matchPullRequestURL(message?.text)
 
   if (!match) {
     return
@@ -79,54 +62,125 @@ export async function addPullRequestFromEventMessage(message: SlackMessage) {
 
   const [, owner, repo, number] = match
 
-  const repoRef = db.collection('repos').doc(`${owner}@${repo}`)
+  const repoRef = Repos.getRepoRef({ owner, repo })
+  const repoSnap = await repoRef.get()
 
-  repoRef.set({
-    owner,
-    repo,
-    installationId: null,
-  })
-
-  const prRef = getPullRequestRef({ owner, repo, number })
-
-  if ((await prRef.get()).exists) {
-    console.info('Deleting previous reply history')
-    await deleteReplies({ owner, repo, number })
+  if (!repoSnap.exists) {
+    await repoRef.set({
+      owner,
+      repo,
+      installationId: null,
+    })
   }
 
-  const pr = {
+  const prRef = getPullRequestRef({ owner, repo, number })
+  const prSnap = await prRef.get()
+
+  const messageRef = Channels.getChannelMessageRef({
+    channelId: message.channel,
+    ts: message.ts,
+  })
+
+  await messageRef.set({
+    done: false,
+    channel: message.channel,
+    ts: message.ts,
+    poster_id: message.user,
+    prRef,
+    replies: {},
+    reactions: {},
+  })
+
+  if (prSnap.exists) {
+    const pr = prSnap.data() as PullRequestDocument
+
+    pr.messageRefs.push(messageRef)
+
+    return updateAndEvaluate(pr)
+  }
+
+  return updateAndEvaluate({
     owner,
     repo,
     number,
-    thread: {
-      reactions: {},
-      channel: message.channel,
-      ts: message.ts,
-      poster_id: message.user,
-    },
+    messageRefs: [messageRef],
+  } as PullRequestDocument)
+}
+
+export async function updateAndEvaluate(pr: PullRequestDocument) {
+  const remoteState = await getPullRequestConsolidatedState(pr)
+
+  const newPr = {
+    ...pr,
+    ...remoteState,
   } as PullRequestDocument
 
-  Object.assign(pr, await getPullRequestConsolidatedState(pr))
+  await getPullRequestRef(newPr).set(newPr)
 
-  await prRef.set(pr)
-
-  return evaluatePullRequest(pr)
+  return evaluatePullRequest(newPr)
 }
 
 export async function evaluatePullRequest(pr: PullRequestDocument) {
+  console.log(`Evaluating: "${getPullRequestID(pr)}"`)
+
   const id = getPullRequestID(pr)
-  const lock = PR_LOCKS.get(id)
+  let lock = PR_LOCKS.get(id)
+
+  if (!lock) {
+    lock = new AsyncLock()
+    PR_LOCKS.set(id, lock)
+  }
+
+  await lock.acquire()
 
   try {
-    if (lock) {
-      await lock.acquire()
-    }
+    // update each possible message referencing the same pr
+    // todo: can be made in parallalel
+    for await (const rootMsgRef of pr.messageRefs) {
+      const rootMsgSnap = await rootMsgRef.get()
 
-    await Promise.all([reevaluateReplies(pr), reevaluateReactions(pr)])
+      if (!rootMsgSnap.exists) {
+        console.log(
+          `Removing non-exising message reference from ${getPullRequestID(pr)}`
+        )
+
+        await getPullRequestRef(pr).update({
+          messageRefs: firestore.FieldValue.arrayRemove(rootMsgRef),
+        })
+
+        continue
+      }
+
+      const rootMsgData = rootMsgSnap.data() as ChannelMessageDocument
+
+      // eslint-disable-next-line no-loop-func
+      const modifiedRootMsg = await produce(rootMsgData, async (draft) => {
+        await Promise.all([
+          updateMessageReplies(draft, pr),
+          updateMessageReactions(draft, pr),
+        ])
+      })
+
+      if (isDeepEqual(rootMsgData, modifiedRootMsg)) {
+        continue
+      }
+
+      await rootMsgRef.update(modifiedRootMsg)
+    }
   } catch (e) {
     console.error(e)
     throw e
   } finally {
+    // if pr is done, mark its related messages as done
+    const isDone = isResolved(pr)
+
+    console.log('Pull request done')
+    await Promise.all(
+      pr.messageRefs.map(async (ref) => {
+        ref.update({ done: isDone })
+      })
+    )
+
     if (lock) {
       await lock.release()
 
@@ -134,6 +188,8 @@ export async function evaluatePullRequest(pr: PullRequestDocument) {
         PR_LOCKS.delete(id)
       }
     }
+
+    console.log('Evaluation Done')
   }
 }
 
@@ -179,7 +235,9 @@ async function getPullRequestConsolidatedState(pr: PullRequestIdentifier) {
     filesData,
   } = await fetchPullRequestRemoteState(pr)
 
-  if (error) return { error }
+  if (error) {
+    return { error }
+  }
 
   const {
     title,
@@ -214,141 +272,6 @@ async function getPullRequestConsolidatedState(pr: PullRequestIdentifier) {
       deletions: totalDeletions,
     }),
   }
-}
-
-export async function deleteReply(
-  pr: PullRequestIdentifier,
-  { replyId }: { replyId: string }
-) {
-  const replyRef = getReplyRef(pr, replyId)
-  const replySnapshot = await replyRef.get()
-
-  if (!replySnapshot.exists) {
-    return false
-  }
-
-  const replyData = replySnapshot.data() as any
-
-  return Messages.deleteMessage(replyData)
-    .then(() => {
-      return replyRef.delete().then(() => true)
-    })
-    .catch((e) => {
-      console.log(e.data)
-      console.log(e.data.error)
-      if (e.data && e.data.error === 'message_not_found') {
-        console.error(`- Tried to delete an already deleted message`)
-
-        return replyRef.delete().then(() => false)
-      }
-
-      throw e
-    })
-}
-
-async function deleteReplies(
-  pr: PullRequestIdentifier,
-  replyIds: string[] = []
-) {
-  if (replyIds.length === 0) {
-    const repliesSnapshot = await getPullRequestRef(pr)
-      .collection('replies')
-      .get()
-
-    replyIds = repliesSnapshot.docs.map((doc) => doc.id)
-  }
-
-  return Promise.all(replyIds.map((replyId) => deleteReply(pr, { replyId })))
-}
-
-async function updateReply(
-  pr: PullRequestDocument,
-  {
-    replyId,
-    update,
-    payload,
-  }: {
-    replyId: string
-    update: (...args: any[]) => any
-    payload: any
-  }
-) {
-  const replyRef = getReplyRef(pr, replyId)
-  const replySnapshot = await replyRef.get()
-
-  if (!replySnapshot.exists) {
-    return false
-  }
-
-  const replyData = replySnapshot.data() as MessageDocument
-
-  if (
-    replyData.payload != null &&
-    payload != null &&
-    isDeepEqual(replyData.payload, payload)
-  ) {
-    return false
-  }
-
-  const text = Messages.buildText(update(replyData))
-
-  if (replyData.text === text) {
-    return false
-  }
-
-  if (text === '') {
-    return deleteReply(pr, { replyId })
-  }
-
-  console.info(`- Updating reply: ${text}`)
-
-  const updatedMessage = await Messages.updateMessage(replyData, (message) => {
-    message.text = text
-    message.payload = payload
-  })
-
-  await replyRef.set(updatedMessage)
-
-  return true
-}
-
-export async function reply(
-  pr,
-  {
-    replyId,
-    text,
-    payload,
-  }: {
-    replyId: string
-    text: any | any[]
-    payload?: any
-  }
-) {
-  const replyRef = getReplyRef(pr, replyId)
-  const replySnapshot = await replyRef.get()
-
-  if (replySnapshot.exists) {
-    return updateReply(pr, { replyId, update: () => text, payload })
-  }
-
-  const builtText = Messages.buildText(text)
-
-  if (builtText === '') return false
-
-  console.info(`- Sending reply: ${builtText}`)
-
-  const {
-    thread: { channel, ts },
-  } = pr
-
-  return Messages.sendMessage({
-    text: builtText,
-    channel,
-    thread_ts: ts,
-    payload,
-  })
-    .then((msg) => getReplyRef(pr, replyId).set(msg))
-    .then(() => true)
 }
 
 function calculatePullRequestSize({
@@ -424,6 +347,10 @@ export function isResolved(pr: PullRequestDocument) {
 
 export function isActive(pr: PullRequestDocument) {
   return !isDraft(pr)
+}
+
+export function isUnreachable({ error }: PullRequestDocument) {
+  return error?.status === 403 || error?.status === 404 || error?.status === 520
 }
 
 export async function canBeMerged(pr: PullRequestDocument) {
