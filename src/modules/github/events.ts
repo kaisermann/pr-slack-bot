@@ -2,6 +2,7 @@ import express from 'express'
 
 import { db } from '../../firebase'
 import * as PR from '../pr/pr'
+import * as Repos from '../repos'
 
 function onInstallation(req) {
   const {
@@ -29,7 +30,7 @@ function onInstallation(req) {
         .update({ installationId: installation.id })
     })
 
-    // todo: is this needed?
+    // todo: is this really needed?
     // const added_set = new Set(added.map((repo) => repo.full_name))
     // const relevantPrs = db.collection('prs').where('owner', 'in', added_set)
     // return update_prs(relevantPrs)
@@ -50,31 +51,32 @@ async function onPullRequestChange({ event, req }) {
     return
   }
 
-  const prId = `${repository.owner}@${repository.repo}@${pullRequest.number}`
+  const [owner, repo] = repository.full_name.split('/')
+  const prIdentifier = { owner, repo, number: pullRequest.number }
 
-  console.log(`Triggered "${event}/${action}" on "${prId}"`)
+  console.log(
+    `Triggered "${event}/${action}" on "${PR.getPullRequestID(prIdentifier)}"`
+  )
 
-  const prSnap = await db.collection('prs').doc(prId).get()
+  const prDoc = await PR.getPullRequestDocument(prIdentifier)
 
-  if (!prSnap.exists) {
-    console.log(`PR not found "${prId}"`)
+  if (prDoc == null) {
+    console.log(`PR not found "${PR.getPullRequestID(prIdentifier)}"`)
 
     return
   }
 
-  const prDoc = prSnap.data() as PullRequestDocument
-
-  return PR.evaluatePullRequest(prDoc)
+  return PR.updateAndEvaluate(prDoc)
 }
 
 async function onBranchPush({ req }) {
   const { ref, repository } = req.body
   const branch = ref.split('/').pop()
 
-  const relatedPRs = await db
-    .collection('prs')
-    .where('repo', '==', repository.name)
-    .where('owner', '==', repository.owner.name)
+  const relatedPRs = await Repos.getRepoPullRequestCollection({
+    owner: repository.owner.name,
+    repo: repository.name,
+  })
     .where('base_branch', '==', branch)
     .get()
 

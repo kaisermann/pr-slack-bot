@@ -2,7 +2,8 @@ import express from 'express'
 
 import { updateUser, updateUserGroup } from '../users'
 import * as PR from '../pr/pr'
-import * as Slack from './roulette'
+import { sendRoulette } from './roulette'
+import * as Slack from './api'
 
 export async function handleSlackEvent(
   req: express.Request,
@@ -52,7 +53,7 @@ export async function handleSlackEvent(
     const match = text.match(/(?:roulette|random)(?: +(.*)$)?/)
 
     if (match) {
-      Slack.sendRoulette({
+      sendRoulette({
         channel_id: channelId,
         ts,
         thread_ts: threadTs,
@@ -67,7 +68,7 @@ export async function handleSlackEvent(
 
     res.json({ ok: true })
 
-    if (PR.isPullRequestMessage(message)) {
+    if (Slack.matchPullRequestURL(message?.text)) {
       await PR.addPullRequestFromEventMessage(message)
     }
 
@@ -105,18 +106,19 @@ export async function handleSlackCommand(
   let responseData
 
   try {
-    responseData = (
-      await import(`./modules/slack/commands/${command}`)
-    ).default(commandObj)
+    const commandMod = await import(`./commands/${command}`)
+
+    responseData = await commandMod.default(commandObj)
+
     if (typeof responseData !== 'string') {
       responseData = {
         blocks: responseData,
       }
     }
   } catch (e) {
-    responseData = `No command \`${text}\`.\n\nPlease type \`/pr help\` to see available commands.`
+    responseData = `No command \`${text}\`. Please type \`/pr help\` to see available commands.`
     console.error(e, 'Slack command response')
   }
 
-  res.json(responseData)
+  res.send(responseData)
 }

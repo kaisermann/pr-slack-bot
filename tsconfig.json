@@ -10,7 +10,8 @@
     "target": "es5",
     "module": "CommonJS",
     "resolveJsonModule": true,
-    "downlevelIteration": true
+    "downlevelIteration": true,
+    "lib": ["ES2020", "ES2019"]
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules/**/*", "**/*.test.ts"]

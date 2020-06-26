@@ -1,27 +1,20 @@
 import * as Slack from '../slack/api'
-import {
-  getPullRequestDocument,
-  getPullRequestRef,
-  isDirty,
-  isMergeable,
-} from './pr'
 import { EMOJIS } from '../../consts'
-import {
-  getApprovalCount,
-  hasChangesRequested,
-  hasComment,
-  isWaitingReview,
-  hasPendingReview,
-} from './actions'
+import * as Actions from './actions'
+import * as PR from './pr'
 
-export async function removeReaction(pr, { type }) {
-  const prRef = getPullRequestRef(pr)
-  const {
-    thread: { channel, ts, reactions },
-  } = await getPullRequestDocument(prRef)
+async function removeReaction(
+  msg: ChannelMessageDocument,
+  {
+    type,
+  }: {
+    type: string
+  }
+) {
+  const { channel, ts, reactions } = msg
 
   if (!(type in reactions)) {
-    return false
+    return
   }
 
   const emoji = reactions[type]
@@ -31,34 +24,25 @@ export async function removeReaction(pr, { type }) {
   return Slack.botClient.reactions
     .remove({ name: emoji, timestamp: ts, channel })
     .then(() => {
-      prRef.update({
-        reactions: { ...reactions, [type]: emoji },
-      })
-
-      return true
+      delete reactions[type]
     })
     .catch((e) => {
       if (e.data && e.data.error === 'already_reacted') {
-        prRef.update({
-          reactions: { ...reactions, [type]: emoji },
-        })
-
-        return false
+        delete reactions[type]
       }
 
       throw e
     })
 }
 
-export async function addReaction(pr, { type, emoji }) {
-  const prRef = getPullRequestRef(pr)
-  const {
-    thread: { channel, ts, reactions },
-  } = await getPullRequestDocument(prRef)
+async function addReaction(msg: ChannelMessageDocument, { type, emoji }) {
+  const { channel, ts, reactions } = msg
 
   if (type in reactions) {
     if (reactions[type] === emoji) return false
-    await removeReaction(pr, type)
+    await removeReaction(msg, {
+      type,
+    })
   }
 
   console.info(`- Adding reaction of type: ${type} (${emoji})`)
@@ -66,97 +50,117 @@ export async function addReaction(pr, { type, emoji }) {
   return Slack.botClient.reactions
     .add({ name: emoji, timestamp: ts, channel })
     .then(() => {
-      prRef.update({
-        reactions: { ...reactions, [type]: emoji },
-      })
-
-      return true
+      reactions[type] = emoji
     })
     .catch((e) => {
       if (e.data && e.data.error === 'already_reacted') {
-        prRef.update({
-          reactions: { ...reactions, [type]: emoji },
-        })
-
-        return false
+        reactions[type] = emoji
       }
 
       throw e
     })
 }
 
-export async function reevaluateReactions(pr: PullRequestDocument) {
-  const { size, merged, closed, error } = pr
+export async function updateMessageReactions(
+  rootMsg: ChannelMessageDocument,
+  pr: PullRequestDocument
+) {
+  const { size, merged, closed } = pr
 
-  if (error) {
-    console.warn(`Skipping reaction evaluation due to error: ${error.status}`)
+  const changesRequested = Actions.hasChangesRequested(pr)
 
-    return
-  }
-
-  const changesRequested = hasChangesRequested(pr)
-
-  await addReaction(pr, {
+  await addReaction(rootMsg, {
     type: 'size',
     emoji: EMOJIS[`size_${size.label}`],
   })
 
   if (changesRequested) {
-    await addReaction(pr, {
+    await addReaction(rootMsg, {
       type: 'changes_requested',
       emoji: EMOJIS.changes_requested,
     })
   } else {
-    await removeReaction(pr, { type: 'changes_requested' })
+    await removeReaction(rootMsg, {
+      type: 'changes_requested',
+    })
   }
 
-  if (isMergeable(pr) && changesRequested === false) {
-    const nApprovals = getApprovalCount(pr)
+  if (PR.isMergeable(pr) && changesRequested === false) {
+    const nApprovals = Actions.getApprovalCount(pr)
 
-    await addReaction(pr, {
+    await addReaction(rootMsg, {
       type: 'approved',
       emoji: nApprovals > 0 ? EMOJIS.approved : EMOJIS.ready_to_merge,
     })
   } else {
-    await removeReaction(pr, { type: 'approved' })
+    await removeReaction(rootMsg, {
+      type: 'approved',
+    })
   }
 
-  if (hasComment(pr)) {
-    await addReaction(pr, { type: 'has_comment', emoji: EMOJIS.commented })
+  if (Actions.hasComment(pr)) {
+    await addReaction(rootMsg, {
+      type: 'has_comment',
+      emoji: EMOJIS.commented,
+    })
   } else {
-    await removeReaction(pr, { type: 'has_comment' })
+    await removeReaction(rootMsg, {
+      type: 'has_comment',
+    })
   }
 
-  if (isWaitingReview(pr)) {
-    await addReaction(pr, { type: 'is_waiting_review', emoji: EMOJIS.waiting })
+  if (Actions.isWaitingReview(pr)) {
+    await addReaction(rootMsg, {
+      type: 'is_waiting_review',
+      emoji: EMOJIS.waiting,
+    })
   } else {
-    await removeReaction(pr, { type: 'is_waiting_review' })
+    await removeReaction(rootMsg, {
+      type: 'is_waiting_review',
+    })
   }
 
-  if (hasPendingReview(pr)) {
-    await addReaction(pr, {
+  if (Actions.hasPendingReview(pr)) {
+    await addReaction(rootMsg, {
       type: 'pending_review',
       emoji: EMOJIS.pending_review,
     })
   } else {
-    await removeReaction(pr, { type: 'pending_review' })
+    await removeReaction(rootMsg, {
+      type: 'pending_review',
+    })
   }
 
-  if (isDirty(pr)) {
-    await addReaction(pr, { type: 'dirty', emoji: EMOJIS.dirty })
+  if (PR.isDirty(pr)) {
+    await addReaction(rootMsg, {
+      type: 'dirty',
+      emoji: EMOJIS.dirty,
+    })
   } else {
-    await removeReaction(pr, { type: 'dirty' })
+    await removeReaction(rootMsg, {
+      type: 'dirty',
+    })
   }
 
   if (merged) {
-    await addReaction(pr, { type: 'merged', emoji: EMOJIS.merged })
+    await addReaction(rootMsg, {
+      type: 'merged',
+      emoji: EMOJIS.merged,
+    })
   } else {
-    await removeReaction(pr, { type: 'merged' })
+    await removeReaction(rootMsg, {
+      type: 'merged',
+    })
   }
 
   if (closed && !merged) {
-    await addReaction(pr, { type: 'closed', emoji: EMOJIS.closed })
+    await addReaction(rootMsg, {
+      type: 'closed',
+      emoji: EMOJIS.closed,
+    })
   } else {
-    await removeReaction(pr, { type: 'closed' })
+    await removeReaction(rootMsg, {
+      type: 'closed',
+    })
   }
 }

@@ -1,3 +1,7 @@
+type MaybeArray<T> = T | T[]
+
+type TextBuilderArg = MaybeArray<string>
+
 interface SlackUser {
   id: string
   profile: {
@@ -27,59 +31,14 @@ interface SlackMessage {
 
 type SlackMessagePayload = Omit<SlackMessage, 'user' | 'ts'> & { payload?: any }
 
-interface MessageDocument extends Omit<SlackMessage, 'user'> {
+interface SlackReply extends Omit<SlackMessage, 'user'> {
   payload?: any
-}
-
-interface UserDocument {
-  id: string
-  github_user: string
-  slack_user: string
-  status_text: string
 }
 
 interface PullRequestIdentifier {
   owner: string
   repo: string
   number: string
-}
-
-interface PullRequestDocument {
-  error: {
-    status: number
-    message?: string
-  }
-  owner: string
-  repo: string
-  number: string
-  thread: {
-    channel: string
-    ts: string
-    poster_id: string
-    reactions: Record<string, string>
-  }
-  base_branch: string
-  head_branch: string
-  mergeable: boolean
-  mergeable_state: string
-  merged: boolean
-  closed: boolean
-  description: string
-  title: string
-  files: Array<{
-    additions: number
-    deletions: number
-    filename: string
-    status: 'modified' | 'added' | 'deleted'
-  }>
-  actions: Record<string, string[]>
-  size: {
-    label: string
-    limit: number
-    changes: number
-    additions: number
-    deletions: number
-  }
 }
 
 interface PullRequestActions {
@@ -91,8 +50,7 @@ interface PullRequestAction {
   action: string
 }
 
-interface RepoDocument {
+interface RepoIdentifier {
   owner: string
   repo: string
-  installationId: number | null
 }
