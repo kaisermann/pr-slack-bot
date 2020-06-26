@@ -2,6 +2,7 @@ import { App } from '@octokit/app'
 import { request } from '@octokit/request'
 
 import { db } from '../../firebase'
+import { getRepoRef } from '../pr/pr'
 
 const APP_ID =
   process.env.NODE_ENV === 'production'
@@ -27,7 +28,7 @@ setInterval(() => {
   jwtToken = githubApp.getSignedJsonWebToken()
 }, 1000 * (60 * 10 - 30))
 
-const getInstallationId = async ({ owner, repo }) => {
+const getInstallationId = async ({ owner, repo }): Promise<number> => {
   const { data } = await request(`GET /repos/${owner}/${repo}/installation`, {
     headers: {
       authorization: `Bearer ${jwtToken}`,
@@ -42,22 +43,15 @@ const ghFetch = async (url: string, options) => {
   const { owner, repo } = options
   const requestHeaders = { ...options.headers }
   const repoID = `${owner}@${repo}`
-  const installationDoc = await db
-    .collection('github_installations')
-    .doc(repoID)
-    .get()
+  const repoSnap = await db.collection('repos').doc(repoID).get()
+  const repoData = repoSnap.data() as RepoDocument
 
-  let installationId: number
+  let installationId = repoData?.installationId
 
-  if (!installationDoc.exists) {
+  // todo: this can be better somehow
+  if (installationId == null) {
     installationId = await getInstallationId({ owner, repo })
-    await db
-      .collection('github_installations')
-      .doc(repoID)
-      .set({ installationId })
-  } else {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    installationId = installationDoc.data()!.installationId
+    await getRepoRef({ owner, repo }).update({ installationId })
   }
 
   try {
@@ -174,7 +168,7 @@ export async function getPullRequestMetaData({ owner, repo, number }) {
 export function getPullRequestState(params: {
   owner: string
   repo: string
-  number: number
+  number: string
 }) {
   return Promise.all([
     getPullRequestMetaData(params),

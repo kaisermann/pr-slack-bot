@@ -1,17 +1,16 @@
 import { basename } from 'path'
 
 import isDeepEqual from 'fast-deep-equal'
-import { response } from 'express'
 
 import { getDefconStatus } from '../defcon'
 import { db } from '../../firebase'
-import * as Github from '../github/api'
-import * as Messages from '../messages'
 import { reevaluateReplies } from './replies'
 import { getActionMap } from './actions'
 import { PR_SIZES } from '../../consts'
 import { reevaluateReactions } from './reactions'
 import { AsyncLock } from '../lock'
+import * as Github from '../github/api'
+import * as Messages from '../messages'
 
 const PR_REGEX = /github\.com\/([\w-.]*)?\/([\w-.]*?)\/pull\/(\d+)/i
 
@@ -21,18 +20,36 @@ export function isPullRequestMessage(message: SlackMessage) {
   return Boolean(message.thread_ts == null && message.text?.match(PR_REGEX))
 }
 
-export function getPullRequestID(
-  pr: Pick<PullRequestDocument, 'owner' | 'repo' | 'number'>
-) {
-  return `${pr.owner}@${pr.repo}@${pr.number}`
+export function getPullRequestID({
+  owner,
+  repo,
+  number,
+}: {
+  owner: string
+  repo: string
+  number: string
+}) {
+  return `${owner}@${repo}@${number}`
 }
 
-export function getPullRequestRef(
-  pr: string | Pick<PullRequestDocument, 'owner' | 'repo' | 'number'>
-) {
-  const id = typeof pr === 'string' ? pr : getPullRequestID(pr)
+export function getRepoID({ owner, repo }: { owner: string; repo: string }) {
+  return `${owner}@${repo}`
+}
 
-  return db.collection('prs').doc(id)
+export function getRepoRef({ owner, repo }: { owner: string; repo: string }) {
+  return db.collection('repos').doc(getRepoID({ owner, repo }))
+}
+
+export function getPullRequestRef({
+  owner,
+  repo,
+  number,
+}: {
+  owner: string
+  repo: string
+  number: string
+}) {
+  return getRepoRef({ owner, repo }).collection('prs').doc(`${number}`)
 }
 
 export async function getPullRequestDocument(pr) {
@@ -56,23 +73,31 @@ function getReplyRef(pr, replyId) {
 export async function addPullRequestFromEventMessage(message: SlackMessage) {
   const match = message.text?.match(PR_REGEX)
 
-  if (!match) return
+  if (!match) {
+    return
+  }
 
   const [, owner, repo, number] = match
-  const id = `${owner}@${repo}@${number}`
-  const prRef = getPullRequestRef(id)
+
+  const repoRef = db.collection('repos').doc(`${owner}@${repo}`)
+
+  repoRef.set({
+    owner,
+    repo,
+    installationId: null,
+  })
+
+  const prRef = getPullRequestRef({ owner, repo, number })
 
   if ((await prRef.get()).exists) {
     console.info('Deleting previous reply history')
-    await deleteReplies(id)
+    await deleteReplies({ owner, repo, number })
   }
-
-  const prNumber = parseInt(number, 10)
 
   const pr = {
     owner,
     repo,
-    number: prNumber,
+    number,
     thread: {
       reactions: {},
       channel: message.channel,
@@ -191,19 +216,18 @@ async function getPullRequestConsolidatedState(pr: PullRequestIdentifier) {
   }
 }
 
-export async function deleteReply(pr, { replyId }: { replyId: string }) {
+export async function deleteReply(
+  pr: PullRequestIdentifier,
+  { replyId }: { replyId: string }
+) {
   const replyRef = getReplyRef(pr, replyId)
   const replySnapshot = await replyRef.get()
-
-  console.log('dleting reply', pr, replyId, replySnapshot.exists)
 
   if (!replySnapshot.exists) {
     return false
   }
 
   const replyData = replySnapshot.data() as any
-
-  console.log(replyData)
 
   return Messages.deleteMessage(replyData)
     .then(() => {
@@ -223,7 +247,7 @@ export async function deleteReply(pr, { replyId }: { replyId: string }) {
 }
 
 async function deleteReplies(
-  pr: string | PullRequestDocument,
+  pr: PullRequestIdentifier,
   replyIds: string[] = []
 ) {
   if (replyIds.length === 0) {
