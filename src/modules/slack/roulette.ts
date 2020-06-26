@@ -1,4 +1,4 @@
-import * as Messages from '../messages'
+import * as Messages from './messages'
 import * as Slack from './api'
 import { db } from '../../firebase'
 import { getRandomItem } from '../random'

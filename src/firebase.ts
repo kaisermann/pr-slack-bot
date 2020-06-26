@@ -8,4 +8,6 @@ export const app = admin.initializeApp({
 
 export const db = admin.firestore()
 
+export const { firestore } = admin
+
 db.settings({ ignoreUndefinedProperties: true })

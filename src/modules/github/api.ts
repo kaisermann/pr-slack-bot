@@ -2,7 +2,7 @@ import { App } from '@octokit/app'
 import { request } from '@octokit/request'
 
 import { db } from '../../firebase'
-import { getRepoRef } from '../pr/pr'
+import * as Repos from '../repos'
 
 const APP_ID =
   process.env.NODE_ENV === 'production'
@@ -51,7 +51,7 @@ const ghFetch = async (url: string, options) => {
   // todo: this can be better somehow
   if (installationId == null) {
     installationId = await getInstallationId({ owner, repo })
-    await getRepoRef({ owner, repo }).update({ installationId })
+    await Repos.getRepoRef({ owner, repo }).update({ installationId })
   }
 
   try {

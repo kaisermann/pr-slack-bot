@@ -1,75 +1,113 @@
-import DB from '../../api/db.js'
-import runtime from '../../runtime.js'
-import Message from '../../includes/message.js'
-import get_sectioned_pr_blocks from '../../messages/section_pr_list.js'
+import { firestore } from 'firebase-admin'
 
+import * as Slack from '../api'
+import * as Messages from '../messages'
+import * as Users from '../../users'
+import { formatPullRequestListSections } from '../messages/prSectionList'
+import { getChannelActiveMessages } from '../../channels'
+
+export async function getPullRequestDocumentFromMessage(
+  msgDoc: ChannelMessageDocument
+): Promise<[ChannelMessageDocument, PullRequestDocument]> {
+  const prDoc = await msgDoc.prRef
+    .get()
+    .then((snap) => snap.data() as PullRequestDocument)
+
+  return [msgDoc, prDoc]
+}
+
+export function getPullRequestFromMessagesQuery(
+  query: firestore.QuerySnapshot
+) {
+  return Promise.all(
+    query.docs.map((doc) =>
+      getPullRequestDocumentFromMessage(doc.data() as ChannelMessageDocument)
+    )
+  )
+}
+
+// todo: find a way to ignore messages for prs already merged
 export default async ({ channel_id: channelId, user_id: userId, params }) => {
-  const channel = runtime.get_channel(channelId)
-
-  if (!channel) {
-    return `Sorry, but it seems I'm not tracking any PR from this channel.`
-  }
+  const messageCollection = getChannelActiveMessages({ channelId })
 
   if (params.length === 0) {
-    return [
-      Message.blocks.create_markdown_section(
-        `Here's all PRs listed on this channel:`
-      ),
-    ].concat(await get_sectioned_pr_blocks(channel.prs))
-  }
+    const prDocs = await getPullRequestFromMessagesQuery(
+      await messageCollection.get()
+    )
 
-  if (params === 'mine') {
-    const prs = channel.prs.filter((pr) => pr.poster_id === userId)
-
-    if (prs.length === 0) {
-      return "You don't have any pull requests listed on this channel"
+    if (prDocs.length === 0) {
+      return "There's no open PRs in this channel right now."
     }
 
     return [
-      Message.blocks.create_markdown_section(`Here's all PRs owned by you:`),
-    ].concat(await get_sectioned_pr_blocks(prs))
+      Messages.blocks.createMarkdownSection(
+        `Here's all PRs listed on this channel:`
+      ),
+    ].concat(await formatPullRequestListSections(prDocs))
   }
 
-  const groupMatch = Message.match_group_mention(params)
+  if (params === 'mine') {
+    const querySnap = await messageCollection
+      .where('poster_id', '==', userId)
+      .get()
+
+    if (querySnap.empty) {
+      return "You don't have any pull requests listed on this channel"
+    }
+
+    const prDocs = await getPullRequestFromMessagesQuery(querySnap)
+
+    return [
+      Messages.blocks.createMarkdownSection(`Here's all PRs owned by you:`),
+    ].concat(await formatPullRequestListSections(prDocs))
+  }
+
+  const groupMatch = Slack.matchGroupMention(params)
 
   if (groupMatch) {
     const [, matchedGroupId] = groupMatch
-    const members = new Set(
-      DB.users.get(['groups', matchedGroupId, 'users'], []).value()
-    )
+    const userGroupSnap = await Users.getUserGroupRef(matchedGroupId).get()
+    const userGroupData = userGroupSnap.data() as UserGroupDocument
+    const querySnap = await messageCollection
+      .where('poster_id', 'in', userGroupData.users)
+      .get()
 
-    const prs = channel.prs.filter((pr) => members.has(pr.poster_id))
-
-    if (prs.length === 0) {
-      return `${Message.get_group_mention(
+    if (querySnap.empty) {
+      return `${Slack.formatGroupMention(
         matchedGroupId
       )} don't have any pull requests listed on this channel`
     }
 
+    const prDocs = await getPullRequestFromMessagesQuery(querySnap)
+
     return [
-      Message.blocks.create_markdown_section(
-        `Here's all PRs owned by ${Message.get_group_mention(matchedGroupId)}:`
+      Messages.blocks.createMarkdownSection(
+        `Here's all PRs owned by ${Slack.formatUserMention(matchedGroupId)}:`
       ),
-    ].concat(await get_sectioned_pr_blocks(prs))
+    ].concat(await formatPullRequestListSections(prDocs))
   }
 
-  const userMatch = Message.match_user_mention(params)
+  const userMatch = Slack.matchUserMention(params)
 
   if (userMatch) {
     const [, matchedUserId] = userMatch
-    const prs = channel.prs.filter((pr) => pr.poster_id === matchedUserId)
+    const querySnap = await messageCollection
+      .where('poster_id', '==', matchedUserId)
+      .get()
 
-    if (prs.length === 0) {
-      return `${Message.get_user_mention(
+    if (querySnap.empty) {
+      return `${Slack.formatUserMention(
         matchedUserId
       )} don't have any pull requests listed on this channel`
     }
 
+    const prDocs = await getPullRequestFromMessagesQuery(querySnap)
+
     return [
-      Message.blocks.create_markdown_section(
-        `Here's all PRs owned by ${Message.get_user_mention(matchedUserId)}:`
+      Messages.blocks.createMarkdownSection(
+        `Here's all PRs owned by ${Slack.formatUserMention(matchedUserId)}:`
       ),
-    ].concat(await get_sectioned_pr_blocks(prs))
+    ].concat(await formatPullRequestListSections(prDocs))
   }
 
   return 'Invalid command parameters: `/pr list [ |mine|@user|@userGroup]`'
