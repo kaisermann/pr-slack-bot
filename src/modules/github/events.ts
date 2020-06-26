@@ -14,7 +14,7 @@ function onInstallation(req) {
     removed.forEach(({ full_name: fullName }) => {
       const repoId = fullName.replace('/', '@')
 
-      db.collection('github_installations').doc(repoId).delete()
+      db.collection('repos').doc(repoId).update({ installationId: null })
     })
   }
 
@@ -24,9 +24,9 @@ function onInstallation(req) {
 
       console.log(repoId)
 
-      db.collection('github_installations')
+      db.collection('repos')
         .doc(repoId)
-        .set({ installationId: installation.id })
+        .update({ installationId: installation.id })
     })
 
     // todo: is this needed?

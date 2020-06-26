@@ -41,7 +41,7 @@ interface UserDocument {
 interface PullRequestIdentifier {
   owner: string
   repo: string
-  number: number
+  number: string
 }
 
 interface PullRequestDocument {
@@ -51,7 +51,7 @@ interface PullRequestDocument {
   }
   owner: string
   repo: string
-  number: number
+  number: string
   thread: {
     channel: string
     ts: string
@@ -89,4 +89,10 @@ interface PullRequestActions {
 interface PullRequestAction {
   githubUser: string
   action: string
+}
+
+interface RepoDocument {
+  owner: string
+  repo: string
+  installationId: number | null
 }
