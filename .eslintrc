@@ -1,16 +1,9 @@
 {
-  "extends": "kiwi",
+  "extends": "vtex",
   "root": true,
   "env": {
     "node": true
   },
   "rules": {
-    "@typescript-eslint/camelcase": [
-      "error",
-      {
-        "properties": "never",
-        "ignoreDestructuring": true
-      }
-    ]
   }
 }
