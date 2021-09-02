@@ -33,7 +33,7 @@
     "dotenv": "^8.0.0",
     "fast-deep-equal": "^2.0.1",
     "forever": "^1.0.0",
-    "immer": "^3.2.0",
+    "immer": "^9.0.6",
     "lowdb": "^1.0.0",
     "memoizee": "^0.4.14",
     "node-cron": "^2.0.3",
